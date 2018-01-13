@@ -15,7 +15,7 @@ data sync *composes*. APIs are defined with simple Clojure functions, for exampl
 ```
 
 These API functions are 
-* referentially transparent and compose
+* referentially transparent and composable
 * coded in CLJC
 * don't know the difference between API client or API server
 * run simultaneously in both API client and API server
