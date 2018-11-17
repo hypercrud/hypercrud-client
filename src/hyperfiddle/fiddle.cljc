@@ -3,6 +3,7 @@
     [cats.core :as cats]
     [clojure.spec.alpha :as s]
     [contrib.ct :refer [unwrap]]
+    [contrib.data :refer [update-existing]]
     [contrib.reader :as reader]
     [contrib.string :refer [or-str]]
     [contrib.template :as template]
@@ -92,6 +93,7 @@
                    (condp contains? (:link/rel link)
                      #{:hf/new} "(constantly (hyperfiddle.api/tempid-detached ctx))"
                      #{:hf/affix} "(partial hyperfiddle.api/tempid-child ctx)"
+                     #{:hf/remove :hf/detach} "identity"
                      #{:hf/rel :hf/self :hf/iframe}
                      (case (get-in link [:link/fiddle :fiddle/type] ((:fiddle/type fiddle-defaults) (:link/fiddle link)))
                        :query (infer-query-formula (get-in link [:link/fiddle :fiddle/query] ((:fiddle/query fiddle-defaults) (:link/fiddle link))))
@@ -121,7 +123,7 @@
 
 (defn auto-link [link]
   (let [link (cond-> link
-                     (contains? #{:hf/rel :hf/self :hf/new :hf/iframe} (:link/rel link)) (update :link/fiddle apply-defaults))]
+                     (contains? #{:hf/rel :hf/self :hf/new :hf/iframe} (:link/rel link)) (update-existing :link/fiddle apply-defaults))]
     (-> link
         (update :link/formula or-str ((:link/formula link-defaults) link))
         (update :link/tx-fn or-str ((:link/tx-fn link-defaults) link)))))

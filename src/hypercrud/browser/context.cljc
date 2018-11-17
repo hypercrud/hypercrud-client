@@ -130,6 +130,7 @@
 (defn refocus "focus common ancestor" [ctx path]
   {:pre [ctx]
    :post [%]}
+  ; This should run the link formula as part of focus step
   (let [current-path (:hypercrud.browser/path ctx)
         common-ancestor-path (ancestry-common current-path path)
         unwind-offset (- (count current-path) (count common-ancestor-path))
@@ -139,10 +140,10 @@
 (defn id [ctx]
   ; When looking at an attr of type ref, figure out it's identity, based on all the ways it can be pulled.
   ; What if we pulled children without identity? Then we can't answer the question (should assert this)
-  (or
-    @(contrib.reactive/cursor (:hypercrud.browser/data ctx) [:db/ident])
-    @(contrib.reactive/cursor (:hypercrud.browser/data ctx) [:db/id])
-    @(:hypercrud.browser/data ctx)))
+  (if-let [data (:hypercrud.browser/data ctx)]              ; Guard is for txfn popover call site
+    (or @(contrib.reactive/cursor data [:db/ident])
+        @(contrib.reactive/cursor data [:db/id])
+        @data)))
 
 (defn has-entity-identity? [ctx]
   (::field/data-has-id? @(:hypercrud.browser/field ctx))

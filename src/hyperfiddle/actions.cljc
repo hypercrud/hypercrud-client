@@ -235,7 +235,7 @@
 
 (defn stage-popover [rt branch swap-fn-async & on-start]    ; todo rewrite in terms of with-groups
   (fn [dispatch! get-state]
-    (p/then (swap-fn-async (get-in (get-state) [::runtime/partitions branch :stage] {}))
+    (p/then (swap-fn-async)
             (fn [{:keys [tx app-route]}]
               (let [with-actions (mapv (fn [[uri tx]]
                                          (let [tx (update-to-tempids get-state branch uri tx)]

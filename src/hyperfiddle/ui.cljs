@@ -38,7 +38,7 @@
     [hyperfiddle.ui.api]
     [hyperfiddle.ui.controls :as controls :refer [label-with-docs dbid-label magic-new]]
     [hyperfiddle.ui.docstring :refer [semantic-docstring]]
-    [hyperfiddle.ui.popover :refer [affect-cmp popover-cmp]]
+    [hyperfiddle.ui.popover :refer [effect-cmp popover-cmp]]
     [hyperfiddle.ui.select$]
     [hyperfiddle.ui.sort :as sort]
     [hyperfiddle.ui.util :as ui-util :refer [eval-renderer-comp writable-entity?]]
@@ -301,7 +301,13 @@ User renderers should not be exposed to the reaction."
     (let [visual-ctx ctx
           ctx (context/refocus ctx (link/read-path @(r/fmap :link/path link-ref)))
           error-comp (ui-error/error-comp ctx)
-          r+?route (r/fmap->> link-ref (routing/build-route' ctx)) ; need to re-focus from the top
+          +args @(r/fmap->> link-ref (routing/build-args+ ctx))
+          r+?route (r/fmap->> link-ref (routing/build-route' +args ctx)) ; need to re-focus from the top
+          props @(r/track validated-route-tooltip-props r+?route link-ref ctx props) ; everyone needs the route, even txfns
+          args (first (unwrap (constantly nil) +args))
+          eav [(some-> ctx :hypercrud.browser/parent hypercrud.browser.context/id) ; Todo move into refocus. Also might not have one, txfn understands this
+               (last (:hypercrud.browser/path ctx))         ; todo chop off FE todo
+               (:db/id args)]                               ; Todo for :hf/new, the focused data is now eschewed in favor of this new tempid
           style {:color nil #_(connection-color ctx (cond (system-link? (:db/id @link-ref)) 60 :else 40))}
           props (update props :style #(or % style))
           has-tx-fn @(r/fmap-> link-ref :link/tx-fn blank->nil boolean)
@@ -311,15 +317,15 @@ User renderers should not be exposed to the reaction."
         (let [props (-> props
                         (update :class css "hyperfiddle")
                         (update :disabled #(or % (disabled? link-ref ctx))))]
-          [affect-cmp link-ref ctx props @(r/track prompt link-ref ?label)])
+          [effect-cmp link-ref eav ctx props @(r/track prompt link-ref ?label)])
 
         (or has-tx-fn (and is-iframe (:iframe-as-popover props)))
-        (let [props (-> @(r/track validated-route-tooltip-props r+?route link-ref ctx props)
+        (let [props (-> props
                         (dissoc :iframe-as-popover)
                         (update :class css "hyperfiddle")   ; should this be in popover-cmp? what is this class? – unify with semantic css
                         (update :disabled #(or % (disabled? link-ref ctx))))
               label @(r/track prompt link-ref ?label)]
-          [popover-cmp link-ref ctx visual-ctx props label])
+          [popover-cmp link-ref eav ctx visual-ctx props label])
 
         is-iframe
         [stale/loading (stale/can-be-loading? ctx) (fmap #(route/assoc-frag % (:frag props)) @r+?route) ; what is this frag noise?
@@ -331,11 +337,11 @@ User renderers should not be exposed to the reaction."
                              (dissoc props ::custom-iframe)
                              (update :class css (css-slugify @(r/fmap auto-link-css link-ref))))]))]
 
-        :else (let [props @(r/track validated-route-tooltip-props r+?route link-ref ctx props)]
-                [tooltip (tooltip-props (:tooltip props))
-                 (let [props (dissoc props :tooltip)]
-                   ; what about class - flagged
-                   [anchor ctx props @(r/track prompt link-ref ?label)])])
+        :else [tooltip (tooltip-props (:tooltip props))
+               (let [props (dissoc props :tooltip)]
+                 ; what about class - flagged
+                 ; No eav, the route is the same info
+                 [anchor ctx props @(r/track prompt link-ref ?label)])]
         ))))
 
 (defn ^:export link "Relation level link renderer. Works in forms and lists but not tables." ; this is dumb, use a field renderer

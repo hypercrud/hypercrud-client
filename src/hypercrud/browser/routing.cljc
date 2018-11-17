@@ -91,20 +91,26 @@
     (->ThinEntity (context/dbname ctx) (smart-entity-identifier ctx v))))
 
 (let [eval-string!+ (memoize eval/eval-expr-str!+)]
-  (defn ^:export build-route' "There may not be a route! Fiddle is sometimes optional"
+  (defn build-args+
+    "formulas have to run as part of link refocusing so formula tempids can occlude the eschewed pulled-tree data"
     [ctx {:keys [:link/fiddle :link/tx-fn] :as link}]
-    (if (and (not fiddle) tx-fn)
-      (right nil)                                           ; :hf/remove doesn't have one by default, :hf/new does, both can be customized
-      (mlet [fiddle-id (if fiddle
-                         (right (:fiddle/ident fiddle))
-                         (left {:message ":link/fiddle required" :data {:link link}}))
-             f-wrap (if-let [formula-str (blank->nil (:link/formula link))]
-                      (eval-string!+ (str "(fn [ctx] \n" formula-str "\n)"))
-                      (either/right (constantly (constantly nil))))
-             f (try-either (f-wrap ctx))
-             colored-args (try-either @(r/fmap->> (or (:hypercrud.browser/data ctx) (r/track identity nil))
-                                                  (pull->colored-eid ctx)
-                                                  f))
-             route (id->tempid+ (route/canonicalize fiddle-id (normalize-args colored-args)) ctx)
-             route (route/validate-route+ route)]
-        (return route)))))
+    (mlet [f-wrap (if-let [formula-str (blank->nil (:link/formula link))]
+                    (eval-string!+ (str "(fn [ctx] \n" formula-str "\n)"))
+                    (either/right (constantly (constantly nil))))
+           f (try-either (f-wrap ctx))
+           colored-args (try-either @(r/fmap->> (or (:hypercrud.browser/data ctx) (r/track identity nil))
+                                                (pull->colored-eid ctx)
+                                                f))]
+      (return (normalize-args colored-args)))))
+
+(defn ^:export build-route' "There may not be a route! Fiddle is sometimes optional"
+  [+args ctx {:keys [:link/fiddle :link/tx-fn] :as link}]
+  (if (and (not fiddle) tx-fn)
+    (mlet [colored-args +args] (return nil))               ; :hf/remove doesn't have one by default, :hf/new does, both can be customized
+    (mlet [colored-args +args                              ; part of error chain
+           fiddle-id (if fiddle
+                       (right (:fiddle/ident fiddle))
+                       (left {:message ":link/fiddle required" :data {:link link}}))
+           route (id->tempid+ (route/canonicalize fiddle-id colored-args) ctx)
+           route (route/validate-route+ route)]
+      (return route))))

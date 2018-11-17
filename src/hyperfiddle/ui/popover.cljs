@@ -1,5 +1,6 @@
 (ns hyperfiddle.ui.popover
   (:require
+    [cats.core :refer [fmap]]
     [contrib.css :refer [css]]
     [contrib.eval :as eval]
     [contrib.keypress :refer [with-keychord]]
@@ -22,7 +23,7 @@
 
 (let [safe-eval-string #(try-promise (eval/eval-expr-str! %))
       memoized-eval-string (memoize safe-eval-string)]
-  (defn- with-swap-fn [link-ref ?route ctx f]
+  (defn- with-swap-fn [link-ref eav ctx f]
     (let [{:keys [:link/tx-fn] :as link} @link-ref]
       (-> (if (and (string? tx-fn) (not (string/blank? tx-fn)))
             (memoized-eval-string tx-fn)                    ; TODO migrate type to keyword
@@ -31,32 +32,35 @@
             (fn [user-txfn]
               (p/promise
                 (fn [resolve! reject!]
-                  (let [swap-fn-async (fn [multi-color-tx]
-                                        (let [result (let [result ((hyperfiddle.api/txfn user-txfn) ctx multi-color-tx ?route)]
+                  (let [swap-fn-async (fn []
+                                        (let [result (let [[e a v] eav
+                                                           result (hyperfiddle.api/txfn user-txfn e a v ctx)]
                                                        ; txfn may be sync or async
                                                        (if-not (p/promise? result) (p/resolved result) result))]
                                           ; let the caller of this :stage fn know the result
                                           ; This is super funky, a swap-fn should not be effecting, but seems like it would work.
-                                          (p/branch result
-                                                    (fn [v] (resolve! nil))
-                                                    (fn [e]
-                                                      (reject! e)
-                                                      (timbre/warn e)))
+                                          (-> result (p/branch (fn [v] (resolve! nil))
+                                                               (fn [e]
+                                                                 (reject! e)
+                                                                 (timbre/warn e))))
 
                                           ; return the result to the action, it could be a promise
-                                          result))]
+                                          (->> result
+                                               (fmap (fn [v] ; legacy adapter
+                                                       {:tx {(hypercrud.browser.context/uri ctx) v}})))))]
                     (runtime/dispatch! (:peer ctx) [:txfn (:link/rel link) (:link/path link)])
                     (f swap-fn-async))))))
           ; todo something better with these exceptions (could be user error)
           (p/catch (fn [err] (js/alert (pprint-str err))))))))
 
-(defn stage! [link-ref route popover-id child-branch ctx]
+(defn stage! [link-ref eav popover-id child-branch ctx props]
   (let [f (fn [swap-fn-async]
+            ; the swap-fn could be determined via the link rel
             (->> (actions/stage-popover (:peer ctx) child-branch
-                                        swap-fn-async       ; the swap-fn could be determined via the link rel
+                                        #(->> (swap-fn-async) (fmap (or (::user-action props) identity)))
                                         (actions/close-popover (:branch ctx) popover-id))
                  (runtime/dispatch! (:peer ctx))))]
-    (with-swap-fn link-ref route ctx f)))
+    (with-swap-fn link-ref eav ctx f)))
 
 (defn close! [popover-id ctx]
   (runtime/dispatch! (:peer ctx) (actions/close-popover (:branch ctx) popover-id)))
@@ -66,14 +70,14 @@
                                    (actions/close-popover (:branch ctx) popover-id)
                                    (actions/discard-partition child-branch))))
 
-(defn managed-popover-body [route popover-id child-branch link-ref ctx]
+(defn managed-popover-body [route popover-id child-branch link-ref ctx eav props]
   [:div.hyperfiddle-popover-body                            ; wrpaper helps with popover max-width, hard to layout without this
    ; NOTE: this ctx logic and structure is the same as the popover branch of browser-request/recurse-request
    (let [ctx (cond-> (context/clean ctx)                    ; hack clean for block level errors
                      child-branch (assoc :branch child-branch))]
      [hyperfiddle.ui/iframe ctx {:route route}])            ; cycle
    (when child-branch
-     [:button {:on-click (r/partial stage! link-ref route popover-id child-branch ctx)} "stage"])
+     [:button {:on-click (r/partial stage! link-ref eav popover-id child-branch ctx props)} "stage"])
    (if child-branch
      [:button {:on-click #(cancel! popover-id child-branch ctx)} "cancel"]
      [:button {:on-click #(close! popover-id ctx)} "close"])])
@@ -94,22 +98,23 @@
     child
     [tooltip (tooltip-props (:tooltip props)) child]))
 
-(defn run-txfn! [link-ref ctx]
+(defn run-txfn! [link-ref eav ctx props]
   (letfn [(f [swap-fn-async]
-            (p/then (swap-fn-async {})
-                    (fn [{:keys [tx app-route]}]
-                      (->> (actions/with-groups (:peer ctx) (:branch ctx) tx :route app-route)
-                           (runtime/dispatch! (:peer ctx))))))]
-    (with-swap-fn link-ref nil ctx f)))
+            (-> (->> (swap-fn-async) (fmap (or (::user-action props) identity)))
+                (p/then
+                  (fn [{:keys [tx app-route]}]
+                    (->> (actions/with-groups (:peer ctx) (:branch ctx) tx :route app-route)
+                         (runtime/dispatch! (:peer ctx)))))))]
+    (with-swap-fn link-ref eav ctx f)))
 
-(defn affect-cmp [link-ref ctx props label]
+(defn effect-cmp [link-ref eav ctx props label]
   (let [props (-> props
-                  (assoc :on-click (r/partial run-txfn! link-ref ctx))
+                  (assoc :on-click (r/partial run-txfn! link-ref eav ctx props))
                   ; use twbs btn coloring but not "btn" itself
                   (update :class css "btn-warning"))]
     [:button props [:span (str label "!")]]))
 
-(defn popover-cmp [link-ref ctx visual-ctx props label]
+(defn popover-cmp [link-ref eav ctx visual-ctx props label]
   ; try to auto-generate branch/popover-id from the product of:
   ; - link's :db/id
   ; - route
@@ -139,4 +144,4 @@
        :anchor [:button btn-props [:span (str label "▾")]]
        :popover [re-com/popover-content-wrapper
                  :no-clip? true
-                 :body [managed-popover-body (:route props) popover-id child-branch link-ref ctx]]]]]))
+                 :body [managed-popover-body (:route props) popover-id child-branch link-ref ctx eav props]]]]]))

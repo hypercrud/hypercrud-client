@@ -15,28 +15,19 @@
   ([ctx]
    (with-tempid-color ctx tempid-from-stage)))
 
-(defmulti txfn identity)
+(defmulti txfn (fn [user-txfn e a v ctx] user-txfn))
 
-(defmethod txfn :default [_] nil)
-(defmethod txfn :zero [_] (constantly {:tx []}))            ; hack to draw as popover
+(defmethod txfn :default [_ e a v ctx]
+  nil)
 
-(defmethod txfn :db/add [_]
-  (fn [ctx multi-color-tx modal-route]
-    (let [[_ [{entity-id :db/id}]] modal-route
-          parent-id (-> ctx :hypercrud.browser/parent hypercrud.browser.context/id)
-          attr (last (:hypercrud.browser/path ctx))]
-      {:tx {(hypercrud.browser.context/uri ctx)
-            [[:db/add parent-id attr entity-id]]}})))
+(defmethod txfn :zero [_ e a v ctx]
+  [])                     ; hack to draw as popover
 
-(defmethod txfn :db.fn/retractEntity [_]
-  (fn [ctx multi-color-tx modal-route]
-    {:tx {(hypercrud.browser.context/uri ctx)
-          [[:db.fn/retractEntity (hypercrud.browser.context/id ctx)]]}}))
+(defmethod txfn :db/add [_ e a v ctx]
+  [[:db/add e a v]])
 
-(defmethod txfn :db/retract [_]
-  (fn [ctx multi-color-tx modal-route]
-    (let [entity-id (hypercrud.browser.context/id ctx)
-          parent-id (-> ctx :hypercrud.browser/parent hypercrud.browser.context/id)
-          attr (last (:hypercrud.browser/path ctx))]
-      {:tx {(hypercrud.browser.context/uri ctx)
-            [[:db/retract parent-id attr entity-id]]}})))
+(defmethod txfn :db/retract [_ e a v ctx]
+  [[:db/retract e a v ctx]])
+
+(defmethod txfn :db.fn/retractEntity [_ _ _ v ctx]
+  [[:db.fn/retractEntity v]])
