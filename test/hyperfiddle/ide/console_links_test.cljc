@@ -20,20 +20,6 @@
   #?(:clj (:import (datascript.parser FindRel FindColl FindTuple FindScalar Variable Aggregate Pull))))
 
 
-(deftest mt-fet-at
-  []
-  ; otherwise pointless, this test serves one important use: evaling and invoking affix.edn in the build
-  (let [uri #uri "test"
-        ctx {:hypercrud.browser/domain {:domain/databases #{{:domain.database/name "$"
-                                                             :domain.database/record {:database/uri uri}}}}
-             :hypercrud.browser/field (r/atom {::field/source-symbol "$"})
-             :hypercrud.browser/path [:parent/child]
-             :hypercrud.browser/data (r/atom {:db/id "child"})
-             :hypercrud.browser/parent {:hypercrud.browser/data (r/atom {:db/id "parent"})}}
-        modal-route [nil [{:db/id "child"}]]]
-    (is (= ((hyperfiddle.api/txfn :db/add) ctx nil modal-route)
-           {:tx {uri [[:db/add "parent" :parent/child "child"]]}}))))
-
 (def queries
   {FindColl '[:find [(pull ?e [:db/id                       ; self
                                :reg/email                   ; not a ref
