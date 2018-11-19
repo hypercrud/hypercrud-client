@@ -303,10 +303,9 @@ User renderers should not be exposed to the reaction."
           error-comp (ui-error/error-comp ctx)
           +args @(r/fmap->> link-ref (routing/build-args+ ctx))
           r+?route (r/fmap->> link-ref (routing/build-route' +args ctx)) ; need to re-focus from the top
-          args (first (unwrap (constantly nil) +args))
           eav [(some-> ctx :hypercrud.browser/parent hypercrud.browser.context/id) ; Todo move into refocus. Also might not have one, txfn understands this
                (last (:hypercrud.browser/path ctx))         ; todo chop off FE todo
-               (:db/id args)]                               ; Todo for :hf/new, the focused data is now eschewed in favor of this new tempid
+               (->> +args (unwrap (constantly nil)) first :db/id)]                               ; Todo for :hf/new, the focused data is now eschewed in favor of this new tempid
           style {:color nil #_(connection-color ctx (cond (system-link? (:db/id @link-ref)) 60 :else 40))}
           props (update props :style #(or % style))
           has-tx-fn @(r/fmap-> link-ref :link/tx-fn blank->nil boolean)
