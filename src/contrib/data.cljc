@@ -38,6 +38,14 @@
             (update acc k (fnil conj []) v))
           {} kvs))
 
+(defn dissoc-nils [m]
+  (reduce-kv (fn [m k v]
+               (if (nil? v)
+                 (dissoc m k)                               ; reuse structure
+                 m))
+             m
+             m))
+
 (defn update-existing [m k f & args]
   (if (get m k)
     (apply update m k f args)

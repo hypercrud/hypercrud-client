@@ -135,6 +135,9 @@
   (assert (reactive? rv) (str "fmap rv: " rv " did you pass nil instead of (r/atom nil)?"))
   (track (comp f deref) rv))
 
+(defn >>= [fr rv]
+  (track (comp deref fr deref) rv))
+
 (defmacro fmap-> [x & forms]
   (loop [x x, forms forms]
     (if forms

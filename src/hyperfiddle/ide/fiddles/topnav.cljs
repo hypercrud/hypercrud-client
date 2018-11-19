@@ -60,12 +60,14 @@
                             "stage-dirty")
                    :iframe-as-popover true}]
         [ui/link :hf/iframe :stage ctx "stage" props])
-      (ui/link :hf/rel :new-fiddle ctx "new" (let [disabled? (not (security/can-create? ctx)) ; we explicitly know the context here is $
+      (ui/link :hf/new :new-fiddle ctx "new" (let [disabled? (not (security/can-create? ctx)) ; we explicitly know the context here is $
                                                    anonymous? (nil? @(runtime/state (:peer ctx) [::runtime/user-id]))]
                                                {:disabled disabled?
                                                 :tooltip (cond
                                                            (and anonymous? disabled?) [:warning "Please login"]
-                                                           disabled? [:warning "Writes restricted"])}))
+                                                           disabled? [:warning "Writes restricted"])
+                                                :hyperfiddle.ui.popover/redirect (fn [popover-data]
+                                                                                   [(:fiddle/ident popover-data)])}))
       [tooltip {:label "Environment administration"} (ui/link :hf/rel :domain ctx "env")]
       (if @(runtime/state (:peer ctx) [::runtime/user-id])
         (if-let [{:keys [:hypercrud.browser/data]} (hyperfiddle.data/browse ctx :hf/iframe :account)]

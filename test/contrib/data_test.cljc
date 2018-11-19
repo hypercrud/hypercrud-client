@@ -2,7 +2,7 @@
   (:require
     [clojure.test :refer [deftest is]]
     [contrib.string :refer [blank->nil]]
-    [contrib.data :refer [cond-let map-pad pad rtrim-coll fix-arity fvor take-to ungroup
+    [contrib.data :refer [cond-let map-pad pad rtrim-coll fix-arity fvor take-to ungroup dissoc-nils
                           compare-by-index ancestry-common ancestry-divergence merge-by collect orp]]))
 
 
@@ -115,6 +115,11 @@
   (is (= (collect [[[0 :foo/bar] :missing]
                    [[0 :foo/bar] :b]])
          {[0 :foo/bar] [:missing :b]}))
+  )
+
+(deftest dissoc-nils-
+  (is (= (dissoc-nils {:a 42 :b nil nil 43})
+         {:a 42 nil 43}))
   )
 
 (deftest orp-test []
