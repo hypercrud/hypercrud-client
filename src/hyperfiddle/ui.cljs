@@ -303,7 +303,6 @@ User renderers should not be exposed to the reaction."
           error-comp (ui-error/error-comp ctx)
           +args @(r/fmap->> link-ref (routing/build-args+ ctx))
           r+?route (r/fmap->> link-ref (routing/build-route' +args ctx)) ; need to re-focus from the top
-          props @(r/track validated-route-tooltip-props r+?route link-ref ctx props) ; everyone needs the route, even txfns
           args (first (unwrap (constantly nil) +args))
           eav [(some-> ctx :hypercrud.browser/parent hypercrud.browser.context/id) ; Todo move into refocus. Also might not have one, txfn understands this
                (last (:hypercrud.browser/path ctx))         ; todo chop off FE todo
@@ -320,7 +319,7 @@ User renderers should not be exposed to the reaction."
           [effect-cmp link-ref eav ctx props @(r/track prompt link-ref ?label)])
 
         (or has-tx-fn (and is-iframe (:iframe-as-popover props)))
-        (let [props (-> props
+        (let [props (-> @(r/track validated-route-tooltip-props r+?route link-ref ctx props)
                         (dissoc :iframe-as-popover)
                         (update :class css "hyperfiddle")   ; should this be in popover-cmp? what is this class? – unify with semantic css
                         (update :disabled #(or % (disabled? link-ref ctx))))
@@ -337,11 +336,12 @@ User renderers should not be exposed to the reaction."
                              (dissoc props ::custom-iframe)
                              (update :class css (css-slugify @(r/fmap auto-link-css link-ref))))]))]
 
-        :else [tooltip (tooltip-props (:tooltip props))
-               (let [props (dissoc props :tooltip)]
-                 ; what about class - flagged
-                 ; No eav, the route is the same info
-                 [anchor ctx props @(r/track prompt link-ref ?label)])]
+        :else (let [props @(r/track validated-route-tooltip-props r+?route link-ref ctx props)]
+                [tooltip (tooltip-props (:tooltip props))
+                 (let [props (dissoc props :tooltip)]
+                   ; what about class - flagged
+                   ; No eav, the route is the same info
+                   [anchor ctx props @(r/track prompt link-ref ?label)])])
         ))))
 
 (defn ^:export link "Relation level link renderer. Works in forms and lists but not tables." ; this is dumb, use a field renderer
