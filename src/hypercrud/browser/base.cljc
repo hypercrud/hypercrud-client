@@ -79,7 +79,7 @@
                        (if-let [?request @request]
                          @(hc/hydrate peer branch ?request)
                          (either/right nil)))]
-  (defn process-results [fiddle request ctx]                ; todo rename to (context/result)
+  (defn process-results "reaction" [fiddle request ctx]                ; todo rename to (context/result)
     (mlet [reactive-attrs @(r/apply-inner-r (project/hydrate-attrs ctx))
            reactive-result @(r/apply-inner-r (r/track nil-or-hydrate (:peer ctx) (:branch ctx) request))
            :let [ctx (assoc ctx
@@ -90,7 +90,7 @@
            reactive-field @(r/apply-inner-r (r/track field/auto-field request ctx))]
       (return (assoc ctx :hypercrud.browser/field reactive-field)))))
 
-(defn data-from-route [route ctx]                           ; todo rename
+(defn data-from-route "reaction, ctx-from-route" [route ctx]                           ; todo rename
   (mlet [ctx (-> (context/clean ctx)
                  (routing/route+ route))
          meta-fiddle-request @(r/apply-inner-r (r/track meta-request-for-fiddle ctx))
