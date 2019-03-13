@@ -81,16 +81,43 @@
       (let [me (first s)]
         (cons me (when (pred me) (take-to pred (rest s))))))))
 
-(defn parse-query-element [q query-element]
-  ; return value is symbols, not strings
+(defn parse-datomic-query-vector [q]
   (let [last-kw (atom nil)
         f (fn [x]
             (if (keyword? x) (reset! last-kw x))
             @last-kw)]
-    (->> (partition-by f q)
-         (filter #(= query-element (first %)))
-         first
-         (drop 1))))
+    (partition-by f q)))
+
+(defn parse-query-element [q k]
+  ; return value is symbols, not strings
+  (->> (parse-datomic-query-vector q)
+       (filter #(= k (first %)))
+       first
+       (drop 1)))
+
+(comment
+  (def q '[:find
+           (pull ?e [:db/id :fiddle/ident])
+           (max ?tx)
+           ?entrypoint
+           :where
+           (not-join [?e]
+                     [(ground hyperfiddle.io.bindings/*subject*) ?user-id]
+                     [?e :hyperfiddle/owners ?user-id])
+           [?e :fiddle/ident]
+           [(hyperfiddle.query/entrypoint-fiddle? $ ?e) ?entrypoint]
+           (not [?e :dustingetz.post/hidden true])
+           [?e _ _ ?tx]
+
+           :hf/post-eval (->> (sort-by first) (take 5))])
+
+  (sequence cat (parse-datomic-query-vector q))
+
+  (->> (parse-datomic-query-vector q)
+       (filter #(= "hf" (namespace (first %))))
+       (map (juxt first (comp first rest)))
+       (into {}))
+  )
 
 (defn transpose "Define transpose empty matrix to return the matrix unchanged - this is not math"
   [matrix]

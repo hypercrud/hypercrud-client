@@ -5,7 +5,7 @@
     [cats.monad.exception :as exception]
     [clojure.set :as set]
     [clojure.string :as string]
-    [contrib.data :refer [cond-let parse-query-element]]
+    [contrib.data :refer [cond-let parse-query-element parse-datomic-query-vector]]
     [contrib.datomic]
     [contrib.pprint :refer [pprint-str]]
     [contrib.try$ :refer [try-either]]
@@ -41,9 +41,17 @@
 
 (defmethod hydrate-request* QueryRequest [{:keys [query params]} get-secure-db-with]
   (assert query "hydrate: missing query")
-  (->> (map #(parameter % get-secure-db-with) params)
-       ;todo gaping security hole
-       (apply d/q query)))
+  (let [hf-directives (->> (parse-datomic-query-vector query)
+                           (filter #(= "hf" (namespace (first %))))
+                           (map (juxt first (comp first rest)))
+                           (into {}))
+        query' (->> (parse-datomic-query-vector query)
+                     (remove #(= "hf" (namespace (first %))))
+                     (sequence cat)
+                     vec)
+        qargs (map #(parameter % get-secure-db-with) params)]
+    (eval `(-> ~(apply d/q query' qargs)
+               ~(:hf/post-eval hf-directives `identity)))))
 
 ; todo i18n
 (def ERROR-BRANCH-PAST ":hyperfiddle.error/basis-stale Branching the past is currently unsupported, please refresh your basis by refreshing the page")
