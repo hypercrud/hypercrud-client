@@ -1,5 +1,6 @@
 (ns contrib.eval-cljs
-  (:require [contrib.template :refer [load-resource]]))
+  (:require [cljs.env]
+            [contrib.template :refer [load-resource]]))
 
 
 (defmacro build-cljsjs-empty-state []
