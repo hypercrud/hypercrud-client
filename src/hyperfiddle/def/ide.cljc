@@ -4,7 +4,7 @@
     [hyperfiddle.etc.def :as hf-def]
     [hyperfiddle.api :as hf]))
 
-(declare ctx props args via fiddle-args)
+(declare ctx props args)
 
 (hf-def/fiddle :hyperfiddle.ide/project
   :pull "$" [:db/id
@@ -42,12 +42,13 @@
          *                                                  ; For hyperblog, so we can access :hyperblog.post/title etc from the fiddle renderer
          ]
 
-  :link [":fiddle/ident" [:hf/remove]]
-  :link [":fiddle/links" [:hf/remove]]
-  :link [":fiddle/links" [:hf/new] :hyperfiddle.ide/new-link]
-  :link [":hyperfiddle/ide" [:hf/iframe] :hyperfiddle.ide/fiddle-options]
-  :link [":link/fiddle" [:hf/new] :hyperfiddle.ide/new-fiddle
-         :tx-fn ":hyperfiddle.ide.fiddles.fiddle-src/new-fiddle"]
+  :links
+  {":fiddle/ident"    [:hf/remove]
+   ":fiddle/links"    [[:hf/remove]
+                       [:hf/new ~:hyperfiddle.ide/new-link]]
+   ":hyperfiddle/ide" [:hf/iframe :hyperfiddle.ide/fiddle-options]
+   ":link/fiddle"     [:hf/new ~:hyperfiddle.ide/new-fiddle
+                       :tx-fn ":hyperfiddle.ide.fiddles.fiddle-src/new-fiddle"]}
 
   :renderer hyperfiddle.ide.fiddles.fiddle-src/fiddle-src-renderer
 
@@ -88,9 +89,9 @@
   :query '[:find (pull ?link [:db/id :fiddle/ident])
            :where
            (or [?link :fiddle/ident]
-             [?link :fiddle/type])]
+               [?link :fiddle/type])]
 
-  :link [":hyperfiddle.ide/fiddle-options" [:hf/remove]])
+  :links {":hyperfiddle.ide/fiddle-options" [:hf/remove]})
 
 (hf-def/fiddle :hyperfiddle.ide/new-fiddle
   :pull [:db/id :fiddle/ident]
@@ -108,8 +109,8 @@
   ")
 
 (hf-def/fiddle :hyperfiddle.ide/home
-  :link [":hyperfiddle.ide/home" [:hf/iframe] :hyperfiddle/topnav]
-  :link [":hyperfiddle.ide/home" [:hf/iframe] :hyperfiddle.ide/fiddle-index]
+  :links {":hyperfiddle.ide/home" [[:hf/iframe ~:hyperfiddle/topnav]
+                                   [:hf/iframe ~:hyperfiddle.ide/fiddle-index]]}
 
   :markdown "# :hyperfiddle.ide/home"
 
@@ -152,10 +153,11 @@
   ")
 
 (hf-def/fiddle :hyperfiddle/topnav
-  :link [":hyperfiddle/topnav" :hyperfiddle.ide/account :tx-fn ":zero"]
-  :link [":hyperfiddle/topnav" [:hf/iframe] :hyperfiddle.ide/topnav-new]
-  :link [":hyperfiddle/topnav" [:hf/iframe] :hyperfiddle.ide/env]
-  :link [":hyperfiddle/topnav" :hyperfiddle.ide/fiddle-index]
+  :links
+  {":hyperfiddle/topnav" [[:hyperfiddle.ide/account :tx-fn ":zero"]
+                          [:hf/iframe ~:hyperfiddle.ide/topnav-new]
+                          [:hf/iframe ~:hyperfiddle.ide/env]
+                          [~:hyperfiddle.ide/fiddle-index]]}
 
   :renderer
   (hyperfiddle.ide.fiddles.topnav/renderer val ctx props)
@@ -186,6 +188,9 @@
 
   :markdown "### Recently modified fiddles"
 
+  :code
+  (def fiddle-index-needle (reagent.core/atom ""))
+
   :renderer
   [:<>
    [:div.form-group
@@ -203,18 +208,16 @@
      (let [{:keys [:hypercrud.browser/fiddle]} ctx]
        [:div props
         [hyperfiddle.ui/markdown (:fiddle/markdown @fiddle) ctx]
-        [js/user.domain.fiddle-list ctx]])]]]
-
-  :code
-  (def fiddle-index-needle (reagent.core/atom "")))
+        [js/user.domain.fiddle-list ctx]])]]])
 
 (hf-def/fiddle :hyperfiddle.ide/env
-  :link [":hyperfiddle.ide/env" [:hf/iframe] :hyperfiddle/topnav]
-  :link [":hyperfiddle.ide/env" [:hf/iframe] :hyperfiddle.ide/domain
-         :formula "(constantly #entity[\"$domains\" [:domain/ident (:app-domain-ident (hyperfiddle.runtime/domain (:runtime ctx)))]])"]
-  :link [":hyperfiddle.ide/env" [:hf/iframe] :hyperfiddle.ide/project
-         :formula "(constantly #entity [\"$\" :hyperfiddle/project])"]
-  :link [":hyperfiddle.ide/env" [:hf/iframe] :hyperfiddle.ide/attribute-renderers]
+  :links
+  {":hyperfiddle.ide/env" [[:hf/iframe ~:hyperfiddle/topnav]
+                           [:hf/iframe ~:hyperfiddle.ide/domain
+                            :formula (constantly #entity["$domains" [:domain/ident (:app-domain-ident (hyperfiddle.runtime/domain (:runtime ctx)))]])]
+                           [:hf/iframe ~:hyperfiddle.ide/project
+                            :formula (constantly #entity ["$" :hyperfiddle/project])]
+                           [:hf/iframe ~:hyperfiddle.ide/attribute-renderers]]}
 
   :renderer
   [:<>
@@ -266,8 +269,8 @@
 
 (hf-def/fiddle :hyperfiddle.ide/topnav-new
   :pull [:fiddle/ident]
-  :link [":fiddle/ident" [:hf/new] :hyperfiddle.ide/new-fiddle
-         :tx-fn :hyperfiddle.ide.fiddles.topnav/new-fiddle-tx])
+  :links {":fiddle/ident" [:hf/new ~:hyperfiddle.ide/new-fiddle
+                           :tx-fn :hyperfiddle.ide.fiddles.topnav/new-fiddle-tx]})
 
 (hf-def/fiddle :database/options-list
   :query '[:find (pull $domains ?e [:db/id :database/uri]) ?name
@@ -278,20 +281,18 @@
            [(.substring ?suri 28) ?name]])
 
 (hf-def/fiddle :databases/edit
-  :pull
-  "$domains"
-  [:db/id
-   :database/uri
-   :hyperfiddle/owners
-   {:database/write-security [:db/ident]}
-   :database.custom-security/client
-   :database.custom-security/server
-   {:domain.database/_record [:domain.database/name {:domain/_databases [:domain/ident]}]}
-   {:domain/_fiddle-database [:domain/ident]}
-   :db/doc]
+  :pull "$domains" [:db/id
+                    :database/uri
+                    :hyperfiddle/owners
+                    {:database/write-security [:db/ident]}
+                    :database.custom-security/client
+                    :database.custom-security/server
+                    {:domain.database/_record [:domain.database/name {:domain/_databases [:domain/ident]}]}
+                    {:domain/_fiddle-database [:domain/ident]}
+                    :db/doc]
 
-  :link [":database/write-security" [:hf/iframe] :databases/write-security-options]
-  :link [":databases/edit" [:hf/remove]]
+  :links {":database/write-security" [:hf/iframe :databases/write-security-options]
+          ":databases/edit"          [:hf/remove]}
 
   :renderer
   (let [custom-sec? (= :hyperfiddle.security/custom @(contrib.reactive/cursor (:hypercrud.browser/data ctx) [:database/write-security :db/ident]))]
@@ -343,7 +344,7 @@
          {:domain.database/record
           [:database/uri]}]
 
-  :link [":domain.databases/add" [:databases :hf/iframe] :database/options-list]
+  :links {":domain.databases/add" [[:databases :hf/iframe] ~:database/options-list]}
 
   :markdown "#### add database to domain"
 
@@ -462,8 +463,8 @@
                      :attribute/renderer])
            :where [?e :attribute/ident]]
 
-  :link [":attribute/ident" [:hf/remove]]
-  :link [":hyperfiddle.ide/domain-attribute-renderers" [:hf/new] :hyperfiddle.ide/attribute-edit]
+  :links {":attribute/ident"                            [:hf/remove]
+          ":hyperfiddle.ide/domain-attribute-renderers" [:hf/new :hyperfiddle.ide/attribute-edit]}
 
   :renderer
   (if (= "nodejs" *target*)
@@ -492,10 +493,10 @@
    :domain/home-route
    :domain/environment]
 
-  :link ["$domains :domain/databases" [:hf/remove]]
-  :link ["$domains :domain/databases" [:hf/new] :domain.databases/add]
-  :link [":hyperfiddle.ide/domain" [:hf/remove]]
-  :link [":hyperfiddle.ide/domain" [:hf/iframe] :database/options-list]
+  :links {"$domains :domain/databases" [[:hf/remove]
+                                        [:hf/new ~:domain.databases/add]]
+          ":hyperfiddle.ide/domain"    [[:hf/remove]
+                                        [:hf/iframe ~:database/options-list]]}
 
   :code
   (defmethod hyperfiddle.api/render #{:domain/ident
@@ -535,9 +536,9 @@
   ")
 
 (hf-def/fiddle :hyperfiddle.ide/edit
-  :link [":hyperfiddle.ide/edit" [:hf/iframe] :hyperfiddle/topnav]
-  :link [":hyperfiddle.ide/edit" [:hf/iframe] :hyperfiddle/ide
-         :formula "(constantly (-> @(:hypercrud.browser/route ctx) :hyperfiddle.route/datomic-args first))"]
+  :links {":hyperfiddle.ide/edit" [[:hf/iframe ~:hyperfiddle/topnav]
+                                   [:hf/iframe ~:hyperfiddle/ide
+                                    :formula (constantly (-> @(:hypercrud.browser/route ctx) :hyperfiddle.route/datomic-args first))]]}
 
   :renderer hyperfiddle.ide.edit/view
 
@@ -659,15 +660,19 @@
      [:center [:h3 "Please " [:a {:href href} "login"]]]]))
 
 (hf-def/fiddle :hyperfiddle.ide/schema
-  :link [":hyperfiddle.ide/schema" [:hf/iframe] :hyperfiddle.ide/schema-editor
-         :formula "(constantly (->> @(:hypercrud.browser/route ctx) second first (get (:hyperfiddle.ide.domain/user-dbname->ide (hyperfiddle.runtime/domain (:runtime ctx)))) hypercrud.types.DbName/->DbName))"]
-  :link [":hyperfiddle.ide/schema" [:hf/iframe] :hyperfiddle/topnav]
+  :links {":hyperfiddle.ide/schema"
+          [[:hf/iframe ~:hyperfiddle.ide/schema-editor
+            :formula (constantly (->> @(:hypercrud.browser/route ctx)
+                                      second first
+                                      (get (:hyperfiddle.ide.domain/user-dbname->ide (hyperfiddle.runtime/domain (:runtime ctx))))
+                                      hypercrud.types.DbName/->DbName))]
+           [:hf/iframe ~:hyperfiddle/topnav]]}
 
-  :renderer [[:<>
-              [hyperfiddle.ui/ui-from-link
-               (hyperfiddle.data/select ctx :hyperfiddle/topnav) ctx {}]
-              [hyperfiddle.ui/ui-from-link
-               (hyperfiddle.data/select ctx :hyperfiddle.ide/schema-editor) ctx {}]]]
+  :renderer [:<>
+             [hyperfiddle.ui/ui-from-link
+              (hyperfiddle.data/select ctx :hyperfiddle/topnav) ctx {}]
+             [hyperfiddle.ui/ui-from-link
+              (hyperfiddle.data/select ctx :hyperfiddle.ide/schema-editor) ctx {}]]
 
   :css "
     .-hyperfiddle-ide-schema-editor {
@@ -687,10 +692,11 @@
            :in $_
            :where [$_ :db.part/db :db.install/attribute ?attr]]
 
-  :link [":db/ident" [:hf/edit] :hyperfiddle.ide/schema.attribute
-         :formula "(fn [e] [(first (second @(:hypercrud.browser/route ctx))) e])"]
-  :link [":db/ident" [:hf/new] :hyperfiddle.ide/schema-editor.attribute
-         :formula "(constantly [(first (second @(:hypercrud.browser/route ctx))) (hyperfiddle.api/tempid! ctx)])"]
+  :links {":db/ident"
+          [[:hf/edit ~:hyperfiddle.ide/schema.attribute
+            :formula (fn [e] [(first (second @(:hypercrud.browser/route ctx))) e])]
+           [:hf/new ~:hyperfiddle.ide/schema-editor.attribute
+            :formula (constantly [(first (second @(:hypercrud.browser/route ctx))) (hyperfiddle.api/tempid! ctx)])]]}
 
   :renderer
   (let [hide-datomic (contrib.reactive/atom true)
@@ -750,27 +756,28 @@
    :db/isComponent
    :db/fulltext]
 
-  :renderer hyperfiddle.ide.fiddles.schema-attribute/renderer
+  :links {":hyperfiddle.ide/schema-editor.attribute"
+          [[[:cardinality-options :hf/iframe]
+            ~:hyperfiddle.ide/schema.options.cardinality]
+           [[:valueType-options :hf/iframe]
+            ~:hyperfiddle.ide/schema.options.valuetype]
+           [[:valueType-options :hf/iframe]
+            ~:hyperfiddle.ide/schema.options.unique]]}
 
-  :link [":hyperfiddle.ide/schema-editor.attribute" [:cardinality-options :hf/iframe]
-         :hyperfiddle.ide/schema.options.cardinality]
-
-  :link [":hyperfiddle.ide/schema-editor.attribute" [:valueType-options :hf/iframe]
-         :hyperfiddle.ide/schema.options.valuetype]
-
-  :link [":hyperfiddle.ide/schema-editor.attribute" [:valueType-options :hf/iframe]
-         :hyperfiddle.ide/schema.options.unique])
+  :renderer hyperfiddle.ide.fiddles.schema-attribute/renderer)
 
 (hf-def/fiddle :hyperfiddle.ide/schema.attribute
-  :link [":hyperfiddle.ide/schema.attribute" [:hf/iframe] :hyperfiddle/topnav]
-  :link [":hyperfiddle.ide/schema.attribute" [:hf/iframe] :hyperfiddle.ide/schema-editor.attribute
-         :formula "(constantly (second @(:hypercrud.browser/route ctx)))"]
+  :links {":hyperfiddle.ide/schema.attribute"
+          [[:hf/iframe ~:hyperfiddle/topnav]
+           [:hf/iframe ~:hyperfiddle.ide/schema-editor.attribute
+            :formula (constantly (second @(:hypercrud.browser/route ctx)))]]}
 
-  :renderer [[:<>
-              [hyperfiddle.ui/ui-from-link
-               (hyperfiddle.data/select ctx :hyperfiddle/topnav) ctx {}]
-              [hyperfiddle.ui/ui-from-link
-               (hyperfiddle.data/select ctx :hyperfiddle.ide/schema-editor.attribute) ctx {}]]]
+  :renderer
+  [:<>
+   [hyperfiddle.ui/ui-from-link
+    (hyperfiddle.data/select ctx :hyperfiddle/topnav) ctx {}]
+   [hyperfiddle.ui/ui-from-link
+    (hyperfiddle.data/select ctx :hyperfiddle.ide/schema-editor.attribute) ctx {}]]
 
   :css "
     .-hyperfiddle-ide-schema-editor-attribute {
@@ -825,31 +832,31 @@
              (doall))]])))
 
 (hf-def/fiddle :hyperfiddle.ide.schema/options.cardinality [:ide-dbname]
-  :with {:$db (symbol (fiddle-args :ide-dbname))}
+  :with {:$db (symbol ~:ide-dbname)}
   :query
-  '[:in ~(fiddle-args :$db) :find (list 'pull ~(fiddle-args :$db) '?e [:db/ident]) :where
-   [~(fiddle-args :$db) ?e :db/ident ?ident]
+  '[:in ~:$db :find (list 'pull ~:$db '?e [:db/ident]) :where
+   [~:$db ?e :db/ident ?ident]
    [(namespace ?ident) ?ns]
    [(= ?ns "db.cardinality")]])
 
 (hf-def/fiddle :hyperfiddle.ide.schema/options.unique [:ide-dbname]
-  :with {:$db (symbol (fiddle-args :ide-dbname))}
-  :query '[:in ~(fiddle-args $db) :find (list 'pull ~(fiddle-args $db) '?e [:db/ident]) :where
-           [~(fiddle-args $db) ?e :db/ident ?ident]
+  :with {:$db (symbol ~:ide-dbname)}
+  :query '[:in ~$db :find (list 'pull ~$db '?e [:db/ident]) :where
+           [~$db ?e :db/ident ?ident]
            [(namespace ?ident) ?ns]
            [(= ?ns "db.unique")]])
 
 (hf-def/fiddle :hyperfiddle.ide.schema/options.valueType [:ide-dbname]
-  :with {:$db (symbol (fiddle-args :ide-dbname))}
+  :with {:$db (symbol ~:ide-dbname)}
   :query
-  '[:in ~(fiddle-args :$db) :find (pull ~(fiddle-args :$db) ?valueType [:db/ident]) :where
-    [~(fiddle-args :$db) ?db-part :db.install/valueType '?valueType]
-    [~(fiddle-args :$db) ?db-part :db/ident :db.part/db]])
+  '[:in ~:$db :find (pull ~:$db ?valueType [:db/ident]) :where
+    [~:$db ?db-part :db.install/valueType '?valueType]
+    [~:$db ?db-part :db/ident :db.part/db]])
 
 (hf-def/fiddle :hyperfiddle.ide.schema/editor.attribute [:ide-dbname]
-  :with {:ident (with-ns 'hyperfiddle.ide.schema (str "editor.attribute" (fiddle-args :ide-dbname)))}
+  :with {:ident (with-ns 'hyperfiddle.ide.schema (str "editor.attribute" ~:ide-dbname))}
 
-  :pull ~(fiddle-args :ide-dbname)
+  :pull ~:ide-dbname
         [:db/id                                             ; for smart-identity tempid stability
          :db/ident
          {:db/valueType [:db/ident]}
@@ -861,21 +868,22 @@
 
   :renderer hyperfiddle.ide.fiddles.schema-attribute/renderer
 
-  :link [~(fiddle-args :ident) [:hf/iframe :cardinality-options]
-         ~(via :hyperfiddle.ide.schema/options.cardinality (fiddle-args :ide-dbname))]
-  :link [~(fiddle-args :ident) [:hf/iframe :unique-options]
-         ~(via :hyperfiddle.ide.schema/options.unique (fiddle-args :ide-dbname))]
-  :link [~(fiddle-args :ident) [:hf/iframe :valueType-options]
-         ~(via :hyperfiddle.ide.schema/options.valueType (fiddle-args :ide-dbname))])
+  :links
+  {~:ident [[[:hf/iframe :cardinality-options]
+             ~(:hyperfiddle.ide.schema/options.cardinality ~:ide-dbname)]
+            [[:hf/iframe :unique-options]
+             ~(:hyperfiddle.ide.schema/options.unique ~:ide-dbname)]
+            [[:hf/iframe :valueType-options]
+             ~(:hyperfiddle.ide.schema/options.valueType ~:ide-dbname)]]})
 
 (hf-def/fiddle :hyperfiddle.ide.schema/attribute [:user-dbname :user-dbname->ide]
-  :with {:ident      (keyword "hyperfiddle.ide.schema" (str "attribute" (fiddle-args :user-dbname)))
-         :ide-dbname ((fiddle-args :user-dbname->ide) (fiddle-args :user-dbname))}
+  :with {:ident      (keyword "hyperfiddle.ide.schema" (str "attribute" ~:user-dbname))
+         :ide-dbname (~:user-dbname->ide ~:user-dbname)}
 
-  :link [~(fiddle-args :ident) [:hf/iframe] :hyperfiddle/topnav]
-
-  :link [~(fiddle-args :ident) [:hf/iframe] ~(via :hyperfiddle.ide.schema/editor.attribute ide-dbname)
-         :formula (constantly (first (:hyperfiddle.route/datomic-args @(:hypercrud.browser/route ctx))))]
+  :links
+  {~:ident [[:hf/iframe ~:hyperfiddle/topnav]
+            [:hf/iframe ~(:hyperfiddle.ide.schema/editor.attribute ~:ide-dbname)
+             :formula (constantly (first (:hyperfiddle.route/datomic-args @(:hypercrud.browser/route ctx))))]]}
 
   :renderer
   [:<>
@@ -885,47 +893,46 @@
     (hyperfiddle.data/select ctx :hyperfiddle.ide.schema/editor.attribute ide-dbname) ctx {}]]
 
   :fiddle/css "
-     .-hyperfiddle-ide-schema-editor-attribute {
-       flex: 1 1;
-       overflow: auto;
-     }
-   ")
+    .-hyperfiddle-ide-schema-editor-attribute {
+      flex: 1 1;
+      overflow: auto;
+    }
+  ")
 
 (hf-def/fiddle :hyperfiddle.ide.schema/editor [:ide-dbname :user-dbname->ide]
-  :with {:ident (keyword "hyperfiddle.ide.schema" (str "editor" (fiddle-args :ide-dbname)))
-         :$db (symbol (fiddle-args :ide-dbname))}
+  :with {:ident (keyword "hyperfiddle.ide.schema" (str "editor" ~:ide-dbname))
+         :$db   (symbol ~:ide-dbname)}
 
   :query
-  '[:in ~(fiddle-args :$db) :find (pull ~(fiddle-args :$db) ?attr
+  '[:in ~:$db :find (pull ~:$db ?attr
                     [:db/id
                      :db/ident
                      {:db/valueType [:db/ident]}
                      {:db/cardinality [:db/ident]}
                      {:db/unique [:db/ident]}
                      :db/isComponent :db/fulltext :db/doc])
-   :where [~(fiddle-args :$db) :db.part/db :db.install/attribute '?attr]
+   :where [~:$db :db.part/db :db.install/attribute '?attr]
    ; binding for ui
-   [~(fiddle-args :$db) ?attr :db/ident ?ident]]
+
+   [~:$db ?attr :db/ident ?ident]]
 
   :renderer hyperfiddle.ide.fiddles.schema-editor/renderer
 
-  :link [~(str (fiddle-args :ide-dbname) " :db/ident")
-         ~(via :hyperfiddle.ide.schema/attribute
-            ((clojure.set/map-invert (fiddle-args :user-dbname->ide)) (fiddle-args :ide-dbname))
-            (fiddle-args :user-dbname->ide))]
-
-  :link [~(str (fiddle-args :ide-dbname) " :db/ident") [:hf/new]
-         ~(via :hyperfiddle.ide.schema/editor.attribute (fiddle-args :ide-dbname))])
+  :links
+  {~(str ~:ide-dbname " :db/ident")
+   [[~(:hyperfiddle.ide.schema/attribute
+        ((clojure.set/map-invert ~:user-dbname->ide) ~:ide-dbname)
+        ~:user-dbname->ide)]
+    [:hf/new ~(:hyperfiddle.ide.schema/editor.attribute ~:ide-dbname)]]})
 
 (hf-def/fiddle :hyperfiddle.ide.schema/_ [:user-dbname :user-dbname->ide]
   :with
-  {:ident ~(keyword "hyperfiddle.ide.schema" (fiddle-args :user-dbname))
-   :ide-dbname ((fiddle-args :user-dbname->ide) (fiddle-args :user-dbname))}
+  {:ident      ~(keyword "hyperfiddle.ide.schema" ~:user-dbname)
+   :ide-dbname (~:user-dbname->ide ~:user-dbname)}
 
-  :link {~(fiddle-args :ident) [:hf/iframe] ~(via :hyperfiddle.ide.schema/editor (fiddle-args :ide-dbname) (fiddle-args :user-dbname->ide))}
-
-  :link [~(fiddle-args :ident) [:hf/iframe] ~(via :hyperfiddle.ide.schema/editor (fiddle-args :ide-dbname) (fiddle-args :user-dbname->ide))]
-  :link [~(fiddle-args :ident) [:hf/iframe] :hyperfiddle/topnav]
+  :links
+  {~:ident [[:hf/iframe ~(:hyperfiddle.ide.schema/editor ~:ide-dbname ~:user-dbname->ide)]
+            [:hf/iframe ~(:hyperfiddle/topnav)]]}
 
   :renderer
   [:<>
@@ -933,7 +940,7 @@
     (hyperfiddle.data/select ctx :hyperfiddle/topnav) ctx {}]
    [hyperfiddle.ui/ui-from-link
     (hyperfiddle.data/select ctx :hyperfiddle.ide.schema/editor
-      (fiddle-args :ide-dbname)) ctx {}]]
+      ~:ide-dbname) ctx {}]]
 
   :css "
      .-hyperfiddle-ide-schema-editor {

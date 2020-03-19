@@ -3,7 +3,8 @@
     [clojure.core.async :as async]
     [cats.monad.either :as either]
     [promesa.core :as p]
-    [promesa.async]))
+    ;[promesa.async]
+    ))
 
 (defn as-either [v]
   (if (either/either? v) v (either/right v)))
@@ -24,8 +25,10 @@
   `(as-p (p/resolved (try ~@body
                           (catch Error e# (p/rejected e#))))))
 
-(defn from-async [v]
-  (.join (do-async v)))
+#?(:clj
+   (do
+     (defn from-async [v]
+       (.join (do-async v)))))
 
 (defmacro do-async-as-chan [& body]
   `(let [c# (async/chan)]
