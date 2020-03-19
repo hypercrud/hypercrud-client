@@ -1,4 +1,4 @@
-(ns hyperfiddle.def.core
+(ns hyperfiddle.def.system
   (:require
     [contrib.etc :refer [with-ns]]
     [hyperfiddle.etc.def :as hf-def]
@@ -175,8 +175,7 @@
        :renderer {:renderer
                   (fn [value ctx props]
                     (let [props (assoc props :debounce/interval contrib.ui/default-debounce-ms)]
-                      [hyperfiddle.ui.controls/code value ctx props]))}
-       })
+                      [hyperfiddle.ui.controls/code value ctx props]))}})
 
 (hf-def/fiddle :hyperfiddle.system/decoding-error []
   :renderer
@@ -191,6 +190,3 @@
 
 (hf-def/fiddle :hyperfiddle.system/unauthorized []
   :markdown "## Credentials invalid or stale. Please login again.")
-
-
-
