@@ -144,7 +144,7 @@
                        (try (let [context (from-async (f context))]
                               (assert (-> context :response :status))
                               context)
-                            (catch Error e
+                            (catch Throwable e
                               (timbre/error e)
                               {:status  (or (:hyperfiddle.io/http-status-code (ex-data e)) 500)
                                :headers {}                  ; todo retry-after on 503
