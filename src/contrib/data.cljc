@@ -223,7 +223,27 @@
   (if ?k
     (keyword (name ns) (str (name ?k)))))
 
+(defn in-ns? [ns x]
+  (= (str ns) (namespace (keyword x))))
+
 (defn keywordize [s]
   (if (= \: (first s))
     (keyword (subs s 1))
     (keyword s)))
+
+(defn first-key [k]
+  (cond (ident? k) k
+        (seqable? k) (first k)
+        :or (throw (IllegalArgumentException.))))
+
+(defn to-keys [v]
+  (cond (seqable? v) v
+        :or [v]))
+
+(defn tag [xs]
+  (keyword (first-key xs)))
+
+(defn trim-str [s]
+  (if-let [indent (some-> (re-find #"(\n +)\S" s) second)]
+    (clojure.string/trim (clojure.string/replace s indent "\n"))
+    (clojure.string/trim s)))
