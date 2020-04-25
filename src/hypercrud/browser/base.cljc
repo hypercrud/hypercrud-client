@@ -1,10 +1,12 @@
 (ns hypercrud.browser.base
- #?(:cljs
-    (:require-macros [backtick :refer [template]]))
+  #?(:cljs
+     (:require-macros
+       [contrib.do :refer [do-result]]))
   (:require
     #?(:clj [backtick :refer [template]])
     [cats.core :as cats :refer [mlet return]]
     [cats.monad.either :as either]
+    [contrib.do :refer [do-result from-result]]
     [clojure.string :as string]
     [contrib.datomic.common.query :as query]
     [contrib.reactive :as r]
@@ -42,30 +44,20 @@
       lookup-ref)
     lookup-ref))
 
-(defn- hydrate-fiddle-from-datomic+ [rt pid fiddle-ident]   ; no ctx
-  (mlet [:let [db (runtime/db rt pid (domain/fiddle-dbname (runtime/domain rt)))
-               request (->EntityRequest (legacy-fiddle-ident->lookup-ref fiddle-ident) db fiddle/browser-pull)]
-         record @(runtime/hydrate rt pid request)
-         record (if-not (:db/id record)
-                  (either/left (ex-info (str :hyperfiddle.error/fiddle-not-found)
-                                        {:ident :hyperfiddle.error/fiddle-not-found
-                                         :error-msg "Fiddle not found"
-                                         :human-hint "Did you just edit :fiddle/ident?"}))
-                  (either/right record))
-         fiddle (case (:fiddle/type record :blank)          ; defaults have NOT yet been applied
-                  :query (either/right record)  #_(mlet [query-needle (memoized-read-edn-string+ (:fiddle/query-needle record))]
-                                                    (return record))
-                  :entity (either/right record) #_(mlet [pull (memoized-read-edn-string+ (:fiddle/pull record))]
-                                                    (return (assoc record :fiddle/pull pull)))
-                  :eval (either/right record)
-                  :blank (either/right record))]
-    (return (fiddle/apply-defaults fiddle))))
+(defn- resolve-fiddle+ [rt pid fiddle-ident]                ; no ctx
+  (do-result
+    (let [db (runtime/db rt pid (domain/fiddle-dbname (runtime/domain rt)))
+          request (->EntityRequest (legacy-fiddle-ident->lookup-ref fiddle-ident) db fiddle/browser-pull)
+          record (from-result @(runtime/request rt pid request))]
+      (when-not (:db/id record)
+        (throw (ex-info (str :hyperfiddle.error/fiddle-not-found)
+                 {:ident        :hyperfiddle.error/fiddle-not-found
+                  :fiddle/ident fiddle-ident
+                  :fiddle       record
+                  :error-msg    (str "Fiddle not found (" fiddle-ident ")")
+                  :human-hint   "Did you just edit :fiddle/ident?"})))
 
-(defn- hydrate-fiddle+ [rt pid fiddle-ident]                ; no ctx
-  (-> (if (domain/system-fiddle? (runtime/domain rt) fiddle-ident)
-        (->> (domain/hydrate-system-fiddle (runtime/domain rt) fiddle-ident)
-             (cats/fmap fiddle/apply-defaults))
-        (hydrate-fiddle-from-datomic+ rt pid fiddle-ident))))
+      (fiddle/apply-defaults record))))
 
 (def browser-query-limit 50)
 

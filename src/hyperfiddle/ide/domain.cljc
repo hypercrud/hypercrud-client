@@ -1,12 +1,12 @@
 (ns hyperfiddle.ide.domain
   (:require
     [hyperfiddle.service.resolve :as R]
-    [contrib.etc :refer [in-ns?]]
+    #?(:clj
+       [hyperfiddle.def :as hf-def])
+    [contrib.data :refer [in-ns?]]
     [hyperfiddle.domain :as domain :refer [#?(:cljs EdnishDomain)]]
     [hyperfiddle.ide.routing :as ide-routing]
-    [hyperfiddle.ide.system-fiddle :as ide-system-fiddle]
     [hyperfiddle.route :as route]
-    [hyperfiddle.system-fiddle :as system-fiddle]
     [hyperfiddle.ui.db-color :as color]
 
     [cats.monad.either :as either]
@@ -19,6 +19,10 @@
 
 
 (def user-dbname-prefix "$user.")
+
+(defn resolve-fiddle [fiddle-ident]
+  #?(:cljs (js/console.trace :?!)
+     :clj (hf-def/get-fiddle fiddle-ident)))
 
 (defrecord IdeDomain [basis fiddle-dbname databases environment home-route build ?datomic-client
                       html-root-id memoize-cache]
@@ -43,14 +47,18 @@
 
   (api-routes [domain] R/ide-routes)
 
-  (system-fiddle? [domain fiddle-ident]
-    (or (in-ns? 'hyperfiddle.ide.schema fiddle-ident)
-      (system-fiddle/system-fiddle? fiddle-ident)))
+  (resolve-fiddle [domain fiddle-ident]
+    (resolve-fiddle fiddle-ident))
 
-  (hydrate-system-fiddle [domain fiddle-ident]
-    (cond
-      (in-ns? 'hyperfiddle.ide.schema fiddle-ident) (ide-system-fiddle/hydrate fiddle-ident (::user-dbname->ide domain))
-      :or (system-fiddle/hydrate fiddle-ident)))
+  ;(system-fiddle? [domain fiddle-ident]
+  ;  (or (in-ns? 'hyperfiddle.ide.schema fiddle-ident)
+  ;    (system-fiddle/system-fiddle? fiddle-ident)))
+
+  ;(hydrate-system-fiddle [domain fiddle-ident]
+  ;  (cond
+  ;    (in-ns? 'hyperfiddle.ide.schema fiddle-ident) (ide-system-fiddle/hydrate fiddle-ident (::user-dbname->ide domain))
+  ;    :or (system-fiddle/hydrate fiddle-ident)))
+
   #?(:clj (connect [domain dbname] (d/dyna-connect (domain/database domain dbname) ?datomic-client)))
 
   (memoize [domain f]
@@ -70,8 +78,9 @@
   (url-decode [domain s] (route/url-decode s home-route))
   (url-encode [domain route] (route/url-encode route home-route))
   (api-routes [domain] R/ide-user-routes)
-  (system-fiddle? [domain fiddle-ident] (system-fiddle/system-fiddle? fiddle-ident))
-  (hydrate-system-fiddle [domain fiddle-ident] (system-fiddle/hydrate fiddle-ident))
+  (resolve-fiddle [domain fiddle-ident] (resolve-fiddle fiddle-ident))
+  ;(system-fiddle? [domain fiddle-ident] (system-fiddle/system-fiddle? fiddle-ident))
+  ;(hydrate-system-fiddle [domain fiddle-ident] (system-fiddle/hydrate fiddle-ident))
   #?(:clj (connect [domain dbname] (d/dyna-connect (domain/database domain dbname) ?datomic-client)))
   (memoize [domain f]
     (if-let [f (get @memoize-cache f)]
@@ -122,8 +131,7 @@
 
 (defn build-from-user-domain                                ; todo delete
   ([user-domain {:keys [config src-uri ide-environment ide-databases] :as opts}]
-   {:pre [(instance? EdnishDomain user-domain)
-          (s/valid? domain/spec-ednish user-domain)
+   {:pre [(s/valid? domain/spec-ednish user-domain)
           (s/valid? (s/nilable :hyperfiddle.domain/databases) ide-databases)]}
    (build
      :?datomic-client    (:?datomic-client user-domain)

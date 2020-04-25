@@ -3,7 +3,7 @@
   (:require
     [hyperfiddle.service.resolve :as R]
     [hyperfiddle.route :as route]
-    [hyperfiddle.system-fiddle :as system-fiddle]
+    ;[hyperfiddle.system-fiddle :as system-fiddle]
     [hyperfiddle.ui.db-color :as color]
     [cognitect.transit :as t]
     [hypercrud.transit :as hc-t]
@@ -40,8 +40,9 @@
   (url-encode [domain route])
   (api-routes [domain])
 
-  (system-fiddle? [domain fiddle-ident])
-  (hydrate-system-fiddle [domain fiddle-ident])
+  (resolve-fiddle [domain fiddle-ident])
+  ;(system-fiddle? [domain fiddle-ident])
+  ;(hydrate-system-fiddle [domain fiddle-ident])
   #?(:clj (connect [domain dbname]))
   (memoize [domain f]))
 
@@ -88,8 +89,8 @@
   (url-decode [domain s] (route/url-decode s home-route))
   (url-encode [domain route] (route/url-encode route home-route))
   (api-routes [domain] R/domain-routes)
-  (system-fiddle? [domain fiddle-ident] (system-fiddle/system-fiddle? fiddle-ident))
-  (hydrate-system-fiddle [domain fiddle-ident] (system-fiddle/hydrate fiddle-ident))
+  ;(system-fiddle? [domain fiddle-ident] (system-fiddle/system-fiddle? fiddle-ident))
+  ;(hydrate-system-fiddle [domain fiddle-ident] (system-fiddle/hydrate fiddle-ident))
   #?(:clj (connect [domain dbname] (d/dyna-connect (database domain dbname) ?datomic-client)))
   (memoize [domain f]
     (if-let [f (get @memoize-cache f)]
@@ -111,8 +112,8 @@
       identity))
   (url-encode [domain route] (router-bidi/encode router route))
   (api-routes [domain] R/domain-routes)
-  (system-fiddle? [domain fiddle-ident] (system-fiddle/system-fiddle? fiddle-ident))
-  (hydrate-system-fiddle [domain fiddle-ident] (system-fiddle/hydrate fiddle-ident))
+  ;(system-fiddle? [domain fiddle-ident] (system-fiddle/system-fiddle? fiddle-ident))
+  ;(hydrate-system-fiddle [domain fiddle-ident] (system-fiddle/hydrate fiddle-ident))
   #?(:clj (connect [domain dbname] (d/dyna-connect (database domain dbname) ?datomic-client)))
   (memoize [domain f]
     (if-let [f (get @memoize-cache f)]

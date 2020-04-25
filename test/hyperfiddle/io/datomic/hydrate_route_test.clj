@@ -28,7 +28,8 @@
     (databases [domain]
       {"$" {:database/uri (->URI (str "datomic:mem://" 'hyperfiddle.io.datomic.hydrate-route-test "$"))}
        "$src" {:database/uri (->URI (str "datomic:mem://" 'hyperfiddle.io.datomic.hydrate-route-test "$src"))}})
-    (system-fiddle? [domain fiddle-ident] false)))
+    ;(system-fiddle? [domain fiddle-ident] false)
+    ))
 
 (use-fixtures :each
   (fixtures/init-domain

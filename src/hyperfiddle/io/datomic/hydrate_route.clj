@@ -16,7 +16,8 @@
     [hyperfiddle.state :as state]
     [promesa.core :as p]
     [hyperfiddle.scope :refer [scope]]
-    [taoensso.timbre :as timbre]))
+    [taoensso.timbre :as timbre]
+    [hyperfiddle.domain :as domain]))
 
 
 (deftype RT [domain db-with-lookup get-secure-db-with+ state-atom ?subject]
@@ -29,11 +30,15 @@
     (let [ptm @(r/cursor state-atom [::runtime/partitions pid :ptm])]
       (-> (if (contains? ptm request)
             (get ptm request)
-            (let [response (hydrate-requests/hydrate-request domain get-secure-db-with+ request ?subject)
-                  ptm (assoc ptm request response)
+            (let [result (or (if (some-> request :e vector?)
+                               (some-> (domain/resolve-fiddle (runtime/domain rt) (-> request :e second))
+                                       (assoc :db/id [:def (-> request :e second)])
+                                       either/right))
+                             (hydrate-requests/hydrate-request domain get-secure-db-with+ request ?subject))
+                  ptm (assoc ptm request result)
                   tempid-lookups (hydrate-requests/extract-tempid-lookups db-with-lookup pid)]
               (state/dispatch! rt [:hydrate!-success pid ptm tempid-lookups])
-              response))
+              result))
           (r/atom))))
   (set-route [rt pid route] (state/dispatch! rt [:partition-route pid route])))
 
@@ -49,6 +54,7 @@
            ; if the fiddle-db is broken (duplicate datoms), then attr-renderers and project WILL short it
            attr-renderers (project/hydrate-attr-renderers aux-rt pid local-basis partitions)
            project (project/hydrate-project-record aux-rt pid local-basis partitions)]
+
       (scope [`hydrate-route (:hyperfiddle.route/fiddle route)]
         (let [db-with-lookup (atom {})
               initial-state {::runtime/user-id    ?subject

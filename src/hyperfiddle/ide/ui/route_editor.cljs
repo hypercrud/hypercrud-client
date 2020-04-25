@@ -34,7 +34,7 @@
 (defn- datomic-args [rt branch]
   [route-element rt branch ::route/datomic-args]
   #_(either/branch
-      (base/hydrate-fiddle+ rt pid (::route/fiddle (runtime/get-route rt branch)))
+      (base/resolve-fiddle+ rt pid (::route/fiddle (runtime/get-route rt branch)))
       (fn [e]
         ; no fiddle for whatever reason, just hand the user a raw edn editor
         [route-element rt branch ::route/datomic-args])
