@@ -1,8 +1,7 @@
 (ns hyperfiddle.def.system
-  (:require
-    [contrib.etc :refer [with-ns]]
-    [hyperfiddle.etc.def :as hf-def]
-    [taoensso.timbre :as timbre]))
+  #?(:clj
+     (:require
+       [hyperfiddle.def :as hf-def])))
 
 
 (hf-def/schema
