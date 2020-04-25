@@ -14,7 +14,8 @@
     [hypercrud.browser.context :as context]
     [hyperfiddle.runtime :as runtime]
     [hyperfiddle.ui.error :as ui-error]
-    [hyperfiddle.ui.stale :as stale]))
+    [hyperfiddle.ui.stale :as stale]
+    [taoensso.timbre :as timbre]))
 
 
 (defn auto-ui-css-class [?ctx]                              ; semantic css
@@ -101,7 +102,8 @@
   [stale/loading
    (r/track runtime/loading? (:runtime ctx) (:partition-id ctx))
    (base/browse-partition+ ctx)
-   (fn [e] (into [error ctx e] args))
+   (fn [e] (timbre/error "error in render" (.-stack e))
+           (into [error ctx e] args))
    (fn [ctx] (into [success ctx] args))
    (fn [ctx] (into [success ctx] args))])
 
@@ -131,6 +133,7 @@
   [stale/loading
    (r/track runtime/loading? (:runtime ctx) (:partition-id ctx))
    (base/browse-result-as-fiddle+ ctx)
-   (fn [e] [browse-error ctx e props])
+   (fn [e] (timbre/error "error in render" (.-stack e))
+           [browse-error ctx e props])
    (fn [ctx] [browse-success ctx props])
    (fn [ctx] [browse-success ctx props])])

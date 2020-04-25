@@ -12,7 +12,7 @@
 
 (defn hydrate-impl [rt pid request]
   (r/fmap-> (r/cursor (state/state rt) [:hyperfiddle.runtime/partitions pid :ptm])
-            (get request (either/left {:message "Loading" :data {:request request}}))))
+            (get request (either/right {:message "Loading" :data {:request request}}))))
 
 (defn set-route [rt pid route force-hydrate]
   {:pre [(s/valid? :hyperfiddle/route route)]}
