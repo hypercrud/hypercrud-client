@@ -15,7 +15,7 @@
   runtime/HF-Runtime
   (domain [rt] domain)
   (io [rt] io)
-  (hydrate [rt pid request] (runtime-impl/hydrate-impl rt pid request))
+  (request [rt pid request] (runtime-impl/hydrate-impl rt pid request))
   (set-route [rt pid route] (runtime/set-route rt pid route false))
   (set-route [rt pid preview-route force-hydrate]
     (if (= preview-pid pid)

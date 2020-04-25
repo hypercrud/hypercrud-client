@@ -155,7 +155,7 @@
 
 (defn- nil-or-hydrate+ [rt pid request]
   (if request
-    @(runtime/hydrate rt pid request)
+    @(runtime/request rt pid request)
     (either/right nil)))
 
 ; internal bs abstraction to support hydrate-result-as-fiddle

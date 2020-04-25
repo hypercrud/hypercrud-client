@@ -19,7 +19,7 @@
 (defprotocol HF-Runtime
   (domain [rt])
   (io [rt])
-  (hydrate [rt pid request])
+  (request [rt pid request])
   (set-route
     [rt pid route]
     [rt pid route force-hydrate]

@@ -25,7 +25,7 @@
 
   runtime/HF-Runtime
   (domain [rt] domain)
-  (hydrate [rt pid request]
+  (request [rt pid request]
     (let [ptm @(r/cursor state-atom [::runtime/partitions pid :ptm])]
       (-> (if (contains? ptm request)
             (get ptm request)
