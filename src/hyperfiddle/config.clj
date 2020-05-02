@@ -36,7 +36,7 @@
              ::public-service-http-scheme]
     :req [:git/describe]))
 
-(defn get-config [config & [more-config]]
+(defn get-config [config & [more-config spec-selection]]
   (let [config (cond
                  (map? config) config
                  (string? config) (get-edn config))
@@ -45,7 +45,7 @@
                   :git/describe "dev"}
                  more-config
                  config)]
-    (s/assert :hyperfiddle.config/config config)
+    (s/assert (or spec-selection :hyperfiddle.config/config) config)
     config))
 
 (defn get-domain [config]
