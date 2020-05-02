@@ -5,6 +5,7 @@
     [clojure.string :as string]
     [cuerdas.core :as str]
     [goog.object :as object]
+    [hyperfiddle.api :as hf]
     [reagent.core :as reagent]))
 
 
@@ -47,14 +48,14 @@
             (select-keys [:id :class :default-value :on-change :value]) ; #318 Warning: React does not recognize the `lineNumbers` prop on a DOM element
             (assoc :auto-complete "off"
                    :read-only true)                         ; react-dom.inc.js:3137 Warning: Failed prop type: You provided a `value` prop to a form field without an `onChange` handler. This will render a read-only field. If the field should be mutable use `defaultValue`. Otherwise, set either `onChange` or `readOnly`.
-            (cond-> (:is-invalid props) (update :class css "invalid")))])
+            (cond-> (::hf/is-invalid props) (update :class css "invalid")))])
 
      :component-did-mount
      (fn [this]
        ; Codemirror will default to the first mode loaded in preamble
        (let [[_ props] (reagent/argv this)
              ref (js/CodeMirror.fromTextArea (reagent/dom-node this)
-                                             (-> (dissoc props :on-change :is-invalid)
+                                             (-> (dissoc props :on-change ::hf/is-invalid)
                                                  camel-keys ; casing hacks see https://github.com/hyperfiddle/hyperfiddle/issues/497
                                                  clj->js))]
 
@@ -65,7 +66,7 @@
            (.addKeyMap ref #js {"Ctrl-1" #(let [cur-mode (goog.object/getValueByKeys ref "__parinfer__" "mode")]
                                             (ensure-mode ref (case cur-mode "paren" "indent" "paren")))}))
 
-         (set-invalid! ref (:is-invalid props))
+         (set-invalid! ref (::hf/is-invalid props))
 
          ; Props are a shitshow. Remark is stringly, and codemirror wants js types.
          ; set `lineNumber=` to disable line numbers (empty string is falsey).
@@ -101,5 +102,5 @@
                     (not (and (= "" current-value) (= (:default-value props) new-value)))
                     (not (and (= "" new-value) (= (:default-value props) current-value))))
            (.setValue ref new-value))
-         (set-invalid! ref (:is-invalid props))
-         (sync-changed-props! ref (dissoc props :default-value :value :on-change :is-invalid))))}))
+         (set-invalid! ref (::hf/is-invalid props))
+         (sync-changed-props! ref (dissoc props :default-value :value :on-change ::hf/is-invalid))))}))

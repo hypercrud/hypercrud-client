@@ -10,6 +10,7 @@
     [fixtures.tank]
     [hypercrud.browser.context :as context]
     [hyperfiddle.core]                                      ; avoid cycle hyperfiddle.api
+    [hyperfiddle.api :as hf]
     [hyperfiddle.data]
     [hyperfiddle.domain :as domain]
     [hyperfiddle.fiddle :as fiddle]
@@ -1398,3 +1399,57 @@
                  (hyperfiddle.ui.sort/sortable?))
              false))
       )))
+
+(deftest validation-1
+  (is (= (context/validate-result (s/coll-of (s/keys :req [:foo/bar]))
+           [{:foo/bar 1 :db/id 123}
+            {:foo/baz 42 :db/id 124}]
+           contrib.datomic/smart-lookup-ref-no-tempids)
+        '([[124 :foo/bar] nil])))
+  )
+
+(comment
+  (s/def :asdf/qwer (s/coll-of (s/keys :req [:community/name])))
+  (describe :asdf/qwer {:reason "Field is required"})
+  (s/def :community/name
+    (s/and :community/name-not-blank :community/name-no-a))
+  (s/def :community/name-no-a #(not (clojure.string/includes? % "a")))
+  (s/def :community/name-not-blank #(not (clojure.string/blank? %)))
+  (describe :community/name-not-blank {:reason "Name can not be blank"})
+  (describe :community/name-no-a {:reason "Comunity name can not contain an a"})
+  )
+
+(s/def ::email-malformed #(clojure.string/includes? % "@"))
+(s/def ::email-blank (complement clojure.string/blank?))
+(s/def ::email (s/and string? ::email-blank ::email-malformed))
+(s/def ::gender (s/keys :req [:db/ident]))
+(s/def ::person (s/keys :req [::email ::gender]))           ; intermediate named spec vs composite spec
+(s/def ::index (s/coll-of (s/keys :req [::person])))
+(hf/def-validation-message ::gender "gender")
+(hf/def-validation-message ::email "email")
+(hf/def-validation-message ::email-blank "email blank")
+(hf/def-validation-message ::email-malformed "email malformed")
+
+(def test-validation-result
+  [{:db/id 11 ::person {::gender {:db/ident ::male}}}      ; missing email
+   {:db/id 12 ::person {::gender {:db/ident ::male} ::email ""}} ; blank email
+   {:db/id 13 ::person {::gender {:db/ident ::male} ::email "not-an-email"}} ; malformed email
+   {:db/id 14 ::person {::gender {:db/ident ::male} ::email "alice@example.com"}} ; valid
+   ])
+
+(deftest validation-2
+  (is (= (context/validate-result (s/get-spec ::index)
+           test-validation-result
+           contrib.datomic/smart-lookup-ref-no-tempids)
+        '([[11 :hypercrud.browser.context-test/person :hypercrud.browser.context-test/email] "email"]
+          [[12 :hypercrud.browser.context-test/person :hypercrud.browser.context-test/email] "email blank"]
+          [[13 :hypercrud.browser.context-test/person :hypercrud.browser.context-test/email] "email malformed"])))
+
+  ;(def problem (-> (s/explain-data ::index test-validation-result) ::s/problems vec #_(get 0)))
+  ;(context/form-cell-problem problem)
+
+  ;(def problems (::s/problems (s/explain-data ::index test-validation-result)))
+  ;(context/form-validation-hints problems)
+  ;(map context/form-cell-problem problems)
+
+  )

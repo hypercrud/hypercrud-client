@@ -2,7 +2,8 @@
   (:require
     [clojure.set :as set]
     [contrib.datomic :refer [tempid? cardinality? ref?
-                             ref-one? ref-many? scalar-one? scalar-many?]]))
+                             ref-one? ref-many? scalar-one? scalar-many?
+                             isComponent unique]]))
 
 
 (defn edit-entity "o/n are sets in the :many case"
@@ -120,6 +121,20 @@
                                       (= [op e a] [:db/add e-needle a-needle]))))]
     v))
 
+(declare flatten-map-stmt)
+
+(defn flatten-ref-stmt
+  [schema e a v]
+  (if (map? v)
+    (let [e' (or (:db/id v)              ; {:person/name "Earnest"}
+                 (str (hash v)))]
+      (if (or (isComponent schema a)
+              (some (partial unique schema) (keys v)))
+        (concat (flatten-map-stmt schema (assoc v :db/id e'))
+                [[:db/add e a e']])
+        (throw (ex-info "Nested Map Transactions must either be a component, or have a unique attribute" {:attribute a}))))
+    [[:db/add e a v]]))
+
 (defn flatten-map-stmt
   "Flatten a single Datomic map-form statement into equivalent vector-form statements. Recursive. See test case."
   [schema {e :db/id :as m}]
@@ -131,20 +146,10 @@
 
                    (cond
                      (ref-one? schema a)                    ; :employee/manager
-                     (let [m v
-                           e' (or (:db/id m)                ; {:person/name "Earnest"}
-                                  (str (hash m)))]
-                       (concat (flatten-map-stmt schema (assoc m :db/id e'))
-                               [[:db/add e a e']]))
+                     (flatten-ref-stmt schema e a v)
 
                      (ref-many? schema a)                   ; :person/siblings
-                     (->> v                                 ; [{:person/name "Cindy"} {:person/name "David"}]
-                          (mapcat (fn [m]                   ; {:person/name "Cindy"}
-                                    (let [e' (or (:db/id m)
-                                                 (str (hash m)))]
-                                      (concat (flatten-map-stmt schema (assoc m :db/id e'))
-                                              [[:db/add e a e']]))
-                                    )))
+                     (mapcat (partial flatten-ref-stmt schema e a) v)
 
                      (scalar-one? schema a)                 ; :person/name
                      [[:db/add e a v]]                      ; "Bob"
@@ -153,27 +158,20 @@
                      (->> v                                 ; [:movies :ice-cream :clojure]
                           (mapv (fn [v]
                                   [:db/add e a v])))
-
+                     :else (throw (ex-info "Flatten Map Statement | Attribute not defined as ref in schema" {:schema schema :attribute a}))
                      ))))))
 
-(defn ^:legacy flatten-tx
+
+
+(defn flatten-tx
   "Normalize a Datomic transaction by flattening any map-form Datomic statements into tuple-form"
   [schema mixed-form-tx]
   (->> mixed-form-tx
        (mapcat (fn [stmt]
-                 (if (map? stmt)                            ; map-form stmt expands to N vector-form stmts
+                 (if (map? stmt)                        ; map-form stmt expands to N vector-form stmts
                    (flatten-map-stmt schema stmt)
                    [stmt])))
        vec))
-
-(comment
-  (def schema)
-  (->> [[:db/add "a" :person/name "Alice"]
-        {:person/name "Bob"
-         :person/parents [{:person/name "Cindy"}
-                          {:person/name "David"}]}]
-       (flatten-tx schema))
-  )
 
 (defn filter-tx
   "run predicate on each stmt of tx, traversing map forms without altering them"

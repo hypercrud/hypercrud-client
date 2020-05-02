@@ -1,11 +1,5 @@
 (ns hyperfiddle.service.resolve)
 
-(def mode #?(:clj user/mode
-             :cljs (-> js/document (.getElementById "build") .-innerHTML)))
-
-(def dev (or (= mode :dev)(= mode "dev")))
-
-(def api-version-tag (if dev "dev" "0.0.1"))
 
 (def locations
   {:assets {:url  "/static/_"
@@ -41,23 +35,23 @@
    true (keyword route-ns "404")})
 
 (def domain-routes
-  ["/" {"api/" {(str api-version-tag "/") (api-routes nil)
-                [[#"[^/]*" :version] "/"] {true :force-refresh}
-                true                      :404}
-        "static/" {[:build "/" [#".+" :resource-name]] {:get :static-resource
-                                                        true :405}
-                   true :404}
+  ["/" {"api/"        {"/"                       (api-routes nil)
+                       [[#"[^/]*" :version] "/"] {true :force-refresh}
+                       true                      :404}
+        "static/"     {[:build "/" [#".+" :resource-name]] {:get :static-resource
+                                                            true :405}
+                       true                                :404}
         "favicon.ico" :favicon
-        true {:get :ssr
-              true :405}}])
+        true          {:get :ssr
+                       true :405}}])
 
 (def ide-routes
-  ["/" {"api/"        {(str api-version-tag "/") (api-routes nil)
-                       [[#"[^/]*" :version] "/"]    {true :force-refresh}
-                       true                         :404}
-        "api-user/"   {(str api-version-tag "/") (api-routes "user")
-                       [[#"[^/]*" :version] "/"]    {true :force-refresh}
-                       true                         :404}
+  ["/" {"api/"        {"/"                       (api-routes nil)
+                       [[#"[^/]*" :version] "/"] {true :force-refresh}
+                       true                      :404}
+        "api-user/"   {"/"                       (api-routes "user")
+                       [[#"[^/]*" :version] "/"] {true :force-refresh}
+                       true                      :404}
         "auth0"       {:get  :hyperfiddle.ide/auth0-redirect
                        #".+" :404
                        true  :405}
@@ -72,9 +66,9 @@
                        true :405}}])
 
 (def ide-user-routes
-  ["/" {"api-user/" {(str api-version-tag "/") (api-routes nil)
-                     [[#"[^/]*" :version] "/"]    {true :force-refresh}
-                     true                         :404}
+  ["/" {"api-user/" {"/"                       (api-routes nil)
+                     [[#"[^/]*" :version] "/"] {true :force-refresh}
+                     true                      :404}
         ; todo this static path conflicts with the ide
         "static/"   {[:build "/" [#".+" :resource-name]] {:get :static-resource
                                                           true :405}
@@ -109,11 +103,15 @@
 (defn via [task f & args]
   (apply f (from task) task args))
 
-(defn assoc-with [val R]
+(defn assoc-with
+  "adds an association with the resolver somewhere. so given some value, you can get back to R, which is what R/from does"
+  [val R]
   (vary-meta val
     (fn [M]
       (apply merge
         (or M {})
         {`from (fn R-from [& _] R)}
         (for [method (->> HF-Resolve :method-builders keys)]
+          ; lets you call methods on R from the proxy object
+          ; https://github.com/clojure/clojure/blob/master/changes.md#22-protocol-extension-by-metadata
           {(symbol method) (fn R-proxy [_ & args] (apply @method R args))})))))

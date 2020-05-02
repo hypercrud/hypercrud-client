@@ -18,22 +18,22 @@
        (java.util Date UUID))))
 
 
-(defn fetch-id-token [env domain service-uri oauth-authorization-code]
+(defn fetch-id-token [config domain service-uri oauth-authorization-code]
+  {:pre [domain]}
   (let [redirect-path (domain/api-path-for domain :hyperfiddle.ide/auth0-redirect)
         _ (assert redirect-path)
-        redirect-uri (str service-uri redirect-path)]
-    #?(:clj  (let [auth (AuthAPI. (:AUTH0_DOMAIN env) (:AUTH0_CLIENT_ID env) (:AUTH0_CLIENT_SECRET env))
+        redirect-uri (str service-uri redirect-path)
+        {:keys [:auth0]} config]
+    #?(:clj  (let [auth (AuthAPI. (:domain auth0) (:client-id auth0) (:client-secret auth0))
                    req (.exchangeCode auth oauth-authorization-code redirect-uri)]
                ; todo async api?
                (p/do* (-> req (.execute) (.getIdToken))))
-       :cljs (let [domain (:AUTH0_DOMAIN env)
-                   clientID (:AUTH0_CLIENT_ID env)
-                   clientSecret (:AUTH0_CLIENT_SECRET env)
-                   baseSite ""
-                   authorizationUrl (str domain "/authorize")
-                   tokenUrl (str domain "/oauth/token")
+       ; Node server target untested
+       :cljs (let [baseSite ""
+                   authorizationUrl (str (:domain auth0) "/authorize")
+                   tokenUrl (str (:domain auth0) "/oauth/token")
                    customHeaders nil
-                   oauth2 (OAuth2. clientID clientSecret baseSite authorizationUrl tokenUrl customHeaders)]
+                   oauth2 (OAuth2. (:client-id auth0) (:client-secret auth0) baseSite authorizationUrl tokenUrl customHeaders)]
                (p/promise (fn [resolve! reject!]
                             (.getOAuthAccessToken
                               oauth2 oauth-authorization-code (clj->js {"grant_type" "authorization_code"
@@ -41,11 +41,13 @@
                               (fn [e access_token refresh_token params]
                                 (if e (reject! e) (resolve! (object/get params "id_token")))))))))))
 
-(defn login [env domain service-uri io oauth-authorization-code]
+(defn login [config domain service-uri io oauth-authorization-code]
+  {:pre [config domain service-uri io oauth-authorization-code]}
   ;(assert false "die before login cookie set")
-  (mlet [encoded-id-token (fetch-id-token env domain service-uri oauth-authorization-code)
-         id-token (let [verify (jwt/build-verifier (:AUTH0_CLIENT_SECRET env)
-                                                   (:AUTH0_DOMAIN env))]
+  (mlet [encoded-id-token (fetch-id-token config domain service-uri oauth-authorization-code)
+         id-token (let [verify (jwt/build-verifier
+                                 (-> config :auth0 :client-secret)
+                                 (-> config :auth0 :domain))]
                     (p/do* (verify encoded-id-token)))
          basis (io/sync io #{"$users"})
          user-record (->> (map->EntityRequest {:e [:user/sub (:sub id-token)]
@@ -62,5 +64,5 @@
                                                 :user/user-id user-id}
                                          (nil? (:user/created-date user-record)) (assoc :user/created-date now))]})]
     (-> (assoc id-token :user-id (str user-id))
-        (jwt/sign (:AUTH0_CLIENT_SECRET env))               ; todo maybe use a different secret to sign
+        (jwt/sign (-> config :auth0 :client-secret))               ; todo maybe use a different secret to sign
         (return))))

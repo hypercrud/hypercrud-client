@@ -3,7 +3,7 @@
     [bidi.bidi :as bidi]
     [clojure.spec.alpha :as s]
     [clojure.string :as string]
-    [contrib.reader :refer [read-edn-string!]]
+    [contrib.reader :refer [read-edn-string!]]              ; loads hyperfiddle.readers, there is a contrib->hyperfiddle dep
     [contrib.string :refer [abc empty->nil]]
     [cuerdas.core :as str]
     [hyperfiddle.route :as route]
@@ -110,7 +110,9 @@
   (def router ["/"
                {"drafts/" :hyperblog/drafts
                 "pairing/" :user/pairing
-                [#entity["$" :a]] :hyperblog/post}])
+                ; Attempting to call unbound fn: #'hyperfiddle.readers/entity
+                ;[#entity["$" :a]] :hyperblog/post
+                }])
   (def path "/:hyperblog.2!tag/:hyperfiddle")
 
   (decode router path-and-frag)

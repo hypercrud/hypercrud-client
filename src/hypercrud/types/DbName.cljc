@@ -18,3 +18,6 @@
 #?(:clj
    (defmethod print-dup DbName [o ^java.io.Writer w]
      (.write w (impl-print o))))
+
+(def dbname-edn-reader #(->DbName %))
+(def dbname-clj-reader (fn [s] `(dbname-edn-reader ~s)))

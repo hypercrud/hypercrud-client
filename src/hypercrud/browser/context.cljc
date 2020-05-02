@@ -2,6 +2,7 @@
   (:require
     [cats.core :as cats :refer [mlet return >>=]]
     [cats.monad.either :as either :refer [left right either?]]
+    [clojure.core.match :refer [match #?(:cljs match*)]]
     [clojure.spec.alpha :as s]
     [contrib.ct :refer [unwrap]]
     [contrib.data :refer [ancestry-common ancestry-divergence unqualify]]
@@ -10,7 +11,6 @@
     [contrib.reactive :as r]
     [contrib.string :refer [blank->nil]]
     [contrib.try$ :refer [try-either]]
-    [contrib.validation]
     [datascript.parser #?@(:cljs [:refer [FindRel FindColl FindTuple FindScalar Variable Aggregate Pull]])]
     [hypercrud.browser.q-util]
     [hyperfiddle.domain :as domain]
@@ -292,6 +292,7 @@ a speculative db/id."
   ([ctx a]                                                  ; eav order of init issues, ::eav depends on this in :many
    {:pre [(> (pull-depth ctx) 0)]}
    (assert (not (:hypercrud.browser/head-sentinel ctx)) "this whole flag is trouble, not sure if this assert is strictly necessary")
+   (assert (boolean (hf/attr ctx a)) (str "attribute " a " not in :hypercrud.browser/schema"))
    (case (contrib.datomic/cardinality @(:hypercrud.browser/schema ctx) a)
 
      ; For absense of schema provider, we can inspect result here
@@ -313,7 +314,9 @@ a speculative db/id."
 
                                          :scalar
                                          ; Sets are an index that evaluate to the key.
-                                         set))))))))
+                                         set)))))
+     nil (throw (ex-info "Invalid Schema Cardinality" {:schema (contrib.datomic/cardinality @(:hypercrud.browser/schema ctx) a) :attribute a})))))
+
 
 (defn data "Works in any context and infers the right stuff"
   [{qfind :hypercrud.browser/qfind :as ctx}]
@@ -559,6 +562,80 @@ a speculative db/id."
     @(:hypercrud.browser/qfind ctx)
     @(:hypercrud.browser/result ctx)))
 
+(declare def-validation-message)
+
+(defn spec-semantic-in [row-keyfn value in]  ; ({:id 1234 :some :value}  {:id 4321 :some :value})
+  ; Trace the :in through the :val
+  ; if the thing has an identity, use that instead
+  ; accumulate the new path
+  (reduce (fn [in k]
+            (let [value (get-in value (conj in k))
+                  k (if (int? k)
+                      (or (row-keyfn value) k)
+                      k)]
+              (conj in k)))
+    []
+    in))
+
+(defn result-explained-for-view
+  "Efficient views need a stable keyfn to descend into rows. Canonicalize the spec problem :in's
+  to align with the view's keyfn."
+  [row-keyfn {::s/keys [value] :as e}]                      ; Need entire explained struct, problems alone is not enough
+  (update e ::s/problems (fn [problems]
+                           (map #(update % :in (partial spec-semantic-in row-keyfn value))
+                             problems))))
+
+(declare validation-messages)
+
+(defn form-cell-problem
+  "Re-path the problems so the UI (table or form) renders invalid where the problem is.
+  Also looks up the invalid message using certain business rules to match the missing case.
+
+  Todo: Perhaps we should return the problem itself so the user can match on it to decide the invalid message?
+  Todo: what to do in diamond case - tax return is invalid, you need etiher a ssn or a visa, which field has the problem?"
+  [{:keys [in val pred via] :as problem}]
+  (let [pred (s/abbrev pred)]                               ; also flattens the 'contains? pred
+    (#?(:clj match :cljs match*)
+      pred
+
+      ; Spec reports missing keys at the parent :in, path it at the child instead
+      (['contains? '% k] :seq)                           ; Detect specific case of missing a key
+      [(conj in k) (@validation-messages k)]                ; use the child path to lookup the invalid (missing) message
+
+      _
+      [in (@validation-messages (last via))])))
+
+(defonce ^:private validation-messages (atom {}))           ; Should probably be a value in view props, not a registry
+
+(defmethod hf/def-validation-message :default [pred s]
+  {:pre [(keyword pred)                                     ; name the spec at the granularity of the error message you want
+         (not (clojure.string/blank? s))]}
+  (swap! validation-messages assoc pred s)
+  nil)
+
+(defn form-validation-hints
+  "UI for forms need to validate at the cell granularity, not the record, so certain
+  types of problems need to be re-pathed from entity to attribute.
+
+      ([[2 :foo/bar] :contrib.validation/missing])"
+  [problems]                                                ; destructure ::s/problems at call site
+  ; Don't collect here, they get filtered down later
+  (map form-cell-problem problems))
+
+(defn validate-result [?spec value keyfn]
+  {:pre [keyfn]}
+  (when ?spec                                               ; just make this easy, specs are always sparse
+    (when-let [explain (s/explain-data ?spec value)]
+      (let [problems (::s/problems (result-explained-for-view keyfn explain))]
+        (form-validation-hints problems)))))
+
+(defn validation-hints-enclosure! [ctx]
+  (validate-result
+    (s/get-spec @(r/fmap-> (:hypercrud.browser/fiddle ctx) :fiddle/ident))
+    @(:hypercrud.browser/result ctx)
+    ; i dont think fallback v
+    (partial row-key ctx)))
+
 (defn result [ctx r-result]                                 ; r-result must not be loading
   {:pre [r-result
          (:hypercrud.browser/fiddle ctx)]}
@@ -569,11 +646,7 @@ a speculative db/id."
       ; because how would you have data without a working schema?
       ; this may not prove true with the laziness of reactions
       :hypercrud.browser/result-enclosure (r/track result-enclosure! ctx)
-      :hypercrud.browser/validation-hints (contrib.validation/validate
-                                            (s/get-spec @(r/fmap-> (:hypercrud.browser/fiddle ctx) :fiddle/ident))
-                                            @(:hypercrud.browser/result ctx)
-                                            ; i dont think fallback v
-                                            (partial row-key ctx)))
+      :hypercrud.browser/validation-hints (r/track validation-hints-enclosure! ctx))
     ; index-result implicitly depends on eav in the tempid reversal stable entity code.
     ; Conceptually, it should be after qfind and before EAV.
     (index-result ctx)))                                    ; in row case, now indexed, but path is not aligned yet
@@ -687,13 +760,13 @@ a speculative db/id."
       )))
 
 (defn validation-hints-here [ctx]
-  (for [[path hint] (:hypercrud.browser/validation-hints ctx)
+  (for [[path hint] @(:hypercrud.browser/validation-hints ctx)
         :when (= path (:hypercrud.browser/result-path ctx))
         :let [a (last path)]]
     [a hint]))
 
 (defn tree-invalid? "For popover buttons (fiddle level)" [ctx]
-  (->> (:hypercrud.browser/validation-hints ctx)
+  (->> @(:hypercrud.browser/validation-hints ctx)
        seq boolean))
 
 (defn leaf-invalid? "The thing that styles red" [ctx]
@@ -1104,7 +1177,7 @@ a speculative db/id."
 (defn set-partition [ctx partition-id]
   (clean (assoc ctx :partition-id partition-id)))
 
-(defrecord Context [ident]
+(defrecord Context []
   hf/Browser
   (data [ctx]
     (data ctx))

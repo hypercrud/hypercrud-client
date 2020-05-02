@@ -1,8 +1,10 @@
 (ns contrib.datomic-peer
   (:require
+    [hyperfiddle.api]
     [clojure.walk :refer [prewalk]]
     [datomic.api :as d]
-    [loom.alg-generic :as loom]))
+    [loom.alg-generic :as loom]
+    [hyperfiddle.api :as hf]))
 
 
 (defn ref? [$ k]
@@ -61,3 +63,31 @@
               [(> ?attr 62)]] $)
        (d/pull-many $ ['*])
        (sort-by :db/ident)))
+
+
+(defn entity-history
+  []
+  (let [{:keys [hyperfiddle.route/datomic-args]} hf/*route*
+        [id-thin-entity] datomic-args
+        id (.id id-thin-entity)]
+    (->>
+      (apply
+        d/q
+        '[:find ?e ?attr ?v ?time ?fn
+          :in $ ?e
+          :where
+          [?e ?a ?v ?tx ?added]
+          [?a :db/ident ?attr]
+          [?tx :db/txInstant ?time]
+          [(if ?added "add" "retract") ?fn]]
+        (datomic.api/history hyperfiddle.api/*$*)
+        [id])
+      (map
+        (fn [x]
+          (->> x
+               (map vector [:hyperfiddle/e :hyperfiddle/a
+                            :hyperfiddle/v :hyperfiddle/tx-time
+                            :hyperfiddle/fn])
+               (into {}))))
+      (sort-by :hyperfiddle/tx-time)
+      (into []))))

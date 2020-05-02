@@ -23,8 +23,14 @@
 (def dbname-spec (s/and string? #(string/starts-with? % "$")))
 (s/def :database/db-name string?)
 (s/def :database/uri is-uri?)
-(def database-spec (s/keys :opt [:database/db-name :database/uri]))
+(def database-spec (s/keys :opt [:database/db-name
+                                 :database/uri
+                                 :database/write-security
+                                 :hf/transaction-operation-whitelist]))
+(s/def :database/write-security (s/keys :req [:db/ident]))  ;  {:db/ident :hyperfiddle.security/tx-operation-whitelist}
+(s/def :hf/transaction-operation-whitelist (s/coll-of keyword?)) ; [:school/street-address :sub/phone-confirmed :sub-req/subject]
 
+(s/def ::config map?)                                       ; can validate config too
 (s/def ::basis some?)
 (s/def ::fiddle-dbname dbname-spec)
 (s/def ::databases (s/map-of dbname-spec database-spec))
@@ -43,7 +49,7 @@
   (resolve-fiddle [domain fiddle-ident])
   ;(system-fiddle? [domain fiddle-ident])
   ;(hydrate-system-fiddle [domain fiddle-ident])
-  #?(:clj (connect [domain dbname]))
+  #?(:clj (connect [domain dbname] [domain dbname on-created!]))
   (memoize [domain f]))
 
 
@@ -68,19 +74,19 @@
     "$ (default)"
     dbname))
 
-
 (s/def ::home-route (s/spec :hyperfiddle/route))
 
-(def spec-ednish
+(def spec-ednish-domain
   (s/and
-    (s/keys :req-un [::basis
+    (s/keys :req-un [:hyperfiddle.config/config
+                     ::basis
                      ::fiddle-dbname
                      ::databases
                      ::environment
                      ::home-route])
     #(contains? (:databases %) (:fiddle-dbname %))))
 
-(defrecord EdnishDomain [basis fiddle-dbname databases environment home-route ?datomic-client memoize-cache]
+(defrecord EdnishDomain [config basis fiddle-dbname databases environment home-route ?datomic-client memoize-cache]
   Domain
   (basis [domain] basis)
   (fiddle-dbname [domain] fiddle-dbname)
@@ -91,7 +97,7 @@
   (api-routes [domain] R/domain-routes)
   ;(system-fiddle? [domain fiddle-ident] (system-fiddle/system-fiddle? fiddle-ident))
   ;(hydrate-system-fiddle [domain fiddle-ident] (system-fiddle/hydrate fiddle-ident))
-  #?(:clj (connect [domain dbname] (d/dyna-connect (database domain dbname) ?datomic-client)))
+  #?(:clj (connect [domain dbname on-created!] (d/dyna-connect (database domain dbname) ?datomic-client on-created!)))
   (memoize [domain f]
     (if-let [f (get @memoize-cache f)]
       f
@@ -99,7 +105,7 @@
         (swap! memoize-cache assoc f ret)
         ret))))
 
-(defrecord BidiDomain [basis fiddle-dbname databases environment router ?datomic-client memoize-cache]
+(defrecord BidiDomain [config basis fiddle-dbname databases environment router ?datomic-client memoize-cache]
   Domain
   (basis [domain] basis)
   (fiddle-dbname [domain] fiddle-dbname)
@@ -111,7 +117,7 @@
       (fn [e] (route/decoding-error e s))
       identity))
   (url-encode [domain route] (router-bidi/encode router route))
-  (api-routes [domain] R/domain-routes)
+  (api-routes [domain] (R/domain-routes config))
   ;(system-fiddle? [domain fiddle-ident] (system-fiddle/system-fiddle? fiddle-ident))
   ;(hydrate-system-fiddle [domain fiddle-ident] (system-fiddle/hydrate fiddle-ident))
   #?(:clj (connect [domain dbname] (d/dyna-connect (database domain dbname) ?datomic-client)))
@@ -122,33 +128,13 @@
         (swap! memoize-cache assoc f ret)
         ret))))
 
-
-(def ^:private read-handlers (atom hc-t/read-handlers))
-(def ^:private write-handlers (atom hc-t/write-handlers))
-
-(defn register-handlers [c tag rep-fn from-rep]
-  (swap! read-handlers assoc tag (t/read-handler from-rep))
-  (swap! write-handlers assoc c (t/write-handler (constantly tag) rep-fn)))
-
-(defn decode
-  ([s]
-   (hc-t/decode s :opts {:handlers @read-handlers}))
-  ([s type]
-   (hc-t/decode s :opts {:handlers @read-handlers} :type type)))
-
-(defn encode
-  ([x]
-   (hc-t/encode x :opts {:handlers @write-handlers}))
-  ([x type]
-   (hc-t/encode x :opts {:handlers @write-handlers} :type type)))
-
-(register-handlers
+(hypercrud.transit/register-handlers
   EdnishDomain
   (str 'hyperfiddle.domain/EdnishDomain)
   #(-> (into {} %) (dissoc :?datomic-client :memoize-cache))
   #(-> (into {} %) (assoc :memoize-cache (atom nil)) map->EdnishDomain))
 
-(register-handlers
+(hypercrud.transit/register-handlers
   BidiDomain
   (str 'hyperfiddle.domain/BidiDomain)
   #(-> (into {} %) (dissoc :?datomic-client :memoize-cache))

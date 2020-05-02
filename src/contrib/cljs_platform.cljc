@@ -3,7 +3,9 @@
   #?(:cljs (:require-macros [contrib.cljs-platform])))
 
 
-(defmacro nodejs-target? "only works in macros" []
+(defmacro nodejs-target?
+  "At bootstrap(JVM) compile time inspects the configured build target. only works in macros"
+  []
   '(= :nodejs (get-in @cljs.env/*compiler* [:options :target])))
 
 ; a compile time check for environment

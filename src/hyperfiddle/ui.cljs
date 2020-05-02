@@ -14,7 +14,6 @@
     [contrib.ui]
     [contrib.ui.safe-render :refer [user-portal]]
     [contrib.ui.tooltip :refer [tooltip tooltip-props]]
-    [contrib.validation]
     [cuerdas.core :as str]
     [datascript.parser :refer [FindRel FindColl FindTuple FindScalar Variable Aggregate Pull]]
     [hypercrud.browser.base :as base]
@@ -190,12 +189,14 @@
          (apply css))))
 
 (defn- value-props [props ctx]
-  (as-> props props
-    (update props :disabled #(or %
-                                 (not @(r/track writable-entity? ctx))
-                                 (not @(r/track writable-attr? ctx))))
-    (cond-> props (context/leaf-invalid? ctx) (assoc :is-invalid true))
-    (update props :class css (if (:disabled props) "disabled"))))
+  (let [r-validation-hints (r/track context/validation-hints-here ctx)]
+    (as-> props props
+          (update props :disabled #(or %
+                                       (not @(r/track writable-entity? ctx))
+                                       (not @(r/track writable-attr? ctx))))
+          (assoc props ::hf/invalid-messages r-validation-hints) ; why would this be null
+          (assoc props ::hf/is-invalid (boolean (seq @r-validation-hints)))
+          (update props :class css (if (:disabled props) "disabled")))))
 
 (defn ^:export value "Relation level value renderer. Works in forms and lists but not tables (which need head/body structure).
 User renderers should not be exposed to the reaction."

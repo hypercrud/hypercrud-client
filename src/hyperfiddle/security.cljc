@@ -54,8 +54,9 @@
      {:pre [$ domain db-name]}
      ; TODO this is IO for non-local datomic configurations
      (let [whitelist (try
-                       ((hyperfiddle.io.datomic.core/qf domain [(let [branch nil] ; qf ignores branch
-                                                             (DbRef. db-name branch))])
+                       ((hyperfiddle.io.datomic.core/qf (domain/databases domain)
+                                                        [(let [branch nil] ; qf ignores branch
+                                                           (DbRef. db-name branch))])
                         (attr-whitelist-query $))
                        (catch Exception e
                          ; datomic.impl.Exceptions$IllegalArgumentExceptionInfo:

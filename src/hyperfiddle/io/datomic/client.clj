@@ -23,7 +23,7 @@
   (pull [db arg-map] (d-client/pull db arg-map))
   (with [db arg-map] (d-client/with db arg-map)))
 
-(defn connect [client db-name]
+(defn connect [client db-name & [on-created!]]
   (try (perf/time
          (fn [total-time]
            (timbre/debugf "Connecting to %s %sms" db-name total-time))

@@ -23,18 +23,9 @@
                          (-lookup [o k] (object/get raw-env k))
                          (-lookup [o k not-found] (object/get raw-env k not-found)))))))
   ([raw-env]
-   (let [required #{:BUILD
-                    :HF_HOSTNAMES
-                    :AUTH0_DOMAIN
-                    :AUTH0_CLIENT_ID
-                    :AUTH0_CLIENT_SECRET
-                    :PUBLIC_SERVICE_HTTP_SCHEME
-                    :PUBLIC_SERVICE_HTTP_PORT
-                    :SERVICE_HOST
-                    :SERVICE_PORT
+   (let [required #{:HF_HOSTNAMES
                     :NODE_PORT}
-         optional #{:ANALYTICS :HF_ALIAS_HOSTNAMES :SERVICE_HOST
-
+         optional #{:ANALYTICS :HF_ALIAS_HOSTNAMES
                     :DOMAINS_API_URI
                     :DIRECTORY_URI_OR_DB_NAME
                     :DOMAINS_USER_ID
@@ -51,7 +42,7 @@
                  (update :DOMAINS_API_URI ->URI)
                  (update :DIRECTORY_URI_OR_DB_NAME #(if (.startsWith % "datomic:") (->URI %) %))
 
-                 (update :SERVICE_PORT #(#?(:clj Integer/parseInt :cljs js/parseInt) %))
+
                  (update-existing :HF_ALIAS_HOSTNAMES #(string/split % #";")))]
      (doseq [v required]
        (assert (not (nil? (get env v))) (str "Environment variable for '" v "' not found")))

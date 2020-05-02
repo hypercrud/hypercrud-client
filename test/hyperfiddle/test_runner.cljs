@@ -16,7 +16,6 @@
     contrib.reactive-test
     contrib.rfc3986-test
     contrib.string-test
-    contrib.validation-test
     hypercrud.browser.context-test
     hypercrud.browser.router-bidi-test
     hyperfiddle.fiddle-test
@@ -41,7 +40,6 @@
     'contrib.reactive-test
     'contrib.rfc3986-test
     'contrib.string-test
-    'contrib.validation-test
     'hypercrud.browser.context-test
     'hypercrud.browser.router-bidi-test
     'hyperfiddle.fiddle-test

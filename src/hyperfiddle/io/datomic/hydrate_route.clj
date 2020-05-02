@@ -87,7 +87,7 @@
                   (hydrate-requests/extract-tempid-lookups db-with-lookup pid)))))
 
           (perf/time (fn [t] (when (> t 500) (timbre/warnf "browser-request/requests %sms route: %s" t route)))
-            (-> (base/browse-partition+ (map->Context {:ident nil :partition-id pid :runtime rt}))
+            (-> (base/browse-partition+ (map->Context {:partition-id pid :runtime rt}))
                 (either/branch
                   (fn [e] (timbre/warn e))
                   browser-request/requests)))

@@ -80,11 +80,12 @@
                                    [:domain/aliases fqdn])]
                   (hydrate-app-domain ?datomic-client io local-basis domain-eid))))))
 
-(defn domain [directory-uri-or-db-name ?datomic-client]
-  (reify domain/Domain
-    #?(:clj (connect [domain dbname] (d/dyna-connect (domain/database domain dbname) ?datomic-client)))
-    (databases [domain] {"$domains" (if (is-uri? directory-uri-or-db-name)
-                                      {:database/uri directory-uri-or-db-name}
-                                      {:database/db-name directory-uri-or-db-name})})
-    (environment [domain] {})
-    (api-routes [domain] R/domain-routes)))
+; Used by hfnet
+;(defn domain [config directory-uri-or-db-name ?datomic-client]
+;  (reify domain/Domain
+;    #?(:clj (connect [domain dbname] (d/dyna-connect (domain/database domain dbname) ?datomic-client)))
+;    (databases [domain] {"$domains" (if (is-uri? directory-uri-or-db-name)
+;                                      {:database/uri directory-uri-or-db-name}
+;                                      {:database/db-name directory-uri-or-db-name})})
+;    (environment [domain] {})
+;    (api-routes [domain] (R/domain-routes config))))

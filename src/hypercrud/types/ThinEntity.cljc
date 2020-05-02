@@ -84,7 +84,7 @@
    (defmethod print-dup ThinEntity [o ^java.io.Writer w]
      (.write w (impl-print o))))
 
-(def read-ThinEntity #(apply ->ThinEntity %))
+(def entity-edn-reader (fn [[dbname id]] (hypercrud.types.ThinEntity/->ThinEntity dbname id)))
+(def entity-clj-reader (fn [[dbname id :as args]] `(entity-edn-reader ~args)))
 
 (defn thinentity? [o] (instance? ThinEntity o))             ; this is hard to implement portably outside this file
-

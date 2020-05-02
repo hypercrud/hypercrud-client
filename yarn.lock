@@ -274,6 +274,11 @@ escape-string-regexp@^1.0.5:
   resolved "https://registry.yarnpkg.com/escape-string-regexp/-/escape-string-regexp-1.0.5.tgz#1b61c0562190a8dff6ae3bb2cf0200ca130b86d4"
   integrity sha1-G2HAViGQqN/2rjuyzwIAyhMLhtQ=
 
+eve-raphael@0.5.0:
+  version "0.5.0"
+  resolved "https://registry.yarnpkg.com/eve-raphael/-/eve-raphael-0.5.0.tgz#17c754b792beef3fa6684d79cf5a47c63c4cda30"
+  integrity sha1-F8dUt5K+7z+maE15z1pHxjxM2jA=
+
 eventsource@1.0.7:
   version "1.0.7"
   resolved "https://registry.yarnpkg.com/eventsource/-/eventsource-1.0.7.tgz#8fbc72c93fcd34088090bc0a4e64f4b5cee6d8d0"
@@ -674,6 +679,18 @@ original@^1.0.0:
   dependencies:
     url-parse "^1.4.3"
 
+parinfer-codemirror@^1.4.2:
+  version "1.4.2"
+  resolved "https://registry.yarnpkg.com/parinfer-codemirror/-/parinfer-codemirror-1.4.2.tgz#2b9b7f27af65bf14282034a17731d4a82367d046"
+  integrity sha1-K5t/J69lvxQoIDShdzHUqCNn0EY=
+  dependencies:
+    parinfer "^3.11.0"
+
+parinfer@^3.11.0:
+  version "3.12.0"
+  resolved "https://registry.yarnpkg.com/parinfer/-/parinfer-3.12.0.tgz#6ea16236319717d579275aa9a94ed1197c3cbd62"
+  integrity sha512-iViQ8vtJ6CEa9x0SxcQCtsOYSCVVu7ILnuUJfKHPEGjxM0Z6R1EdAJX3kWyqZDrszvQyYWl/XpD9pN2IFgSF/g==
+
 parse-entities@^1.0.2, parse-entities@^1.1.0:
   version "1.2.0"
   resolved "https://registry.yarnpkg.com/parse-entities/-/parse-entities-1.2.0.tgz#9deac087661b2e36814153cb78d7e54a4c5fd6f4"
@@ -759,6 +776,13 @@ querystringify@^2.0.0:
   version "2.0.0"
   resolved "https://registry.yarnpkg.com/querystringify/-/querystringify-2.0.0.tgz#fa3ed6e68eb15159457c89b37bc6472833195755"
   integrity sha512-eTPo5t/4bgaMNZxyjWx6N2a6AuE0mq51KWvpc7nU/MAqixcI6v6KrGUKES0HaomdnolQBBXU/++X6/QQ9KL4tw==
+
+raphael@^2.2.7:
+  version "2.3.0"
+  resolved "https://registry.yarnpkg.com/raphael/-/raphael-2.3.0.tgz#eabeb09dba861a1d4cee077eaafb8c53f3131f89"
+  integrity sha512-w2yIenZAQnp257XUWGni4bLMVxpUpcIl7qgxEgDIXtmSypYtlNxfXWpOBxs7LBTps5sDwhRnrToJrMUrivqNTQ==
+  dependencies:
+    eve-raphael "0.5.0"
 
 react-bootstrap-typeahead@^3.4.5:
   version "3.4.6"

@@ -10,12 +10,12 @@
     [taoensso.timbre :as timbre]))
 
 
-(defmethod handle-route :ssr [handler env req res]
+(defmethod handle-route :ssr [handler config req res]
   (let [domain (object/get req "domain")
-        io (node-ssr/->IOImpl domain (middleware/service-uri env req) (object/get req "jwt"))
+        io (node-ssr/->IOImpl domain (middleware/service-uri config req) (object/get req "jwt"))
         route (domain/url-decode domain (.-originalUrl req))
         user-id (object/get req "user-id")]
-    (-> (ssr/bootstrap-html-cmp env domain io route user-id)
+    (-> (ssr/bootstrap-html-cmp config domain io route user-id)
         (p/then (fn [{:keys [http-status-code component]}]
                   (doto res
                     (.status http-status-code)

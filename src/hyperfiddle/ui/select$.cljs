@@ -88,8 +88,8 @@
                 (sort-by second)
                 (map (fn [[id label]]
                        [:option (assoc option-props :key (str id) :value (str id)) label])))
-           [:option (assoc option-props :key :blank :value "") "--"])])
-      )))
+           [:option (assoc option-props :key :blank :value "") "--"])]))))
+
 
 (defn select-error-cmp [msg]
   [:span msg])
@@ -161,6 +161,7 @@
       ; Can't, since we only have the #DbId hydrated, and it gets complicated with relaton vs entity etc
       ; This is possible if the value matches the row-key (qfind) of options query
       (let [is-no-options (empty? (hf/data options-ctx))
+            disabled (when (:disabled select-props) true)
             select-props (-> select-props
                              (dissoc :disabled)             ; Use :read-only instead to allow click to expand options
                              (update :read-only #(or % (:disabled select-props) is-no-options))
@@ -202,7 +203,8 @@
                 ; Rendering strategy that works in tables
                 ; http://hyperfiddle.hyperfiddle.site/:hyperfiddle.ide!edit/(:fiddle!ident,:hyperfiddle!ide)
                 "bodyContainer" true
-                "align" "left"})]))))
+                "align" "left"
+                "disabled" disabled})]))))
 
 (defn- props->async-typeahead [props]
   (let [j-props (apply js-obj (apply concat props))]
@@ -320,8 +322,8 @@
                  ; just use client side filtering on the intial options
                  :else (->> (context/set-partition occluded-ctx options-pid)
                             (base/browse-partition+)
-                            (cats/fmap (fn [options-ctx] [typeahead-html nil options-ctx (assoc props ::value-ctx ctx)])))))
-             )))
+                            (cats/fmap (fn [options-ctx] [typeahead-html nil options-ctx (assoc props ::value-ctx ctx)]))))))))
+
        (either/branch
          (fn [e] [(ui-error/error-comp ctx) e])
          identity))))

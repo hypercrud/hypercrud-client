@@ -2,7 +2,6 @@
   (:require
     [clojure.test :refer [deftest is]]
     [contrib.datomic :refer [smart-lookup-ref-no-tempids]]
-    [contrib.validation :refer [validate]]
     [hyperfiddle.fiddle :refer [apply-defaults]]))
 
 

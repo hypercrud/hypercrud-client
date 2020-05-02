@@ -9,7 +9,7 @@
     [datascript.parser #?@(:cljs [:refer [FindRel FindColl FindTuple FindScalar Variable Aggregate Pull]])])
   #?(:clj (:import
             (datascript.parser FindRel FindColl FindTuple FindScalar Variable Aggregate Pull)
-            [clojure.lang IHashEq ILookup])))
+            [clojure.lang IHashEq ILookup IPersistentSet IPersistentCollection])))
 
 
 (defn tempid? [id]
@@ -119,7 +119,16 @@
        IHashEq (hasheq [o] (hash (.-schema-by-attr o)))
        ILookup
        (valAt [this k] (get (.-schema-by-attr this) k))
-       (valAt [this k not-found] (get (.-schema-by-attr this) k not-found))]
+       (valAt [this k not-found] (get (.-schema-by-attr this) k not-found))
+
+       IPersistentSet
+       ; More idiomatic than (contains? schema a) is (boolean (hf/attr ctx a))
+       (contains [this k] (boolean (attr this k)) #_(boolean (get this k))) ; account for :db/id, reverse nav, etc
+       IPersistentCollection                                ; IPersistentSet extends IPersistentCollection
+       (count [this] (count (.-schema-by-attr this)))       ; does not include virtual attrs like :db/id
+       ;(cons [this o] (throw (UnsupportedOperationException.)))
+       ;(empty [this] (throw (UnsupportedOperationException.)))
+       (equiv [this o] (= (.-schema-by-attr this) (.-schema-by-attr o)))]
       :cljs
       [IEquiv (-equiv [o other] (and (instance? Schema other) (= (.-schema-by-attr o) (.-schema-by-attr other))))
        IHash (-hash [o] (hash (.-schema-by-attr o)))
@@ -127,6 +136,17 @@
        ILookup
        (-lookup [o k] (get (.-schema-by-attr o) k))
        (-lookup [o k not-found] (get (.-schema-by-attr o) k not-found))]))
+
+(comment
+  (def s (Schema. {:user/a {:db/ident :user/a :db/valueType :db.type/string}}))
+  (get s :user/a)
+  (valueType s :user/a)
+  (contains? s :user/a)
+  (contains? s :user/b)
+  (empty s)
+  (count s)
+  (isa? s clojure.lang.Associative)                         ; false
+  )
 
 ; this has to be a hack, when ever are we asking questions about a schema that does not exist
 (extend-protocol SchemaIndexedNormalized

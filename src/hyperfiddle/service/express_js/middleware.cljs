@@ -28,17 +28,20 @@
                                   (.send express-res (:body platform-response))
                                   (.send express-res (pr-str (:body platform-response)))))})))
 
-(defn service-uri [env req]
+(defn service-uri [config req]
   ; we are partially trusting the request for generating a service uri which is brittle
   ; todo there should be no dependency on the request once the domain is acquired
-  (http-service/service-uri (:PUBLIC_SERVICE_HTTP_SCHEME env) (.-hostname req) (:PUBLIC_SERVICE_HTTP_PORT env)))
+  (http-service/service-uri
+    (:public-service-http-scheme config)
+    (.-hostname req)
+    (:public-service-http-port config)))
 
-(defn platform->express-req-handler [env platform-req-handler req res]
+(defn platform->express-req-handler [config platform-req-handler req res]
   (-> (platform-req-handler
         :domain (object/get req "domain")
         :route-params (object/get req "route-params")
         :request-body (some-> req .-body hack-buggy-express-body-text-parser transit/decode)
-        :service-uri (service-uri env req)
+        :service-uri (service-uri config req)
         :jwt (object/get req "jwt")
         :user-id (object/get req "user-id"))
       (p/then (partial send-platform-response res))))

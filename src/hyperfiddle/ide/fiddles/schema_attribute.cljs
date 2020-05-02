@@ -16,6 +16,8 @@
 
 (defn- completed? [entity] (set/subset? special-attrs (set (keys entity))))
 
+(defn- is-ref? [entity] (-> entity :db/valueType :db/ident (= :db.type/ref)))
+
 (defn- merge-in-tx [entity tx ctx]
   ; this fn has bare minimum support for this page e.g. doesnt support card/many or nested modals
   (reduce (fn [entity [op e a v]]
@@ -88,40 +90,47 @@
       (let [ctx (update ctx :hypercrud.browser/data (partial r/track reactive-merge))
             ctx (-> (update ctx :hypercrud.browser/result (partial r/track reactive-merge))
                     (context/index-result))
-            valid-attr? @(r/fmap completed? (:hypercrud.browser/result ctx))]
+            valid-attr? @(r/fmap completed? (:hypercrud.browser/result ctx))
+            is-ref? @(r/fmap is-ref? (:hypercrud.browser/result ctx))]
         [:div.container-fluid.-hyperfiddle-ide-schema-editor-attribute props
          [markdown "See [Datomic schema docs](https://docs.datomic.com/on-prem/schema.html)."]
-         (field [:db/ident] ctx ident-f)
-         (field [:db/valueType] ctx valueType-and-cardinality-f {:options "valueType-options"})
-         (field [:db/cardinality] ctx valueType-and-cardinality-f {:options "cardinality-options"})
+         ; disable the following fields if they ALL have already been filled out
+         ; currently, if they are changed after filled out it causes page error
+         (field [:db/ident] ctx ident-f {:disabled valid-attr?})
+         (field [:db/valueType] ctx valueType-and-cardinality-f {:disabled valid-attr?
+                                                                 :options "valueType-options"
+                                                                 :option-label (comp name :db/ident)})
+         (field [:db/cardinality] ctx valueType-and-cardinality-f {:options "cardinality-options"
+                                                                   :option-label (comp name :db/ident)
+                                                                   :disabled valid-attr?})
 
          ; The rule is you can't stage anything until it's a valid Datomic attribute.
          ; So only the special attrs are editable at first.
          ; Once that is completed, the rest are editable.
-         (field [:db/doc] ctx nil {:disabled (not valid-attr?)})
-         (field [:db/unique] ctx hyperfiddle.ui/hyper-control {:disabled (not valid-attr?)
-                                                               :options "unique-options"})
-         [markdown "!block[Careful: below is not validated, don't stage invalid schema]{.alert .alert-warning style=\"margin-bottom: 0\"}"]
-         (field [:db/isComponent] ctx nil {:disabled (not valid-attr?)})
-         (field [:db/fulltext] ctx nil {:disabled (not valid-attr?)})
+         [:div {:style {:display (if valid-attr? "block" "none")}}
+           (field [:db/doc] ctx nil {:disabled (not valid-attr?)})
+           (field [:db/unique] ctx hyperfiddle.ui/hyper-control {:disabled (not valid-attr?)
+                                                                 :options "unique-options"})
+           [markdown "!block[Careful: below is not validated, don't stage invalid schema]{.alert .alert-warning style=\"margin-bottom: 0\"}"]
+           (when-not (or (not valid-attr?) (not is-ref?))
+             (field [:db/isComponent] ctx nil))
+           (field [:db/fulltext] ctx nil {:disabled (not valid-attr?)})
 
-         [:div.p "Additional attributes"]
-         (let [is-whitelist-attr-installed
-               #_(hf/attr ctx :hyperfiddle/whitelist-attribute) ; requires browse-element for ::schema which hasn't happened
-               (context/focus ctx [:hyperfiddle/whitelist-attribute])]
-           (if is-whitelist-attr-installed
-             (field [:hyperfiddle/whitelist-attribute] ctx nil)
-             [:<>
-              [:div "missing :hyperfiddle/whitelist-attribute, please transact the following into app db:"]
-              [:pre (contrib.pprint/pprint-datoms-str
-                      [[:db/add "a" :db/cardinality :db.cardinality/one]
-                       [:db/add "a" :db/valueType :db.type/boolean]
-                       [:db/add "a" :db/ident :hyperfiddle/whitelist-attribute]
-                       [:db/add "a" :hyperfiddle/whitelist-attribute true] ; this attribute is also whitelisted by default to defeat chicken/egg
-                       ])]]))
-         (doall
-           (for [[k _] (hf/spread-attributes ctx)
-                 :when (not= "db" (namespace k))]
-             (field [k] ctx)))
+           [:div.p "Additional attributes"]
+           (let [is-whitelist-attr-installed
+                 #_(hf/attr ctx :hyperfiddle/whitelist-attribute) ; requires browse-element for ::schema which hasn't happened
+                 (context/focus ctx [:hyperfiddle/whitelist-attribute])]
+             (if is-whitelist-attr-installed
+               (field [:hyperfiddle/whitelist-attribute] ctx nil)
+               [:<>
+                [:div "missing :hyperfiddle/whitelist-attribute, please transact the following into app db:"]
+                [:pre (contrib.pprint/pprint-datoms-str
+                        [[:db/add "a" :db/cardinality :db.cardinality/one]
+                         [:db/add "a" :db/valueType :db.type/boolean]
+                         [:db/add "a" :db/ident :hyperfiddle/whitelist-attribute]
+                         [:db/add "a" :hyperfiddle/whitelist-attribute true]])]])) ; this attribute is also whitelisted by default to defeat chicken/egg
 
-         ]))))
+           (doall
+             (for [[k _] (hf/spread-attributes ctx)
+                   :when (not= "db" (namespace k))]
+               (field [k] ctx)))]]))))

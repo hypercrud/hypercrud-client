@@ -52,7 +52,9 @@
 (defn writable-attr? [ctx]
   (let [domain (runtime/domain (:runtime ctx))
         database (domain/database domain (context/dbname ctx))]
-    (if (= (get-in database [:database/write-security :db/ident] ::security/allow-anonymous)
-           :hyperfiddle.security/tx-operation-whitelist)
-      (true? (:hyperfiddle/whitelist-attribute (hf/attr ctx)))
-      true)))
+    (if-not (= (get-in database [:database/write-security :db/ident] ::security/allow-anonymous)
+              :hyperfiddle.security/tx-operation-whitelist)
+      true
+      (let [{a :db/ident is-whitelisted :hyperfiddle/whitelist-attribute} (hf/attr ctx)]
+        (or (true? is-whitelisted)
+          ((set (:hf/transaction-operation-whitelist database)) a))))))

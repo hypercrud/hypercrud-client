@@ -252,7 +252,7 @@
           (assert (> 2 (count top-level-eids)) "Multiple parents found for component entity")
           (first top-level-eids))))))
 
-(defn write-domains [hf-db subject tx]
+(defn write-domains [hf-db subject tx]                      ; [$ domain dbname subject tx] todo
   (if (nil? subject)
     (throw (security/tx-validation-failure))
     (let [db (d/db (d/connect (str (:database/uri hf-db))))

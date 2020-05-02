@@ -20,7 +20,7 @@
     [hyperfiddle.ui.docstring :refer [semantic-docstring]]
     [hyperfiddle.ui.select$ :refer [select]]
     [hyperfiddle.ui.util :refer [entity-change->tx with-entity-change!]]
-    [taoensso.timbre]))
+    [taoensso.timbre :refer [debug]]))
 
 (defn label-with-docs [label help-md props]
   [tooltip-thick (if help-md [:div.hyperfiddle.docstring [contrib.ui/markdown help-md]])
@@ -164,8 +164,10 @@
 
 (defn ^:export keyword [val ctx & [props]]
   [:div.hyperfiddle-input-group
-   (let [props (merge {:value val :on-change (with-entity-change! ctx)}
-                      props)]
+   (let [props (-> props
+                 (assoc :value val :on-change (with-entity-change! ctx))
+                 (cond-> (::hf/is-invalid props) (update :class contrib.css/css "invalid"))
+                 (dissoc ::hf/invalid-messages ::hf/is-invalid))] ; this dissoc should be inverted to select-keys whitelist
      [debounced props contrib.ui/keyword])
    (hf-remove val ctx)                                      ; why? They can just backspace it
    (render-related-links val ctx)])
@@ -287,9 +289,9 @@
 
 (defn ^:export radio-group [val ctx & [props]]
   (into [:span.radio-group (-> (select-keys props [:class])
-                               (update :class contrib.css/css (when (:is-invalid props) "invalid")))]
+                               (update :class contrib.css/css (when (::hf/is-invalid props) "invalid")))]
         (->> (:options props)
-             (map (let [props (dissoc props :is-invalid :class :options)]
+             (map (let [props (dissoc props ::hf/is-invalid :class :options)]
                     (fn [option-props]
                       [contrib.ui/radio-with-label
                        (-> (merge props option-props)
@@ -321,15 +323,29 @@
          ; Cardinality :many not needed, because as soon as we assoc one value, we rehydrate typed
          [contrib.ui/edn props])])))
 
+(defn validation-error [props values]
+  (into
+    [:ul.validation-content props]                          ; missing .hyperfiddle- css prefix
+    (map (fn [ve] [:li ve]) (map second values))))
+
+(defn invalid-message-popup [{:keys [::hf/invalid-messages]} content]
+  (if (some-> invalid-messages deref seq)
+    ; Fix css todo
+    [tooltip-thick [validation-error {} @invalid-messages] content]
+    content))
+
 (let [on-change (fn [ctx o n]
                   (->> (entity-change->tx ctx (empty->nil o) (empty->nil n))
                        (runtime/with-tx (:runtime ctx) (:partition-id ctx) (context/dbname ctx))))]
   (defn ^:export string [val ctx & [props]]
     [:div.hyperfiddle-input-group
-     (let [props (assoc props
-                   :value val
-                   :on-change (r/partial on-change ctx))]
-       [debounced props contrib.ui/text #_contrib.ui/textarea])
+     [invalid-message-popup (select-keys props [::hf/invalid-messages]) ; accounted for by ::hf/is-invalid
+      (let [
+            props' (-> props
+                     (assoc :value val :on-change (r/partial on-change ctx))
+                     (dissoc ::hf/invalid-messages ::hf/is-invalid)
+                     (cond-> (::hf/is-invalid props) (update :class contrib.css/css "invalid")))]
+        [debounced props' contrib.ui/text #_contrib.ui/textarea])]
      (render-related-links val ctx)]))
 
 (defn ^:export long [val ctx & [props]]
@@ -345,7 +361,7 @@
                   :checked (clojure.core/boolean val)
                   :on-change (with-entity-change! ctx))]
       [contrib.ui/easy-checkbox
-       (select-keys props [:class :style :is-invalid :checked :on-change :disabled])])] ; readonly?
+       (select-keys props [:class :style ::hf/is-invalid :checked :on-change :disabled])])] ; readonly?
    (render-related-links val ctx)])
 
 (let [adapter (fn [e]

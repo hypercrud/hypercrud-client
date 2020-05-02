@@ -1,9 +1,10 @@
 {
- long hyperfiddle.readers/goog-math-long
- dbname hyperfiddle.readers/dbname
- entity hyperfiddle.readers/entity
- uri hyperfiddle.readers/uri
- schema hyperfiddle.readers/schema
+ long hyperfiddle.readers/long-clj-reader
+ dbname hypercrud.types.DbName/dbname-clj-reader
+ entity hypercrud.types.ThinEntity/entity-clj-reader
+ uri contrib.uri/uri-clj-reader
+ ;env contrib.config/env-clj-reader ; no env reads in .clj files
+ schema hyperfiddle.readers/schema-clj-reader
 
  ; defrecords get these for free in clj
  hypercrud.types.DbRef.DbRef hypercrud.types.DbRef/map->DbRef

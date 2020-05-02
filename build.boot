@@ -44,9 +44,3 @@
          (comp
            (deps :quick-merge true :aliases [:test-clj])
            (boot-test/test :include #".*-test")))
-
-(when-not (get-sys-env "CI")
-  (let [lein-modified (.lastModified (clojure.java.io/file "project.clj"))]
-    (when (or (> (.lastModified (clojure.java.io/file "build.boot")) lein-modified)
-              (> (.lastModified (clojure.java.io/file "deps.edn")) lein-modified))
-      (boot-lein/write-project-clj))))

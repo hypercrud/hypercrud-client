@@ -54,4 +54,5 @@
          join)))
 
 (defn str-last-n [n s]
-  (.substring s (max 0 (- (.length s) n))))
+  #?(:clj (.substring s (max 0 (- (.length s) n)))
+     :cljs (apply str (reverse (take n (reverse s))))))

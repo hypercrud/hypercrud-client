@@ -12,10 +12,12 @@
     [contrib.ui.codemirror :refer [-codemirror]]
     [contrib.ui.tooltip :refer [tooltip]]
     [contrib.ui.remark :as remark]
+    [contrib.ui.tooltip :refer [tooltip-thick]]
     [goog.functions :as functions]
     [re-com.core :as re-com]
     [reagent.core :as reagent]
-    [taoensso.timbre :as timbre]))
+    [taoensso.timbre :as timbre]
+    [hyperfiddle.api :as hf]))
 
 
 (def default-debounce-ms 350)
@@ -100,8 +102,8 @@
        (fn [state props parse-string to-string cmp & args]
          (let [s-value @(r/cursor state [:s-value])
                props (-> (assoc props :value s-value)
-                         (assoc :is-invalid (or (try (parse-string s-value) false (catch :default e true))
-                                                (:is-invalid props)))
+                         (assoc ::hf/is-invalid (or (try (parse-string s-value) false (catch :default e true))
+                                                (::hf/is-invalid props)))
                          (update-existing :on-blur (fn [f]
                                                      (r/partial on-blur state f)))
                          (update :on-change (fn [f]
@@ -128,16 +130,14 @@
   (defn checkbox [props]
     [:input (-> (assoc props :type "checkbox")
                 (update-existing :on-change r/comp checked)
-                (select-keys [:type :checked :on-change :disabled :read-only :class :style #_:is-invalid]))]))
+                (select-keys [:type :checked :on-change :disabled :read-only :class :style #_::hf/is-invalid]))]))
 
 (let [target-value (fn [e] (.. e -target -value))]          ; letfn not working #470
   (defn text [props]
     (let [props (-> (assoc props :type "text")
-                    (dissoc :is-invalid)
-                    (cond-> (:is-invalid props) (update :class css "invalid"))
-                    (update-existing :on-change r/comp target-value))]
-      [:input (select-keys props [:type :value :default-value :on-change :class :style :read-only :disabled
-                                  :placeholder])])))
+                    (update-existing :on-change r/comp target-value))
+          control [:input (select-keys props [:type :value :default-value :on-change :class :style :read-only :disabled :placeholder])]]
+      control)))
 
 (let [parse-string (fn [s]                                  ; letfn not working #470
                      (let [v (some-> s contrib.reader/read-edn-string!)]
@@ -189,7 +189,7 @@
     [-codemirror props]))
 
 (defn ^:export code-inline-block [props]
-  ; (when (:is-invalid props) {:class "invalid"})
+  ; (when (::hf/is-invalid props) {:class "invalid"})
   (text props))
 
 (defn ^:export cm-edn [props]

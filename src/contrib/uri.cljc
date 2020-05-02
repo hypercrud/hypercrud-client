@@ -35,7 +35,8 @@
    (defmethod print-dup com.cognitect.transit.URI [o ^java.io.Writer w]
      (.write w (impl-print (str o)))))
 
-(def read-URI #(->URI %))
+(def uri-edn-reader (fn [s] (->URI s)))
+(def uri-clj-reader (fn [s] `(uri-edn-reader ~s)))
 
 (defn is-uri? [o] #?(:cljs (instance? URI o)
                      :clj  (or (instance? java.net.URI o)

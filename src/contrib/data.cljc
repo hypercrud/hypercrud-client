@@ -120,10 +120,10 @@
   (fn [v & args]
     (or (if v (apply f v args)) default)))
 
-(defn tee [g f!] (fn [v] (f! v) (g v)))
+(defn tee [f! g] (fn [v] (f! v) (g v)))
 
-;(defmacro tee2 [f! form]
-;  `((tee identity f!) ~@form))
+(defmacro tap [f! & body]
+  `((tee ~f! identity) ~@body))
 
 (defn kwargs
   "arg format is kwargs first; trailing non-kw args are nil key

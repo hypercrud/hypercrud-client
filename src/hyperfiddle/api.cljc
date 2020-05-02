@@ -1,10 +1,10 @@
 (ns hyperfiddle.api                                         ; cljs can always import this
   (:require
-    [contrib.ct :refer [unwrap]]
-    [contrib.data :refer [unqualify]]
-    [contrib.reactive :as r]
+    [clojure.spec.alpha :as s]
     [taoensso.timbre :as timbre]))
 
+
+; This protocol can be multimethods
 (defprotocol Browser
   (a [ctx])
   (attr [ctx] [ctx a])
@@ -29,13 +29,19 @@
   (display-mode [ctx])
   (display-mode? [ctx k]))
 
-(declare render-dispatch)
+;(def def-validation-message hypercrud.browser.context/def-validation-message)
+; Circular dependencies and :require order problems. This is a static operation, no ctx dependency.
+; But hyperfiddle.api can only have protocols, no concrete impls for the require order to work.
+; Protocols and methods need a dispatch parameter, and static fns don't have one.
+(defmulti def-validation-message (fn [pred & [s]] :default)) ; describe-invalid-reason
 
 (defmulti tx (fn [ctx eav props]
                (let [dispatch-v (hyperfiddle.api/link-tx ctx)]
                  ; UX - users actually want to see this in console
                  (timbre/info "hf/tx: " dispatch-v " eav: " (pr-str eav))
                  dispatch-v)))
+
+(declare render-dispatch)
 
 ; Dispatch is a set
 (defmulti render (fn [ctx props]
@@ -87,9 +93,9 @@
   {:pre [e a v]}
   [[:db/retract e a v]])
 
-(defmethod tx :db.fn/retractEntity [ctx [e a v] props]
+(defmethod tx :db/retractEntity [ctx [e a v] props]
   {:pre [v]}
-  [[:db.fn/retractEntity v]])
+  [[:db/retractEntity v]])
 
 ; Compat
 
@@ -109,6 +115,14 @@
   {:pre [e a v]}
   [[:db/retract e a v]])
 
-(defmethod txfn :db.fn/retractEntity [_ _ _ v ctx]
+(defmethod txfn :db/retractEntity [_ _ _ v ctx]
   {:pre [v]}
-  [[:db.fn/retractEntity v]])
+  [[:db/retractEntity v]])
+
+; All hyperfiddle specs should be here in this namespace.
+; Namespaces other than "hyperfiddle" are henceforth forbidden and all legacy namespaces should be migrated.
+; If you feel the need to organize attributes that "traverse together" use a comment in this file
+; or (future) use spec2 schema & select.
+
+(s/def ::invalid-messages (s/coll-of string?))
+(s/def ::is-invalid boolean?)

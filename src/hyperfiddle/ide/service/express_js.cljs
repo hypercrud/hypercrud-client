@@ -20,9 +20,9 @@
     [taoensso.timbre :as timbre]))
 
 
-(defmethod handle-route :hyperfiddle.ide/auth0-redirect [handler env req res]
+(defmethod handle-route :hyperfiddle.ide/auth0-redirect [handler config req res]
   (middleware/platform->express-req-handler
-    env
+    config
     (fn [& {:keys [domain service-uri]}]
       ; todo configure on domain
       (let [io (reify io/IO
@@ -37,7 +37,7 @@
                  (transact! [io tx-groups]
                    ; todo who is this executed on behalf of? system/root or the end user?
                    (http-client/transact! domain service-uri tx-groups)))]
-        (-> (hyperfiddle.ide.authenticate/login env domain service-uri io (-> req .-query .-code))
+        (-> (hyperfiddle.ide.authenticate/login config domain service-uri io (-> req .-query .-code))
             (p/then (fn [jwt]
                       (doto res
                         (.cookie ide-service/cookie-name jwt (-> (::ide-directory/ide-domain domain)
@@ -48,7 +48,7 @@
             (p/catch (fn [e] (doto res (.status 500) (.send (pr-str e))))))))
     req res))
 
-(defn ide-routing [domain env req res]
+(defn ide-routing [domain config req res]
   (let [path (.-path req)
         request-method (keyword (.toLowerCase (.-method req)))
         {:keys [handler route-params]} (domain/api-match-path domain path :request-method request-method)]
@@ -65,10 +65,10 @@
             (object/remove "jwt")                           ; this is brittle
             (object/set "domain" user-domain)
             (object/set "route-params" route-params))
-          (handle-route (keyword (name handler)) env req res)))
+          (handle-route (keyword (name handler)) config req res)))
 
       (and (= :ssr handler)
-           (= "demo" (::ide-directory/app-domain-ident domain))
+           (not (nil? (-> config :auth0 :domain)))             ; if there is an auth0 config, require logins
            (nil? (object/get req "user-id"))
            (not (string/starts-with? path "/:hyperfiddle.ide!please-login/")))
       ; todo this logic should be injected into demo domain record
@@ -78,15 +78,15 @@
         (.redirect res url))
       :else (do
               (object/set req "route-params" route-params)
-              (handle-route handler env req res)))))
+              (handle-route handler config req res)))))
 
-(defmethod service-domain/route IdeDomain [domain env req res]
+(defmethod service-domain/route IdeDomain [domain config req res]
   (let [#_#_{:keys [cookie-name jwt-secret jwt-issuer]} (-> (get-in context [:request :domain])
                                                             domain/environment-secure :jwt)
         cookie-domain (::ide-directory/ide-domain domain)
         mw (middleware/with-user-id ide-service/cookie-name
                                     cookie-domain
-                                    (:AUTH0_CLIENT_SECRET env)
-                                    (:AUTH0_DOMAIN env))
-        next (fn [] (ide-routing domain env req res))]
+                                    (-> config :auth0 :client-secret)
+                                    (-> config :auth0 :domain))
+        next (fn [] (ide-routing domain config req res))]
     (mw req res next)))

@@ -138,10 +138,10 @@
                                        dbname (str src-db)
                                        schema (some-> (get schemas dbname) deref)]
                                    (cond
-                                     (contrib.datomic/attr? schema a :db.unique/identity) ":db.fn/retractEntity"
-                                     (contrib.datomic/isComponent schema a) ":db.fn/retractEntity"
+                                     (contrib.datomic/attr? schema a :db.unique/identity) ":db/retractEntity"
+                                     (contrib.datomic/isComponent schema a) ":db/retractEntity"
                                      (contrib.datomic/attr? schema a :db.type/ref) ":db/retract"
-                                     :else ":db.fn/retractEntity")) ; legacy compat, remove
+                                     :else ":db/retractEntity")) ; legacy compat, remove
                    nil))})
 
 ; to be manually kept in sync with hf.ui/fiddle
@@ -162,7 +162,7 @@
    :fiddle/pull (constantly "[:db/id\n *]")
    :fiddle/pull-database (constantly "$")
    :fiddle/query (constantly (load-resource "fiddle-query-default.edn"))
-   :fiddle/eval (constantly "[{:foo (inc 42)}]")
+   :fiddle/eval (constantly "(->> \n  (datomic.api/q\n   '[:in $ \n     :find [(pull ?e [:db/ident]) ...]     ; Final value must match FindColl pattern as here\n     :where [?e :db/ident]]\n   hyperfiddle.api/*$*)\n  (sort-by :db/ident)\n  (take 20))\n")
    :fiddle/renderer (constantly default-renderer-str)
    :fiddle/type (constantly :blank)})                       ; Toggling default to :query degrades perf in ide
 
@@ -252,26 +252,20 @@
 (defn eval-fiddle+ [fiddle {:keys [domain route ctx]}]
   (letfn
     [(eval-attr [scope x]
-       (timbre/debug :!x x)
-       (let [x'
-             (eval
-               (expr/unquote-via x
-                 (fn eval-expr [x]
-                   (timbre/debug :!!x x)
-                   (cond (simple-keyword? x) (get scope x)
-                         (symbol? x) (get scope x x)
-                         (qualified-keyword? x) {:fiddle/ident x}
-                         (and (seq? x)
-                              (qualified-keyword? (first x)))
-                         {:fiddle/ident (first x)
-                          :fiddle/apply (rest x)}
-                         (seq? x) x
-                         (coll? x) x
-                         () (timbre/error "unknown form" x "in" (:fiddle/ident fiddle))))))]
-         (timbre/debug :!!-> x')
-         x'))]
+       (eval
+         (expr/unquote-via x
+           (fn eval-expr [x]
+             (cond (simple-keyword? x) (get scope x)
+                   (symbol? x) (get scope x x)
+                   (qualified-keyword? x) {:fiddle/ident x}
+                   (and (seq? x)
+                        (qualified-keyword? (first x)))
+                   {:fiddle/ident (first x)
+                    :fiddle/apply (rest x)}
+                   (seq? x) x
+                   (coll? x) x
+                   () (timbre/error "unknown form" x "in" (:fiddle/ident fiddle)))))))]
     (do-result
-      (timbre/debug :!eval fiddle)
       (let [scope
             (reduce
               (fn [s f] (f s))
@@ -283,21 +277,16 @@
                #(reduce-kv (fn [scope k v] (assoc scope k (eval-attr scope v))) % (:fiddle/apply fiddle))
                #(reduce-kv
                   (fn [scope k v]
-                    (timbre/debug :!with k v (eval-attr scope v))
                     (assoc scope k (eval-attr scope v)))
-                  % (merge {} (:fiddle/with fiddle)))])
-            evaled
-            (reduce-kv
-              (fn [evaled attr v]
-                (assoc
-                  evaled attr
-                  (eval-attr scope v)))
-              {}
-              (-> fiddle
-                  (dissoc :fiddle/args :fiddle/with :fiddle/apply)
-                  (assoc :fiddle/ident (or (:ident scope) (:fiddle/ident fiddle)))))]
-
-        (timbre/debug :!-> evaled)
-        evaled
+                  % (merge {} (:fiddle/with fiddle)))])]
+        (reduce-kv
+          (fn [evaled attr v]
+            (assoc
+              evaled attr
+              (eval-attr scope v)))
+          {}
+          (-> fiddle
+              (dissoc :fiddle/args :fiddle/with :fiddle/apply)
+              (assoc :fiddle/ident (or (:ident scope) (:fiddle/ident fiddle)))))
         ))))
 

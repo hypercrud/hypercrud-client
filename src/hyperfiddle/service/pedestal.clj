@@ -43,6 +43,8 @@
 (def terminate    io.pedestal.interceptor.chain/terminate)
 
 (defn via
+  "Shorthand for enqueue, it lets you compose interceptors easily. This is tricky because we’re doing composition
+  with -> which then composes a stack of interceptors. You have to keep both steps in mind."
   ([i] (interceptor
          (if (fn? i) {:name  ::via
                       :enter (with-scope i)}
@@ -70,7 +72,7 @@
       (via (body-params/body-params
              (body-params/default-parser-map
                :edn-options {:readers *data-readers*}
-               :transit-options [{:handlers hc-t/read-handlers}])))
+               :transit-options [{:handlers @hc-t/read-handlers}])))
       (via (fn [context]
              (let [{:keys [json-params edn-params transit-params]} (:request context)]
                (assoc-in context [:request :body-params] (or json-params edn-params transit-params)))))))
@@ -104,13 +106,13 @@
    "application/transit+json"
    (fn [body]
      (fn [^OutputStream output-stream]
-       (transit/write (transit/writer output-stream :json {:handlers hc-t/write-handlers}) body)
+       (transit/write (transit/writer output-stream :json {:handlers @hc-t/write-handlers}) body)
        (.flush output-stream)))
 
    "application/transit+msgpack"
    (fn [body]
      (fn [^OutputStream output-stream]
-       (transit/write (transit/writer output-stream :msgpack {:handlers hc-t/write-handlers}) body)
+       (transit/write (transit/writer output-stream :msgpack {:handlers @hc-t/write-handlers}) body)
        (.flush output-stream)))
 
    "text/html"
@@ -146,12 +148,14 @@
                               context)
                             (catch Throwable e
                               (timbre/error e)
-                              {:status  (or (:hyperfiddle.io/http-status-code (ex-data e)) 500)
-                               :headers {}                  ; todo retry-after on 503
-                               :body    (->Err (.getMessage e))}))))
+                              (response context
+                                {:status  (or (:hyperfiddle.io/http-status-code (ex-data e)) 500)
+                                 :headers {} ; todo retry-after on 503
+                                 :body    (->Err (.getMessage e))})))))
             })))
 
 (defn with-user-id [cookie-name cookie-domain jwt-secret jwt-issuer]
+  {:pre [cookie-name cookie-domain jwt-secret jwt-issuer]}
   {:name ::with-user-id
    :enter (fn [context]
             (let [verify (fn [& args]

@@ -10,7 +10,7 @@
 
 #?(:clj
    (def server
-     {:process-tx (fn [& args]
+     {:process-tx (fn [& args]                              ; $ domain dbname subject tx
                     (let [f (try
                               (require 'hyperfiddle.security.entity-ownership)
                               (resolve 'hyperfiddle.security.entity-ownership/write-domains)

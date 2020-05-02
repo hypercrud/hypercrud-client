@@ -3,6 +3,7 @@
   (:require
     [hyperfiddle.service.resolve :as R]
     [contrib.do :refer :all]
+    [contrib.data :refer [unqualify]]
     [hyperfiddle.domain :as domain]
     [hyperfiddle.ide.authenticate]
     [hyperfiddle.ide.directory :as ide-directory]           ; immoral
@@ -24,18 +25,21 @@
 
 
 (defmethod dispatch/via-domain IdeDomain [context]
-  (-> context
-      (hf-http/via
-        (let [domain (:domain (R/from context))
-              env (-> (R/from context) :config :env)
-              cookie-domain (::ide-directory/ide-domain domain)]
-          #_#_{:keys [cookie-name jwt-secret jwt-issuer]} (-> (get-in context [:request :domain])
-                                                              domain/environment-secure :jwt)
-          (hf-http/with-user-id ide-service/cookie-name
-            cookie-domain
-            (:AUTH0_CLIENT_SECRET env)
-            (:AUTH0_DOMAIN env))))
+  (let [domain (:domain (R/from context))
+        cookie-domain (::ide-directory/ide-domain domain)
+        {:keys [auth0]} (:config (R/from context))
+        #_#_{:keys [cookie-name jwt-secret jwt-issuer]} (-> (get-in context [:request :domain])
+                                                          domain/environment-secure :jwt)]
+    (cond-> context
 
+      auth0
+      (hf-http/via
+        (hf-http/with-user-id ide-service/cookie-name
+          cookie-domain
+          (:client-secret auth0)
+          (:domain auth0)))
+
+      true
       (hf-http/via
         (fn [context]
           (let [domain (get-in context [:request :domain])
@@ -45,24 +49,41 @@
             (when-not (= (:handler route) :static-resource)
               (timbre/info "ide-router:" (pr-str (:handler route)) (pr-str method) (pr-str path)))
 
-            (case (namespace (:handler route))
-              nil (-> context
-                      (assoc-in [:request :handler] (:handler route))
-                      (assoc-in [:request :route-params] (:route-params route))
-                      dispatch/endpoint)
+            (cond
 
-              "user" (dispatch/endpoint
-                       (update context :request #(-> (dissoc % :jwt) ; this is brittle
-                                                     (assoc :domain (from-result (::ide-domain/user-domain+ domain))
-                                                            :handler (keyword (name (:handler route)))
-                                                            :route-params (:route-params route))))))))
-        )))
+              (let [is-auth-configured (-> (R/from context) :config :auth0 :domain nil? not)
+                    is-ssr (= :ssr (unqualify (:handler route)))
+                    is-no-subject (nil? (get-in context [:request :user-id]))
+                    prevent-infinite-redirect (not (clojure.string/starts-with? path "/:hyperfiddle.ide!please-login/"))]
+                (and is-ssr
+                     is-auth-configured                        ; if there is an auth0 config, require logins
+                     is-no-subject
+                     prevent-infinite-redirect))
+              (let [inner-route (domain/url-decode domain path)
+                    url (domain/url-encode domain {::route/fiddle :hyperfiddle.ide/please-login
+                                                   ::route/datomic-args [inner-route]})]
+                (-> context
+                    (assoc-in [:response :status] 302)
+                    (assoc-in [:response :headers "Location"] url)))
+
+              (= "user" (namespace (:handler route)))
+              (dispatch/endpoint
+                (update context :request #(-> (dissoc % :jwt) ; this is brittle
+                                              (assoc :domain (from-result (::ide-domain/user-domain+ domain))
+                                                     :handler (keyword (name (:handler route)))
+                                                     :route-params (:route-params route)))))
+
+              :else #_(nil? (namespace (:handler route)))
+              (-> context
+                  (assoc-in [:request :handler] (:handler route))
+                  (assoc-in [:request :route-params] (:route-params route))
+                  dispatch/endpoint))))
+        ))))
 
 (defmethod dispatch/endpoint :hyperfiddle.ide/auth0-redirect [context]
   (R/via context R/run-IO
     (fn [context]
-      (let [{:keys [domain] :as request} context
-            env (-> (R/from context) :config :env)
+      (let [{{:keys [domain] :as request} :request} context
             io (reify io/IO
                  (hydrate-requests [io local-basis partitions requests]
                    ; todo who is this executed on behalf of? system/root or the end user?
@@ -76,24 +97,32 @@
                    ; todo who is this executed on behalf of? system/root or the end user?
                    (p/do* (transact! domain nil tx-groups))))
 
-            jwt (from-async (hyperfiddle.ide.authenticate/login env domain (R/via context R/uri-for :/) io (-> request :query-params :code)))]
+            jwt (from-async (hyperfiddle.ide.authenticate/login
+                              (:config (R/from context))
+                              domain
+                              (R/via context R/uri-for :/)
+                              io
+                              (-> request :query-params :code)))]
 
-        {:status  302
-         :headers {"Location" (-> (get-in request [:query-params :state]) base64-url-safe/decode)}
-         :cookies {ide-service/cookie-name (-> domain ::ide-directory/ide-domain
-                                               (cookie/jwt-options-pedestal)
-                                               (assoc :value jwt
-                                                      #_#_:expires expiration))}
-         :body    ""})
+        (hf-http/response
+          context
+          {:status 302
+           :headers {"Location" (-> (get-in request [:query-params :state]) base64-url-safe/decode)}
+           :cookies {ide-service/cookie-name (-> domain ::ide-directory/ide-domain
+                                                 (cookie/jwt-options-pedestal)
+                                                 (assoc :value jwt
+                                                        #_#_:expires expiration))}
+           :body ""}))
       )))
 
 (defmethod dispatch/endpoint :hyperfiddle.ide/logout [context]
-  (hf-http/response context
-    (fn [{:keys [request]}]
-      {:status  302
-       :headers {"Location" "/"}
-       :cookies {ide-service/cookie-name (-> request :domain ::ide-directory/ide-domain
-                                             (cookie/jwt-options-pedestal)
-                                             (assoc :value (get-in request [:cookies ide-service/cookie-name :value])
-                                                    :expires "Thu, 01 Jan 1970 00:00:00 GMT"))}
-       :body    ""})))
+  (hf-http/response
+    context
+    {:status 302
+     :headers {"Location" "/"}
+     :cookies {ide-service/cookie-name (-> context :request :domain ::ide-directory/ide-domain
+                                           (cookie/jwt-options-pedestal)
+                                           (assoc :value (get-in (:request context) [:cookies ide-service/cookie-name :value])
+                                                  :expires "Thu, 01 Jan 1970 00:00:00 GMT"))}
+     :body ""}
+    ))

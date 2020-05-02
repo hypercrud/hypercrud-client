@@ -15,7 +15,9 @@
   `(as-either (try ~@body
                    (catch ~(if (:ns &env) 'js/Error 'Exception) e# (either/left e#)))))
 
-(defmacro from-result [& body]
+(defmacro from-result
+  "Map an either into an exception or a value"
+  [& body]
   `(either/branch (do-result ~@body)
      (fn [e#] (throw e#))
      identity))
