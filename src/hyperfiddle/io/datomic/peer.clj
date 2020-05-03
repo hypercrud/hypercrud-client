@@ -30,7 +30,9 @@
 (extend-type Connection
   ConnectionFacade
   (db [conn] (datomic.api/db conn))
-  #_(transact [conn arg-map] @(datomic.api/transact conn {:tx-data arg-map})))
+  (basis [conn] (datomic.api/basis-t (datomic.api/db conn)))
+  (transact [conn arg-map] @(datomic.api/transact conn (:tx-data arg-map)))
+  (with-db [conn] (datomic.api/db conn)))
 
 (extend-type Db
   DbFacade
