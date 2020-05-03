@@ -14,7 +14,8 @@
     [hypercrud.browser.context :as context]
     [hyperfiddle.runtime :as runtime]
     [hyperfiddle.ui.error :as ui-error]
-    [hyperfiddle.ui.stale :as stale]))
+    [hyperfiddle.ui.stale :as stale]
+    [hyperfiddle.api :as hf]))
 
 
 (defn auto-ui-css-class [?ctx]                              ; semantic css
@@ -82,7 +83,7 @@
 
 (defn route-editor
   ([{rt :runtime pid :partition-id :as ctx}]
-   [route-editor (runtime/get-route rt pid) (r/partial runtime/set-route rt pid)])
+   [route-editor (runtime/get-route rt pid) (r/partial hf/set-route rt pid)])
   ([route on-change]
    (let [parse-string (fn [s]
                         (let [route (reader/read-edn-string! s)]

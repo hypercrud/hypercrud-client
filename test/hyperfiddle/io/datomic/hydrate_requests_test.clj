@@ -4,19 +4,19 @@
     [clojure.test :refer [deftest is use-fixtures]]
     [contrib.uri :refer [->URI]]
     [datomic.api :as d]
-    [hyperfiddle.domain :as domain]
     [hyperfiddle.foundation :as foundation]
     [hyperfiddle.io.datomic.hydrate-requests :as datomic-hydrate-requests]
     [hyperfiddle.io.datomic.peer :as peer]                  ; todo run tests for client as well
-    ))
+    [hyperfiddle.api :as hf]))
 
 
 (def test-uri "datomic:mem://test")
 (def test-dbname "$test")
 
 (def test-domain
-  (reify domain/Domain
-    (connect [domain dbname] (-> (domain/database domain dbname) :database/uri peer/connect))
+  (reify hf/Domain
+    (connect [domain dbname] (-> (hf/database domain dbname) :database/uri peer/connect))
+    (database [domain dbname] (get (hf/databases domain) dbname))
     (databases [domain]
       {test-dbname {:database/uri (->URI test-uri)}})))
 
@@ -44,7 +44,7 @@
                                                               [:db/add "-1" :db/valueType :db.type/string]
                                                               [:db/add "-1" :db/cardinality :db.cardinality/one]]}}}
         local-basis {"$test" (d/basis-t (d/db conn))}
-        get-secure-db-with (build-get-secure-db-with partitions (atom {}) local-basis)
+        get-secure-db-with (build-get-secure-db-with partitions (atom {}) local-basis nil)
         $ (:db (get-secure-db-with "$test" foundation/root-pid))]
     (is (= (as-> (d/touch (d/entity $ :x/y)) entity
              (into {} entity)
@@ -58,7 +58,7 @@
         partitions {foundation/root-pid {:is-branched true
                                          :stage {test-dbname [{:db/id "-1" :person/name "John" :person/age 30}]}}}
         local-basis {test-dbname (d/basis-t (d/db conn))}
-        get-secure-db-with (build-get-secure-db-with partitions (atom {}) local-basis)
+        get-secure-db-with (build-get-secure-db-with partitions (atom {}) local-basis nil)
         $ (:db (get-secure-db-with test-dbname foundation/root-pid))]
     (is (= (d/q '[:find ?age . :where [?person :person/age ?age] [?person :person/name "John"]] $) 30))))
 
@@ -68,7 +68,7 @@
                                          :stage {test-dbname [{:db/id "-1" :person/name "John" :person/age 30}]}}}
         local-basis {test-dbname (d/basis-t (d/db conn))}   ; get a stale basis before another user transacts
         _ @(d/transact conn [{:db/id "-1" :person/name "Bob" :person/age 50}])
-        get-secure-db-with (build-get-secure-db-with partitions (atom {}) local-basis)]
+        get-secure-db-with (build-get-secure-db-with partitions (atom {}) local-basis nil)]
     (is (thrown-with-msg? RuntimeException (re-pattern datomic-hydrate-requests/ERROR-BRANCH-PAST)
                           (get-secure-db-with test-dbname foundation/root-pid)))))
 
@@ -81,7 +81,7 @@
                          :is-branched true
                          :stage {test-dbname [{:db/id "-1" :person/name "John" :person/age 30}]}}}
         local-basis {test-dbname (d/basis-t (d/db conn))}
-        get-secure-db-with (build-get-secure-db-with partitions (atom {}) local-basis)
+        get-secure-db-with (build-get-secure-db-with partitions (atom {}) local-basis nil)
         $-nil (:db (get-secure-db-with test-dbname foundation/root-pid))
         $-2 (:db (get-secure-db-with test-dbname "2"))]
     (is (= (d/q '[:find ?age . :where [?person :person/age ?age] [?person :person/name "John"]] $-nil) nil))
@@ -97,7 +97,7 @@
                          :stage {test-dbname [{:db/id "-1" :person/name "John" :person/age 30}]}}}
         local-basis {test-dbname (d/basis-t (d/db conn))}   ; get a stale basis before another user transacts
         _ @(d/transact conn [{:db/id "-1" :person/name "Bob" :person/age 50}])
-        get-secure-db-with (build-get-secure-db-with partitions (atom {}) local-basis)
+        get-secure-db-with (build-get-secure-db-with partitions (atom {}) local-basis nil)
         $-nil (:db (get-secure-db-with test-dbname foundation/root-pid))]
     (is (= (d/q '[:find ?age . :where [?person :person/age ?age] [?person :person/name "John"]] $-nil) nil))
     (is (thrown-with-msg? RuntimeException (re-pattern datomic-hydrate-requests/ERROR-BRANCH-PAST)
@@ -113,7 +113,7 @@
                          :stage {test-dbname
                                  [{:db/id "-2" :person/name "Alice" :person/age 40}]}}}
         local-basis {test-dbname (d/basis-t (d/db conn))}
-        get-secure-db-with (build-get-secure-db-with partitions (atom {}) local-basis)
+        get-secure-db-with (build-get-secure-db-with partitions (atom {}) local-basis nil)
         $-nil (:db (get-secure-db-with test-dbname foundation/root-pid))
         $-2 (:db (get-secure-db-with test-dbname "2"))]
     (is (= (d/q '[:find ?age . :where [?person :person/age ?age] [?person :person/name "John"]] $-nil) 30))
@@ -131,7 +131,7 @@
                          :stage {test-dbname [{:db/id "-2" :person/name "Alice" :person/age 40}]}}}
         local-basis {test-dbname (d/basis-t (d/db conn))}   ; get a stale basis before another user transacts
         _ @(d/transact conn [{:db/id "-1" :person/name "Bob" :person/age 50}])
-        get-secure-db-with (build-get-secure-db-with partitions (atom {}) local-basis)]
+        get-secure-db-with (build-get-secure-db-with partitions (atom {}) local-basis nil)]
     (is (thrown-with-msg? RuntimeException (re-pattern datomic-hydrate-requests/ERROR-BRANCH-PAST)
                           (get-secure-db-with test-dbname foundation/root-pid)))
     (is (thrown-with-msg? RuntimeException (re-pattern datomic-hydrate-requests/ERROR-BRANCH-PAST)

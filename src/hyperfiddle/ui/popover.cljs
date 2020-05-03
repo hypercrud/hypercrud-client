@@ -13,11 +13,11 @@
     [hypercrud.browser.context :as context]
     [hyperfiddle.api]
     [hyperfiddle.runtime :as runtime]
-    [hyperfiddle.security.client :as security]
     [hyperfiddle.ui.iframe :as iframe]
     [promesa.core :as p]
     [re-com.core :as re-com]
-    [taoensso.timbre :as timbre]))
+    [taoensso.timbre :as timbre]
+    [hyperfiddle.api :as hf]))
 
 
 (defn- run-txfn! [ctx props]
@@ -43,7 +43,7 @@
                       popover-data @r-popover-data]
                   (runtime/close-popover rt parent-pid child-pid)
                   (cond-> (runtime/commit-branch rt child-pid tx-groups)
-                    (::redirect props) (p/then (fn [_] (runtime/set-route rt (runtime/get-branch-pid rt parent-pid) ((::redirect props) popover-data))))))))
+                    (::redirect props) (p/then (fn [_] (hf/set-route rt (runtime/get-branch-pid rt parent-pid) ((::redirect props) popover-data))))))))
       (p/catch (fn [e]
                  ; todo something better with these exceptions (could be user error)
                  (timbre/error e)
@@ -62,10 +62,11 @@
 
 (defn- disabled? [link-ref ctx]
   (condp some @(r/fmap :link/class link-ref)
-    #{:hf/new} nil #_(not @(r/track security/can-create? ctx)) ; flag
+    #{:hf/new} nil #_(not @(r/track hf/subject-may-create? ctx)) ; flag
     #{:hf/remove} (if (let [[_ a _] @(:hypercrud.browser/eav ctx)] a)
-                    (if-let [ctx (:hypercrud.browser/parent ctx)] (not @(r/track security/writable-entity? ctx))) ; check logic
-                    (not @(r/track security/writable-entity? ctx)))
+                    (if-let [ctx (:hypercrud.browser/parent ctx)]
+                      (not @(r/track hf/subject-may-edit-entity? ctx))) ; check logic
+                    (not @(r/track hf/subject-may-edit-entity? ctx)))
     ; else we don't know the semantics, just nil out
     nil))
 
@@ -74,7 +75,7 @@
       (p/then
         (fn [tx]
           (cond-> (runtime/with-tx (:runtime ctx) (:partition-id ctx) (context/dbname ctx) tx)
-            (::redirect props) (p/then (fn [_] (runtime/set-route (:runtime ctx) (:partition-id ctx) ((::redirect props) nil)))))))
+            (::redirect props) (p/then (fn [_] (hf/set-route (:runtime ctx) (:partition-id ctx) ((::redirect props) nil)))))))
       (p/catch (fn [e]
                  ; todo something better with these exceptions (could be user error)
                  (timbre/error e)
@@ -133,7 +134,7 @@
 
 (let [open-branched-popover! (fn [rt pid route child-pid]
                                (runtime/create-partition rt pid child-pid true)
-                               (-> (runtime/set-route rt child-pid route)
+                               (-> (hf/set-route rt child-pid route)
                                    (p/finally (fn [] (runtime/open-popover rt pid child-pid)))))]
   (defn- branched-popover-cmp [child-pid ctx props label]
     [popover-cmp-impl ctx child-pid

@@ -1,35 +1,35 @@
 (ns hyperfiddle.io.datomic.client
   (:require
     [contrib.performance :as perf]
-    [datomic.client.api :as d-client]
+    [datomic.client.api]
     [datomic.client.impl.shared]
-    [hyperfiddle.io.datomic.core :refer [ConnectionFacade DbFacade]]
-    [taoensso.timbre :as timbre])
+    [hyperfiddle.api :as hf]
+    [taoensso.timbre :refer [error debugf]])
   (:import
     (datomic.client.impl.shared Connection Db)))
 
 
 (extend-type Connection
-  ConnectionFacade
-  (basis [conn] (-> conn d-client/db :t))
-  (db [conn] (d-client/db conn))
-  (transact [conn arg-map] (d-client/transact conn arg-map))
-  (with-db [conn] (d-client/with-db conn)))
+  hf/ConnectionFacade
+  (basis [conn] (-> conn datomic.client.api/db :t))
+  (db [conn] (datomic.client.api/db conn))
+  (transact [conn arg-map] (datomic.client.api/transact conn arg-map))
+  (with-db [conn] (datomic.client.api/with-db conn)))
 
 (extend-type Db
-  DbFacade
-  (as-of [db time-point] (d-client/as-of db time-point))
+  hf/DbFacade
+  (as-of [db time-point] (datomic.client.api/as-of db time-point))
   (basis-t [db] (:t db))
-  (pull [db arg-map] (d-client/pull db arg-map))
-  (with [db arg-map] (d-client/with db arg-map)))
+  (pull [db arg-map] (datomic.client.api/pull db arg-map))
+  (with [db arg-map] (datomic.client.api/with db arg-map)))
 
 (defn connect [client db-name & [on-created!]]
   (try (perf/time
          (fn [total-time]
-           (timbre/debugf "Connecting to %s %sms" db-name total-time))
-         (d-client/connect client {:db-name db-name}))
+           (debugf "Connecting to %s %sms" db-name total-time))
+         (datomic.client.api/connect client {:db-name db-name}))
        (catch Exception e
-         (timbre/error e)
+         (error e)
          (throw e))))
 
-(defn q [arg-map] (d-client/q arg-map))
+(defn q [arg-map] (datomic.client.api/q arg-map))

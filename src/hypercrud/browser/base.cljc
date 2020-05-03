@@ -15,7 +15,7 @@
     [hypercrud.types.EntityRequest :refer [->EntityRequest]]
     [hypercrud.types.QueryRequest :refer [->QueryRequest ->EvalRequest]]
     [hypercrud.types.ThinEntity :refer [#?(:cljs ThinEntity)]]
-    [hyperfiddle.domain :as domain]
+    [hyperfiddle.api :as hf]
     [hyperfiddle.fiddle :as fiddle]
     [hyperfiddle.route :as route]
     [hyperfiddle.runtime :as runtime]
@@ -43,9 +43,9 @@
     lookup-ref))
 
 (defn- hydrate-fiddle-from-datomic+ [rt pid fiddle-ident]   ; no ctx
-  (mlet [:let [db (runtime/db rt pid (domain/fiddle-dbname (runtime/domain rt)))
+  (mlet [:let [db (runtime/db rt pid (hf/fiddle-dbname (hf/domain rt)))
                request (->EntityRequest (legacy-fiddle-ident->lookup-ref fiddle-ident) db fiddle/browser-pull)]
-         record @(runtime/hydrate rt pid request)
+         record @(hf/hydrate rt pid request)
          record (if-not (:db/id record)
                   (either/left (ex-info (str :hyperfiddle.error/fiddle-not-found)
                                         {:ident :hyperfiddle.error/fiddle-not-found
@@ -62,8 +62,8 @@
     (return (fiddle/apply-defaults fiddle))))
 
 (defn- hydrate-fiddle+ [rt pid fiddle-ident]                ; no ctx
-  (-> (if (domain/system-fiddle? (runtime/domain rt) fiddle-ident)
-        (->> (domain/hydrate-system-fiddle (runtime/domain rt) fiddle-ident)
+  (-> (if (hf/system-fiddle? (hf/domain rt) fiddle-ident)
+        (->> (hf/hydrate-system-fiddle (hf/domain rt) fiddle-ident)
              (cats/fmap fiddle/apply-defaults))
         (hydrate-fiddle-from-datomic+ rt pid fiddle-ident))))
 
@@ -155,7 +155,7 @@
 
 (defn- nil-or-hydrate+ [rt pid request]
   (if request
-    @(runtime/hydrate rt pid request)
+    @(hf/hydrate rt pid request)
     (either/right nil)))
 
 ; internal bs abstraction to support hydrate-result-as-fiddle

@@ -4,7 +4,8 @@
     [hyperfiddle.config]
     [hyperfiddle.domain]
     [hyperfiddle.io.datomic.core :as d]
-    [hyperfiddle.io.datomic.peer]))
+    [hyperfiddle.io.datomic.peer]                           ; ?
+    [hyperfiddle.api :as hf]))
 
 
 (def config {:domain {:databases
@@ -17,13 +18,13 @@
 (def domain (hyperfiddle.config/get-domain config))
 
 (defn with [$ tx]
-  (:db-after (d/with $ {:tx-data tx})))
+  (:db-after (hf/with $ {:tx-data tx})))
 
 (declare $ q)
 
 (deftest limit-1
-  (def conn (hyperfiddle.domain/connect domain "$"))
-  (def $ (-> (hyperfiddle.io.datomic.core/db conn)
+  (def conn (hf/connect domain "$"))
+  (def $ (-> (hf/db conn)
            (with [{:db/ident :dustingetz/email :db/valueType :db.type/string :db/cardinality :db.cardinality/one}
                   {:db/ident :dustingetz/gender :db/valueType :db.type/ref :db/cardinality :db.cardinality/one}
                   {:db/ident :dustingetz/shirt-size :db/valueType :db.type/ref :db/cardinality :db.cardinality/one}
@@ -39,7 +40,7 @@
            (with [{:dustingetz/email "alice@example.com" :dustingetz/gender :dustingetz/female :dustingetz/shirt-size :dustingetz/womens-large}
                   {:dustingetz/email "bob@example.com" :dustingetz/gender :dustingetz/male :dustingetz/shirt-size :dustingetz/mens-large}
                   {:dustingetz/email "charlie@example.com" :dustingetz/gender :dustingetz/male :dustingetz/shirt-size :dustingetz/mens-medium}])))
-  (def q (hyperfiddle.io.datomic.core/qf2 (hyperfiddle.domain/database domain "$")))
+  (def q (hyperfiddle.io.datomic.core/qf2 (hf/database domain "$")))
 
   (is (= [17592186045428 17592186045429 17592186045430]
         (q {:query '[:find [?e ...] :where [?e :dustingetz/email]] :args [$] :limit 50})

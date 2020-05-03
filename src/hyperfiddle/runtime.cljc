@@ -8,6 +8,7 @@
     [contrib.datomic-tx :as tx]
     [contrib.reactive :as r]
     [hypercrud.types.DbRef :refer [->DbRef]]
+    [hyperfiddle.api :as hf]
     [hyperfiddle.domain :as domain]
     [hyperfiddle.io.core :as io]
     [hyperfiddle.route :as route]
@@ -15,16 +16,6 @@
     [promesa.core :as p]
     [taoensso.timbre :as timbre]))
 
-
-(defprotocol HF-Runtime
-  (domain [rt])
-  (io [rt])
-  (hydrate [rt pid request])
-  (set-route
-    [rt pid route]
-    [rt pid route force-hydrate]
-    "Set the route of the given branch. This may or may not trigger IO.
-    Returns a promise"))
 
 (defn ^:deprecated state
   ([rt]
@@ -43,7 +34,7 @@
 (defn get-auto-transact [rt dbname] @(state-ref rt [::auto-transact dbname]))
 
 (defn set-auto-transact [rt dbname auto-tx]
-  {:pre [(domain/valid-dbname? (domain rt) dbname)]}
+  {:pre [(domain/valid-dbname? (hf/domain rt) dbname)]}
   (state/dispatch! rt [:update-auto-transact dbname auto-tx]))
 
 ; todo remove pid requirement
@@ -173,7 +164,7 @@
   @(state-ref rt [::partitions pid :pending-route]))
 
 (defn- refresh-global-basis [rt root-pid]
-  (-> (io/global-basis (io rt))
+  (-> (io/global-basis (hf/io rt))
       (p/then (fn [global-basis] (state/dispatch! rt [:set-global-basis global-basis])))
       (p/catch (fn [e]
                  (timbre/error e)
@@ -184,7 +175,7 @@
   (let [{:keys [::global-basis ::partitions]} @(state/state rt)
         route (or (get-in partitions [pid :pending-route])
                   (get-in partitions [pid :route]))]
-    (-> (io/local-basis (io rt) global-basis route)
+    (-> (io/local-basis (hf/io rt) global-basis route)
         (p/then (fn [local-basis]
                   (state/dispatch! rt [:partition-basis pid local-basis])))
         (p/catch (fn [error]
@@ -244,7 +235,7 @@
                                                  (assoc acc pid p)))
                                              as bs)))
                         (data/map-values #(select-keys % [:is-branched :partition-children :parent-pid :stage])))]
-    (-> (io/hydrate-route (io rt) (get-local-basis rt pid) route pid partitions)
+    (-> (io/hydrate-route (hf/io rt) (get-local-basis rt pid) route pid partitions)
         (p/catch (fn [e]
                    (timbre/info pid hydrate-id @(state-ref rt [::partitions pid :hydrate-id]))
                    (timbre/error e)
@@ -297,7 +288,7 @@
   [rt pid dbname tx]
   (cond
     (not (branched? rt pid)) (set-stage rt (get-branch-pid rt pid) dbname tx)
-    (not (domain/valid-dbname? (domain rt) dbname)) (p/rejected (ex-info "Unable to stage to an invalid db" {:dbname dbname}))
+    (not (domain/valid-dbname? (hf/domain rt) dbname)) (p/rejected (ex-info "Unable to stage to an invalid db" {:dbname dbname}))
     (get-auto-transact rt dbname) (p/rejected (ex-info "Unable to stage to a db with auto-transact on." {:dbname dbname}))
     :else (when (not= tx (get-stage rt pid dbname))
             (state/dispatch! rt [:batch
@@ -329,14 +320,14 @@
 
 (defn- transact-impl [rt pid tx-groups & post-tx]
   {:pre [(branched? rt pid)]}
-  (mlet [{:keys [tempid->id]} (io/transact! (io rt) tx-groups)
+  (mlet [{:keys [tempid->id]} (io/transact! (hf/io rt) tx-groups)
          :let [route (route/invert-route (get-route rt pid) (fn [dbname id] (get-in tempid->id [dbname id] id)))
                _ (state/dispatch! rt (into [:batch [:transact!-success pid (keys tx-groups)]] post-tx))]
          _ (refresh-global-basis rt pid)]
     ; todo we want to overwrite our current browser location with this new url
     ; currently this new route breaks the back button
     ; todo should just call foundation/bootstrap-data
-    (set-route rt pid route true)))
+    (hf/set-route rt pid route true)))
 
 ; todo do something when child branches exist and are not nil: hyperfiddle/hyperfiddle#99
 ; can only transact one branch
@@ -348,7 +339,7 @@
    (let [pid (get-branch-pid rt pid)]
      (transact-impl rt pid (get-stage rt pid))))
   ([rt pid dbname]
-   (if (domain/valid-dbname? (domain rt) dbname)
+   (if (domain/valid-dbname? (hf/domain rt) dbname)
      (let [pid (get-branch-pid rt pid)]
        (transact-impl rt pid {dbname (get-stage rt pid dbname)}))
      (p/rejected (ex-info "Unable to transact to an invalid db" {:dbname dbname})))))
@@ -364,7 +355,7 @@
   [rt pid dbname tx]
   (cond
     (not (branched? rt pid)) (with-tx rt (get-branch-pid rt pid) dbname tx)
-    (not (domain/valid-dbname? (domain rt) dbname)) (p/rejected (ex-info "Unable to stage to an invalid db" {:dbname dbname}))
+    (not (domain/valid-dbname? (hf/domain rt) dbname)) (p/rejected (ex-info "Unable to stage to an invalid db" {:dbname dbname}))
     (empty? tx) (do (timbre/warn "No tx provided")
                     (p/resolved nil))
     :else (do
@@ -382,7 +373,7 @@
   [rt pid tx-groups]                                        ; todo rewrite in terms of with-tx
   (cond
     (not (branched? rt pid)) (commit-branch rt (get-branch-pid rt pid) tx-groups)
-    (not (domain/valid-dbnames? (domain rt) (keys tx-groups))) (p/rejected (ex-info "Unable to commit to an invalid db" {:invalid-dbnames (remove #(domain/valid-dbname? (domain rt) %) (keys tx-groups))}))
+    (not (domain/valid-dbnames? (hf/domain rt) (keys tx-groups))) (p/rejected (ex-info "Unable to commit to an invalid db" {:invalid-dbnames (remove #(domain/valid-dbname? (hf/domain rt) %) (keys tx-groups))}))
     :else (do
             (let [with-actions (->> tx-groups
                                     (remove (fn [[dbname tx]] (empty? tx)))

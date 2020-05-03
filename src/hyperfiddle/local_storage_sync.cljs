@@ -3,12 +3,12 @@
     [contrib.component :as component]
     [contrib.document :refer [document-location!]]
     [contrib.local-storage :as local-storage]
-    [hyperfiddle.domain :as domain]
     [hyperfiddle.io.basis :as basis]
     [hyperfiddle.route :as route]
     [hyperfiddle.runtime :as runtime]
     [hyperfiddle.state :as state]
-    [taoensso.timbre :as timbre]))
+    [taoensso.timbre :as timbre]
+    [hyperfiddle.api :as hf]))
 
 
 (def running-ls-schema-version 5)
@@ -83,7 +83,7 @@
     (try
       (let [changing-route (when-not (runtime/parent-pid rt pid)
                              (let [existing-route (runtime/get-route rt pid)
-                                   route (domain/url-decode (runtime/domain rt) (document-location!))]
+                                   route (hf/url-decode (hf/domain rt) (document-location!))]
                                (when-not (route/equal-without-frag? existing-route route)
                                  (state/dispatch! rt [:stage-route pid route])
                                  true)))]
@@ -147,7 +147,7 @@
                              :last-modified
                              :stage
                              :version])
-      (update :stage select-keys (keys (domain/databases domain))) ; drop any stage no longer applicable to domain ; todo show an error page when dropping tx? user might lose work
+      (update :stage select-keys (keys (hf/databases domain))) ; drop any stage no longer applicable to domain ; todo show an error page when dropping tx? user might lose work
       (update ::runtime/auto-transact init-auto-tx (::runtime/auto-transact initial-state))
       (assoc ::runtime/user-id (::runtime/user-id initial-state)) ; ssr always win (it has access to cookies)
       (cond->
@@ -161,7 +161,7 @@
           new-ls-state (loop [ls-state ls-state]
                          (if (= running-ls-schema-version (:version ls-state))
                            (if-not (runtime/parent-pid rt pid)
-                             (init-state (runtime/domain rt) initial-state ls-state)
+                             (init-state (hf/domain rt) initial-state ls-state)
                              (let [global-basis (let [init-gb (::runtime/global-basis initial-state)
                                                       ls-gb (get ls-state [::runtime/global-basis])]
                                                   (cond
@@ -179,7 +179,7 @@
                                                                   -1 ls-gb
                                                                   0 init-gb
                                                                   1 init-gb)))))]
-                               (init-state (runtime/domain rt) initial-state ls-state global-basis)))
+                               (init-state (hf/domain rt) initial-state ls-state global-basis)))
                            (if-let [migrate (get ls-migrations (:version ls-state))]
                              (recur (migrate ls-state))
                              (do

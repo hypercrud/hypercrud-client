@@ -17,7 +17,8 @@
     [hyperfiddle.service.http :refer [handle-route]]
     [hyperfiddle.service.domain :as service-domain]
     [promesa.core :as p]
-    [taoensso.timbre :as timbre]))
+    [taoensso.timbre :as timbre]
+    [hyperfiddle.api :as hf]))
 
 
 (defmethod handle-route :hyperfiddle.ide/auth0-redirect [handler config req res]
@@ -72,8 +73,8 @@
            (nil? (object/get req "user-id"))
            (not (string/starts-with? path "/:hyperfiddle.ide!please-login/")))
       ; todo this logic should be injected into demo domain record
-      (let [inner-route (domain/url-decode domain path)
-            url (domain/url-encode domain {::route/fiddle :hyperfiddle.ide/please-login
+      (let [inner-route (hf/url-decode domain path)
+            url (hf/url-encode domain {::route/fiddle :hyperfiddle.ide/please-login
                                            ::route/datomic-args [inner-route]})]
         (.redirect res url))
       :else (do

@@ -1,13 +1,13 @@
 (ns hyperfiddle.database.fixtures
   (:require
     [clojure.test :refer [join-fixtures]]
-    [datomic.api :as d]
-    [hyperfiddle.domain :as domain]
+    [datomic.api :as d]                                     ; no longer necessary, use hf/connect
+    [hyperfiddle.api :as hf]
     [hyperfiddle.io.datomic.transact :as transact]))
 
 
 (defn init-domain [domain & {:keys [subject schemas init-txs]}]
-  (->> (domain/databases domain)
+  (->> (hf/databases domain)
        (map (fn [[dbname {:keys [:database/uri]}]]
               (fn [f]
                 (when-not (d/create-database (str uri))

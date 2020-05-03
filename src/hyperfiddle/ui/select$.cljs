@@ -8,7 +8,6 @@
     [contrib.reactive :as r]
     [contrib.reader]
     [contrib.string :refer [blank->nil]]
-    [cuerdas.core :as str]
     [hypercrud.browser.base :as base]
     [hypercrud.browser.context :as context]
     [hyperfiddle.api :as hf]
@@ -17,7 +16,7 @@
     [hyperfiddle.runtime :as runtime]
     [hyperfiddle.ui.error :as ui-error]
     [hyperfiddle.ui.iframe :as iframe]
-    [hyperfiddle.ui.util :refer [with-entity-change! writable-entity?]]
+    [hyperfiddle.ui.util :refer [with-entity-change!]]
     [taoensso.timbre :as timbre]))
 
 (defn ident->label [v]
@@ -273,7 +272,7 @@
                       (either/branch
                         (fn [e] (runtime/set-error rt options-pid e))
                         (fn [route]
-                          (runtime/set-route rt options-pid route)))))
+                          (hf/set-route rt options-pid route)))))
 
      ; Must return string otherwise "invariant undefined"; you can pr-str from userland
      "labelKey" (comp str (:option-label select-props))

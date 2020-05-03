@@ -1,19 +1,19 @@
 (ns hyperfiddle.service.express-js.ssr-stream
   (:require
     [goog.object :as object]
-    [hyperfiddle.domain :as domain]
     [hyperfiddle.service.express-js.middleware :as middleware]
     [hyperfiddle.service.http :refer [handle-route]]
     [hyperfiddle.service.node.ssr :as node-ssr]
     [hyperfiddle.service.ssr :as ssr]
     [promesa.core :as p]
-    [taoensso.timbre :as timbre]))
+    [taoensso.timbre :as timbre]
+    [hyperfiddle.api :as hf]))
 
 
 (defmethod handle-route :ssr [handler config req res]
   (let [domain (object/get req "domain")
         io (node-ssr/->IOImpl domain (middleware/service-uri config req) (object/get req "jwt"))
-        route (domain/url-decode domain (.-originalUrl req))
+        route (hf/url-decode domain (.-originalUrl req))
         user-id (object/get req "user-id")]
     (-> (ssr/bootstrap-html-cmp config domain io route user-id)
         (p/then (fn [{:keys [http-status-code component]}]

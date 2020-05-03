@@ -1,6 +1,6 @@
 (ns hyperfiddle.ide.fiddles.schema-editor
   (:require
-    [hyperfiddle.runtime :as runtime]))
+    [hyperfiddle.api :as hf]))
 
 
 (defn renderer' [_ ctx props]
@@ -26,10 +26,10 @@
                                    (->> (if (seq where)
                                           (assoc @route :hyperfiddle.route/where where)
                                           (dissoc @route :hyperfiddle.route/where))
-                                        (runtime/set-route (:runtime ctx) (:partition-id ctx)))))]
+                                        (hf/set-route (:runtime ctx) (:partition-id ctx)))))]
          [:div.container-fluid.-hyperfiddle-ide-schema-editor props
           [:h3 (str "Datomic schema for " (let [ide-dbname (-> @(:hypercrud.browser/route ctx) :hyperfiddle.route/fiddle name (subs (count "editor")))]
-                                            (-> (hyperfiddle.runtime/domain (:runtime ctx))
+                                            (-> (hf/domain (:runtime ctx))
                                                 :hyperfiddle.ide.domain/user-dbname->ide
                                                 clojure.set/map-invert
                                                 (get ide-dbname))))]
@@ -64,5 +64,5 @@
 
 (defn renderer [& [_ ctx :as args]]
   (if (= "nodejs" *target*)
-    (hyperfiddle.ui.loading/page (hyperfiddle.runtime/domain (:runtime ctx)))
+    (hyperfiddle.ui.loading/page (hf/domain (:runtime ctx)))
     (into [renderer'] args)))

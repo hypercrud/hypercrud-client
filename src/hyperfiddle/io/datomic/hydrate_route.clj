@@ -8,6 +8,7 @@
     [hypercrud.browser.base :as base]
     [hypercrud.browser.browser-request :as browser-request]
     [hypercrud.browser.context :refer [map->Context]]
+    [hyperfiddle.api :as hf]
     [hyperfiddle.io.core :as io]
     [hyperfiddle.io.datomic.hydrate-requests :as hydrate-requests]
     [hyperfiddle.project :as project]
@@ -22,7 +23,7 @@
   state/State
   (state [rt] state-atom)
 
-  runtime/HF-Runtime
+  hf/HF-Runtime
   (domain [rt] domain)
   (hydrate [rt pid request]
     (let [ptm @(r/cursor state-atom [::runtime/partitions pid :ptm])]
@@ -40,7 +41,7 @@
   (let [aux-io (reify io/IO
                  (hydrate-requests [io local-basis partitions requests]
                    (p/do* (hydrate-requests/hydrate-requests domain local-basis requests partitions ?subject))))
-        aux-rt (reify runtime/HF-Runtime
+        aux-rt (reify hf/HF-Runtime
                  (io [rt] aux-io)
                  (domain [rt] domain))]
     (alet [schemas (schema/hydrate-schemas aux-rt pid local-basis partitions)
@@ -65,7 +66,7 @@
                                 (map (fn [[k v]]
                                        [k (select-keys v [:is-branched :partition-children :parent-pid :stage])]))
                                 (into {})))
-            get-secure-db-with+ (hydrate-requests/build-get-secure-db-with+ domain partitions-f db-with-lookup local-basis)
+            get-secure-db-with+ (hydrate-requests/build-get-secure-db-with+ domain partitions-f db-with-lookup local-basis ?subject)
             rt (->RT domain db-with-lookup get-secure-db-with+ state-atom ?subject)]
         (perf/time (fn [total-time] (timbre/debugf "d/with total time: %sms" total-time))
                    ; must d/with at the beginning otherwise tempid reversal breaks

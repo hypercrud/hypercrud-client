@@ -4,6 +4,7 @@
     [contrib.css :refer [css]]
     [contrib.reactive :as r]
     [hypercrud.browser.context :refer [map->Context]]
+    [hyperfiddle.api :as hf]
     [hyperfiddle.ide.domain :as ide-domain]
     [hyperfiddle.ide.fiddles.fiddle-src :as fiddle-src]
     [hyperfiddle.ide.fiddles.topnav :as topnav]
@@ -43,11 +44,11 @@
     [route-editor/form-editor rt branch]))
 
 (defn view [_ ctx props]
-  (let [preview-rt (-> (runtime/domain (:runtime ctx)) ::ide-domain/user-domain+
+  (let [preview-rt (-> (hf/domain (:runtime ctx)) ::ide-domain/user-domain+
                        (either/branch
                          (constantly nil)
                          (fn [user-domain]
-                           (let [preview-state (->FAtom (state/state (:runtime ctx)) preview/to (r/partial preview/from (runtime/domain (:runtime ctx)) (:partition-id ctx)))
+                           (let [preview-state (->FAtom (state/state (:runtime ctx)) preview/to (r/partial preview/from (hf/domain (:runtime ctx)) (:partition-id ctx)))
                                  user-io (->IOImpl user-domain)]
                              (->Runtime (:runtime ctx) preview-rt/preview-pid user-domain user-io preview-state)))))
         preview-state (r/atom {:initial-render true
@@ -73,7 +74,7 @@
          [:<>
           [:span (topnav/route->fiddle-label (runtime/get-route preview-rt preview-rt/preview-pid))]
           #_[route-editor-button preview-rt preview-branch preview-state]
-          (-> (runtime/domain (:runtime ctx)) ::ide-domain/user-domain+
+          (-> (hf/domain (:runtime ctx)) ::ide-domain/user-domain+
               (either/branch
                 (fn [e]
                   ; todo why does an error hide the toolbar
@@ -88,7 +89,7 @@
 
        [:div (select-keys props [:class])
         [:div {:class "-hyperfiddle-ide-preview"}
-         (-> (runtime/domain (:runtime ctx)) ::ide-domain/user-domain+
+         (-> (hf/domain (:runtime ctx)) ::ide-domain/user-domain+
              (either/branch
                (fn [e]
                  [:<>

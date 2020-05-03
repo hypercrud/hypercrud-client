@@ -6,14 +6,14 @@
     [contrib.reader :as reader]
     [contrib.uri :refer [->URI]]
     [hyperfiddle.database.fixtures :as fixtures]
-    [hyperfiddle.domain :as domain]
     [hyperfiddle.foundation :as foundation]
     [hyperfiddle.io.datomic.hydrate-route :as hydrate-route]
     [hyperfiddle.io.datomic.peer :as peer]                  ; todo run tests for client as well
     [hyperfiddle.io.datomic.sync :as datomic-sync]
     [hyperfiddle.route :as route]
     [promesa.core :as p]
-    [taoensso.timbre :as timbre])
+    [taoensso.timbre :as timbre]
+    [hyperfiddle.api :as hf])
   (:import
     (clojure.lang ExceptionInfo)
     (java.util.regex Pattern)))
@@ -22,9 +22,10 @@
 (def fiddle-ontology (-> (io/resource "schema/fiddle.edn") slurp reader/read-edn-string!))
 
 (def test-domain
-  (reify domain/Domain
-    (connect [domain dbname] (-> (domain/database domain dbname) :database/uri peer/connect))
+  (reify hf/Domain
+    (connect [domain dbname] (-> (hf/database domain dbname) :database/uri peer/connect))
     (fiddle-dbname [domain] "$src")
+    (database [domain dbname] (get (hf/databases domain) dbname))
     (databases [domain]
       {"$" {:database/uri (->URI (str "datomic:mem://" 'hyperfiddle.io.datomic.hydrate-route-test "$"))}
        "$src" {:database/uri (->URI (str "datomic:mem://" 'hyperfiddle.io.datomic.hydrate-route-test "$src"))}})

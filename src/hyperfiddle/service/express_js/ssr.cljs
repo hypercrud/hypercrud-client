@@ -1,7 +1,6 @@
 (ns hyperfiddle.service.express-js.ssr
   (:require
     [goog.object :as object]
-    [hyperfiddle.domain :as domain]
     [hyperfiddle.service.express-js.middleware :as middleware]
     [hyperfiddle.service.http :refer [handle-route]]
     [hyperfiddle.service.node.ssr :as node-ssr]

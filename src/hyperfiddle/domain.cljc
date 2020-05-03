@@ -1,6 +1,7 @@
 (ns hyperfiddle.domain
   (:refer-clojure :exclude [memoize])
   (:require
+    [hyperfiddle.api :as hf]
     [hyperfiddle.service.resolve :as R]
     [hyperfiddle.route :as route]
     [hyperfiddle.system-fiddle :as system-fiddle]
@@ -16,7 +17,8 @@
     [clojure.string :as string]
     [contrib.uri :refer [is-uri?]]
     [cats.monad.either :as either]
-    [contrib.try$ :refer [try-either]]))
+    [contrib.try$ :refer [try-either]]
+    ))
 
 
 ; todo these db specs belong somewhere else
@@ -37,38 +39,18 @@
 (s/def ::databases (s/map-of dbname-spec database-spec))
 (s/def ::environment map?)
 
-
-(defprotocol Domain
-  (basis [domain])
-  (type-name [domain])
-  (fiddle-dbname [domain])
-  (databases [domain])
-  (environment [domain])
-  (url-decode [domain s])
-  (url-encode [domain route])
-  (api-routes [domain])
-
-  (system-fiddle? [domain fiddle-ident])
-  (hydrate-system-fiddle [domain fiddle-ident])
-  #?(:clj (connect [domain dbname] [domain dbname on-created!]))
-  (memoize [domain f]))
-
-
-(defn database [domain dbname]
-  (get (databases domain) dbname))
-
 (defn database-color [domain dbname]
-  (or (:database/color (database domain dbname)) (color/color-for-name dbname)))
+  (or (:database/color (hf/database domain dbname)) (color/color-for-name dbname)))
 
 (defn api-path-for [domain handler & {:as params}]
-  (apply bidi/path-for (api-routes domain) handler (apply concat params)))
+  (apply bidi/path-for (hf/api-routes domain) handler (apply concat params)))
 
 (defn api-match-path [domain path & {:as options}]
-  (apply bidi/match-route (api-routes domain) path (apply concat options)))
+  (apply bidi/match-route (hf/api-routes domain) path (apply concat options)))
 
-(defn valid-dbname? [domain dbname] (some? (database domain dbname)))
+(defn valid-dbname? [domain dbname] (some? (hf/database domain dbname)))
 
-(defn valid-dbnames? [domain dbnames] (set/subset? (set dbnames) (set (keys (databases domain)))))
+(defn valid-dbnames? [domain dbnames] (set/subset? (set dbnames) (set (keys (hf/databases domain)))))
 
 (defn dbname-label [dbname]
   (if (= "$" dbname)
@@ -91,10 +73,11 @@
 (def spec-ednish-domain (s/and ::domain-core ::domain-hyperfiddle))
 
 (defrecord EdnishDomain [config basis fiddle-dbname databases environment home-route ?datomic-client memoize-cache]
-  Domain
+  hf/Domain
   (basis [domain] basis)
   (type-name [domain] (str *ns* "/" "EdnishDomain"))
   (fiddle-dbname [domain] fiddle-dbname)
+  (database [domain dbname] (get databases dbname))
   (databases [domain] databases)
   (environment [domain] environment)
   (url-decode [domain s] (route/url-decode s home-route))
@@ -102,8 +85,8 @@
   (api-routes [domain] R/domain-routes)
   (system-fiddle? [domain fiddle-ident] (system-fiddle/system-fiddle? fiddle-ident))
   (hydrate-system-fiddle [domain fiddle-ident] (system-fiddle/hydrate fiddle-ident))
-  #?(:clj (connect [domain dbname] (d/dyna-connect (database domain dbname) ?datomic-client)))
-  #?(:clj (connect [domain dbname on-created!] (d/dyna-connect (database domain dbname) ?datomic-client on-created!)))
+  #?(:clj (connect [domain dbname] (d/dyna-connect (hf/database domain dbname) ?datomic-client)))
+  #?(:clj (connect [domain dbname on-created!] (d/dyna-connect (hf/database domain dbname) ?datomic-client on-created!)))
   (memoize [domain f]
     (if-let [f (get @memoize-cache f)]
       f
@@ -112,10 +95,11 @@
         ret))))
 
 (defrecord BidiDomain [config basis fiddle-dbname databases environment router ?datomic-client memoize-cache]
-  Domain
+  hf/Domain
   (basis [domain] basis)
   (type-name [domain] (str *ns* "/" "BidiDomain"))
   (fiddle-dbname [domain] fiddle-dbname)
+  (database [domain dbname] (get databases dbname))
   (databases [domain] databases)
   (environment [domain] environment)
   (url-decode [domain s]
@@ -127,7 +111,7 @@
   (api-routes [domain] (R/domain-routes config))
   (system-fiddle? [domain fiddle-ident] (system-fiddle/system-fiddle? fiddle-ident))
   (hydrate-system-fiddle [domain fiddle-ident] (system-fiddle/hydrate fiddle-ident))
-  #?(:clj (connect [domain dbname] (d/dyna-connect (database domain dbname) ?datomic-client)))
+  #?(:clj (connect [domain dbname] (d/dyna-connect (hf/database domain dbname) ?datomic-client)))
   (memoize [domain f]
     (if-let [f (get @memoize-cache f)]
       f

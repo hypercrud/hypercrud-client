@@ -1,12 +1,12 @@
 (ns hyperfiddle.security
   (:require
+    [cats.monad.either :refer [right left]]
     #?(:clj [hyperfiddle.io.datomic.core])
-    #?(:clj [hyperfiddle.domain])
     #?(:clj [hyperfiddle.schema])
     [contrib.datomic-tx :refer [remove-tx]]
     [contrib.pprint :refer [pprint-str pprint-datoms-str]]
     [taoensso.timbre :as timbre]
-    [hyperfiddle.domain :as domain])
+    [hyperfiddle.api :as hf])
   #?(:clj
      (:import
        (hypercrud.types.DbRef DbRef))))
@@ -17,21 +17,19 @@
 (defn tx-validation-failure [& {:as data-map}]
   (ex-info "user tx failed validation" (into {:hyperfiddle.io/http-status-code 403} data-map)))
 
-(defn write-allow-anonymous [$ domain dbname subject tx]
-  tx)
-
-(defn write-authenticated-users-only [$ domain dbname subject tx]
+(defmethod hf/process-tx :hyperfiddle.security/authenticated-users-only [$ domain dbname subject tx]
   (if (nil? subject)
     (throw (tx-validation-failure))
     tx))
 
-(defn write-owner-only [$ domain dbname subject tx]
-  (if (-> (into #{root} (:hyperfiddle/owners (hyperfiddle.domain/database domain dbname)))
+(defmethod hf/process-tx :hyperfiddle.security/owner-only [$ domain dbname subject tx]
+  (if (-> (into #{root} (:hyperfiddle/owners (hf/database domain dbname)))
           (contains? subject))
     tx
     (throw (tx-validation-failure))))
 
 (defn tx-forbidden-stmts [schema whitelist tx]
+  {:pre [(set? whitelist)]}
   (->> tx
        (remove-tx schema                                    ; handles map-form transactions and tx fns
                   (fn [[o & [e a v :as args] :as stmt]]
@@ -54,7 +52,7 @@
      {:pre [$ domain db-name]}
      ; TODO this is IO for non-local datomic configurations
      (let [whitelist (try
-                       ((hyperfiddle.io.datomic.core/qf (domain/databases domain)
+                       ((hyperfiddle.io.datomic.core/qf (hf/databases domain)
                                                         [(let [branch nil] ; qf ignores branch
                                                            (DbRef. db-name branch))])
                         (attr-whitelist-query $))
@@ -63,10 +61,10 @@
                          ; :db.error/not-an-entity Unable to resolve entity: :hyperfiddle/whitelist-attribute
                          nil))]
        (into (set whitelist)
-             (:hf/transaction-operation-whitelist (domain/database domain db-name))))))
+             (:hf/transaction-operation-whitelist (hf/database domain db-name))))))
 
 #?(:clj
-   (defn tx-operation-whitelist! [$ domain dbname subject tx]
+   (defmethod hf/process-tx :hyperfiddle.security/tx-operation-whitelist [$ domain dbname subject tx]
      (let [whitelist (whitelist $ domain dbname)
            schema (hyperfiddle.schema/-summon-schema-out-of-band domain dbname $)
            forbidden-stmts (tx-forbidden-stmts schema whitelist tx)]
@@ -80,3 +78,18 @@
                   (ex-info msg {}  #_{:hf/anomoly msg
                                       :hf/forbidden-statements forbidden-stmts
                                       :hf/transaction-whitelist whitelist})))))))
+
+(defn owned-by? [hf-db subject]
+  (contains? (into #{} (:hyperfiddle/owners hf-db)) subject))
+
+(defmethod hf/subject-may-transact+ :hyperfiddle.security/owner-only [hf-db subject] (if (owned-by? hf-db subject) (right) (left "Writes restricted")))
+(defmethod hf/subject-may-create? :hyperfiddle.security/owner-only [ctx] (owned-by? (hf/db-record ctx) (hf/subject ctx)))
+(defmethod hf/subject-may-edit-entity? :hyperfiddle.security/owner-only [ctx] (owned-by? (hf/db-record ctx) (hf/subject ctx)))
+
+(defmethod hf/subject-may-transact+ :hyperfiddle.security/authenticated-users-only [hf-db subject] (if (some? subject) (right) (left "Please login")))
+(defmethod hf/subject-may-create? :hyperfiddle.security/authenticated-users-only [ctx] (some? (hf/subject ctx)))
+(defmethod hf/subject-may-edit-entity? :hyperfiddle.security/authenticated-users-only [ctx] (some? (hf/subject ctx)))
+
+(defmethod hf/subject-may-transact+ :hyperfiddle.security/tx-operation-whitelist [hf-db subject] (right))
+(defmethod hf/subject-may-create? :hyperfiddle.security/tx-operation-whitelist [ctx] false) ; ??? busted?
+(defmethod hf/subject-may-edit-entity? :hyperfiddle.security/tx-operation-whitelist [ctx] true)

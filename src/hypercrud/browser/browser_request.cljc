@@ -6,6 +6,7 @@
     [contrib.reactive :as r]
     [hypercrud.browser.base :as base]
     [hypercrud.browser.context :as context]
+    [hyperfiddle.api :as hf]
     [hyperfiddle.data :as data]
     [hyperfiddle.runtime :as runtime]
     [taoensso.timbre :as timbre]))
@@ -22,7 +23,7 @@
         (let [new-pid (context/build-pid-from-link ctx link-ctx route)]
           (condp = (runtime/get-route rt new-pid)
             nil (do (runtime/create-partition rt (:partition-id ctx) new-pid)
-                    (runtime/set-route rt new-pid route))
+                    (hf/set-route rt new-pid route))
             route (timbre/warn "Revisiting already created pid. Potential performance issue" route)
             (throw (ex-info "pid generation non-unique" {:new-pid new-pid
                                                          :existing-route (runtime/get-route rt new-pid)

@@ -1,10 +1,10 @@
 (ns hyperfiddle.ide.ui.route-editor
   (:require
-    [cats.monad.either :as either]
     [clojure.spec.alpha :as s]
     [contrib.pprint :refer [pprint-str]]
     [contrib.ui]
-    [hypercrud.browser.base :as base]
+    [hypercrud.browser.base]
+    [hyperfiddle.api :as hf]
     [hyperfiddle.route :as route]
     [hyperfiddle.runtime :as runtime]))
 
@@ -26,7 +26,7 @@
                    (->> (if (nil? n)
                           (dissoc route attr)
                           (assoc route attr n))
-                        (runtime/set-route rt branch)))
+                     (hf/set-route rt branch)))
       :mode "clojure"
       :lineNumbers false}
      contrib.ui/validated-cmp parse-string to-string contrib.ui/code]))
@@ -34,7 +34,7 @@
 (defn- datomic-args [rt branch]
   [route-element rt branch ::route/datomic-args]
   #_(either/branch
-      (base/hydrate-fiddle+ rt pid (::route/fiddle (runtime/get-route rt branch)))
+      (hypercrud.browser.base/hydrate-fiddle+ rt pid (::route/fiddle (runtime/get-route rt branch)))
       (fn [e]
         ; no fiddle for whatever reason, just hand the user a raw edn editor
         [route-element rt branch ::route/datomic-args])
@@ -61,6 +61,6 @@
 (defn edn-editor [rt branch]
   [contrib.ui/debounced
    {:value (runtime/get-route rt branch)
-    :on-change (fn [o n] (runtime/set-route rt branch n))
+    :on-change (fn [o n] (hf/set-route rt branch n))
     :lineNumbers false}
    contrib.ui/cm-edn])

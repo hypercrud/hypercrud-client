@@ -1,9 +1,9 @@
 (ns hyperfiddle.io.datomic.peer
   (:require
     [clojure.string]
-    [datomic.api :as d-peer]                                ; Must be provided by app at runtime
+    [datomic.api]                                           ; Must be provided by app at runtime
     [datascript.parser :as parser]
-    [hyperfiddle.io.datomic.core :refer [ConnectionFacade DbFacade]]
+    [hyperfiddle.api :as hf]
     [hyperfiddle.query]                                     ; query helpers
     [taoensso.timbre :as timbre])
   (:import
@@ -14,32 +14,32 @@
     (java.util.concurrent ExecutionException)))
 
 
-(extend-protocol ConnectionFacade
+(extend-protocol hf/ConnectionFacade
   Connection
-  (basis [conn] (-> conn d-peer/sync deref d-peer/basis-t))
-  (db [conn] (d-peer/db conn))
-  (transact [conn arg-map] @(d-peer/transact conn (:tx-data arg-map)))
-  (with-db [conn] (d-peer/db conn))
+  (basis [conn] (-> conn datomic.api/sync deref datomic.api/basis-t))
+  (db [conn] (datomic.api/db conn))
+  (transact [conn arg-map] @(datomic.api/transact conn (:tx-data arg-map)))
+  (with-db [conn] (datomic.api/db conn))
 
   LocalConnection
-  (basis [conn] (-> conn d-peer/sync deref d-peer/basis-t))
-  (db [conn] (d-peer/db conn))
-  (transact [conn arg-map] @(d-peer/transact conn (:tx-data arg-map)))
-  (with-db [conn] (d-peer/db conn)))
+  (basis [conn] (-> conn datomic.api/sync deref datomic.api/basis-t))
+  (db [conn] (datomic.api/db conn))
+  (transact [conn arg-map] @(datomic.api/transact conn (:tx-data arg-map)))
+  (with-db [conn] (datomic.api/db conn)))
 
 (extend-type Connection
-  ConnectionFacade
+  hf/ConnectionFacade
   (db [conn] (datomic.api/db conn))
   (basis [conn] (datomic.api/basis-t (datomic.api/db conn)))
   (transact [conn arg-map] @(datomic.api/transact conn (:tx-data arg-map)))
   (with-db [conn] (datomic.api/db conn)))
 
 (extend-type Db
-  DbFacade
-  (as-of [db time-point] (d-peer/as-of db time-point))
-  (basis-t [db] (d-peer/basis-t db))
-  (pull [db arg-map] (d-peer/pull db (:selector arg-map) (:eid arg-map)))
-  (with [db arg-map] (d-peer/with db (:tx-data arg-map))))
+  hf/DbFacade
+  (as-of [db time-point] (datomic.api/as-of db time-point))
+  (basis-t [db] (datomic.api/basis-t db))
+  (pull [db arg-map] (datomic.api/pull db (:selector arg-map) (:eid arg-map)))
+  (with [db arg-map] (datomic.api/with db (:tx-data arg-map))))
 
 (defn connect
   "if in-mem, create it and call create-fn"
@@ -81,7 +81,7 @@
        :find datascript.parser/parse-find type))
 
 (defn q [{:keys [query limit offset] :as arg-map}]
-  (let [result (d-peer/query (dissoc arg-map :limit :offset))]
+  (let [result (datomic.api/query (dissoc arg-map :limit :offset))]
     (if (contains? #{FindColl FindRel} (q-find-type query))
       (cond-> result
         ; Datomic queries naturally return vectors (not seqs) and
