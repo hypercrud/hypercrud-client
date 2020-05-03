@@ -48,20 +48,20 @@
     (s/assert (or spec-selection :hyperfiddle.config/config) config)
     config))
 
-(defn get-domain [config]
+(defn get-domain [config & [_ spec-selection]]
   ; should this validate the spec before returning it or is that the call-site job?
   (let [m (:domain config)
         domain (-> m
                  (update :basis #(or % (System/currentTimeMillis)))
                  (update :environment #(or % {}))
                  (update :home-route #(or % {:hyperfiddle.route/fiddle :index}))
-                 (update :fiddle-dbname #(or % "$hyperfiddle"))
+                 (update :fiddle-dbname #(or % "$hyperfiddle")) ; but only if hyperfiddle is listed as a database, TODO
                  (cond-> (:client-config m) (assoc :?datomic-client (d/dyna-client (:client-config m))))
                  (dissoc :client-config)
                  (assoc :memoize-cache (atom nil))
                  (assoc :config config)
                  hyperfiddle.domain/map->EdnishDomain)]
-    (s/assert hyperfiddle.domain/spec-ednish-domain domain)
+    (s/assert (or spec-selection hyperfiddle.domain/spec-ednish-domain) domain)
     domain))
 
 (defonce warned-in-mem? false)

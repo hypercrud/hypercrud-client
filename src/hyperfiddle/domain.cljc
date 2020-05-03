@@ -77,15 +77,18 @@
 
 (s/def ::home-route (s/spec :hyperfiddle/route))
 
-(def spec-ednish-domain
-  (s/and
-    (s/keys :req-un [:hyperfiddle.config/config
-                     ::basis
-                     ::fiddle-dbname
-                     ::databases
-                     ::environment
-                     ::home-route])
-    #(contains? (:databases %) (:fiddle-dbname %))))
+(s/def ::domain-core (s/keys :req-un [:hyperfiddle.config/config
+                                      ::basis
+                                      ::databases
+                                      ::environment
+                                      ::home-route]))
+
+(s/def ::domain-hyperfiddle (s/and (s/keys :req-un [::fiddle-dbname])
+                              (fn [domain]
+                                (if-let [{:keys [fiddle-dbname]} domain]
+                                  (contains? (:databases domain) fiddle-dbname)))))
+
+(def spec-ednish-domain (s/and ::domain-core ::domain-hyperfiddle))
 
 (defrecord EdnishDomain [config basis fiddle-dbname databases environment home-route ?datomic-client memoize-cache]
   Domain
