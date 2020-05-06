@@ -18,20 +18,26 @@
   Connection
   (basis [conn] (-> conn datomic.api/sync deref datomic.api/basis-t))
   (db [conn] (datomic.api/db conn))
-  (transact [conn arg-map] @(datomic.api/transact conn (:tx-data arg-map)))
+  (transact [conn arg-map]
+    {:pre [conn (contains? arg-map :tx-data)]}
+    @(datomic.api/transact conn (:tx-data arg-map)))
   (with-db [conn] (datomic.api/db conn))
 
   LocalConnection
   (basis [conn] (-> conn datomic.api/sync deref datomic.api/basis-t))
   (db [conn] (datomic.api/db conn))
-  (transact [conn arg-map] @(datomic.api/transact conn (:tx-data arg-map)))
+  (transact [conn arg-map]
+    {:pre [conn (contains? arg-map :tx-data)]}
+    @(datomic.api/transact conn (:tx-data arg-map)))
   (with-db [conn] (datomic.api/db conn)))
 
 (extend-type Connection
   hf/ConnectionFacade
   (db [conn] (datomic.api/db conn))
   (basis [conn] (datomic.api/basis-t (datomic.api/db conn)))
-  (transact [conn arg-map] @(datomic.api/transact conn (:tx-data arg-map)))
+  (transact [conn arg-map]
+    {:pre [conn (contains? arg-map :tx-data)]}
+    @(datomic.api/transact conn (:tx-data arg-map)))
   (with-db [conn] (datomic.api/db conn)))
 
 (extend-type Db

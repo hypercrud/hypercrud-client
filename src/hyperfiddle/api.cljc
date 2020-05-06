@@ -10,7 +10,7 @@
   :extend-via-metadata true
   (basis [conn])                                            ; Warning: protocol #'hyperfiddle.api/Domain is overwriting method basis of protocol ConnectionFacade
   (db [conn])
-  (transact [conn arg-map])
+  (transact [conn arg-map])                                 ; This is raw Datomic transact and does not perform hf/process-tx
   (with-db [conn]))
 
 (defprotocol DbFacade
