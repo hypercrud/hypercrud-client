@@ -33,7 +33,7 @@
         stage (runtime/get-stage rt pid selected-dbname)]
     [tooltip (cond
                (either/left? writes-allowed?+) {:status :warning :label @writes-allowed?+}
-               (empty? stage) {:status :warning :label "no changes"})
+               (empty? stage) {:status :warning :label "all changes saved"})
      (let [color (domain/database-color (hf/domain rt) selected-dbname)
            is-disabled (or (either/left? writes-allowed?+) (empty? stage))]
        [:button {:disabled is-disabled
