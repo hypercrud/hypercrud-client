@@ -2,7 +2,8 @@
   (:require
     [clojure.test :refer :all]
     [hyperfiddle.io.datomic.hfql :as hfql]
-    [datascript.core :as d]))
+    [hyperfiddle.api :as hf]
+    [datomic.api :as d]))
 
 (defn ->mock-fn
   [{:keys [mapping expect] :as mock}]
@@ -59,24 +60,86 @@
   [& _]
   query-result)
 
-(def fiddle
-  [{`query [:pull/attr0 :pull/attr1]}])
+(defn submissions [$ & args]
+  (datomic.api/q
+    '[:find [?e ...]
+      :where [?e :scratch/email]] $))
 
-(def $ (fn []))
+(defn genders [$ & args]
+  (datomic.api/q
+    '[:find [(pull ?e [:db/ident]) ...]
+      :where [?e :scratch/type :scratch/gender]]
+    $))
+
+(defn shirt-sizes [$ & [gender]]
+  (datomic.api/q
+    '[:in $ ?gender
+      :find [?e ...]
+      :where
+      [?e :scratch/type :scratch/shirt-size]
+      [?e :scratch/gender ?gender]]
+    $ gender))
+
+(def fiddle
+  [{`submissions [:scratch/email
+                  {:scratch/gender [:db/ident
+                                    {`shirt-sizes [:db/ident]}]}
+                  {:scratch/shirt-size [:db/ident]}]}
+   {`genders nil}])
+
+(defn with [$ tx]                                           ; can flip between d/transact and d/with
+  (:db-after (d/with $ tx)))
+
+(defn connect [param1]
+  )
+
+(def $
+  (-> (d/db (d/connect "datomic:mem://app-db"))
+      (with [{:db/ident :scratch/email :db/valueType :db.type/string :db/cardinality :db.cardinality/one :db/unique :db.unique/identity}
+             {:db/ident :scratch/gender :db/valueType :db.type/ref :db/cardinality :db.cardinality/one}
+             {:db/ident :scratch/shirt-size :db/valueType :db.type/ref :db/cardinality :db.cardinality/one}
+             {:db/ident :scratch/type :db/valueType :db.type/keyword :db/cardinality :db.cardinality/one}])
+      (with [{:scratch/type :scratch/gender :db/ident :scratch/male}
+             {:scratch/type :scratch/gender :db/ident :scratch/female}])
+      (with [{:scratch/type :scratch/shirt-size :db/ident :scratch/mens-small :scratch/gender :scratch/male}
+             {:scratch/type :scratch/shirt-size :db/ident :scratch/mens-medium :scratch/gender :scratch/male}
+             {:scratch/type :scratch/shirt-size :db/ident :scratch/mens-large :scratch/gender :scratch/male}
+             {:scratch/type :scratch/shirt-size :db/ident :scratch/womens-small :scratch/gender :scratch/female}
+             {:scratch/type :scratch/shirt-size :db/ident :scratch/womens-medium :scratch/gender :scratch/female}
+             {:scratch/type :scratch/shirt-size :db/ident :scratch/womens-large :scratch/gender :scratch/female}])
+      (with [{:scratch/email "alice@example.com" :scratch/gender :scratch/female :scratch/shirt-size :scratch/womens-large}
+             {:scratch/email "bob@example.com" :scratch/gender :scratch/male :scratch/shirt-size :scratch/mens-large}
+             {:scratch/email "charlie@example.com" :scratch/gender :scratch/male :scratch/shirt-size :scratch/mens-medium}])))
+
 
 (deftest test|parse
-  (testing "Parse"
-    (= [{:as    `query
-         :query query
-         :pull  [:pull/attr0 :pull/attr1]}]
+  (testing "parse"
+    (= [{:as :hyperfiddle.io.datomic.hfql-test/submissions,
+         :query submissions,
+         :pull [:scratch/email #:scratch{:gender [:db/ident]}],
+         :dependencies #:scratch{:gender [{:as :hyperfiddle.io.datomic.hfql-test/shirt-sizes,
+                                           :query shirt-sizes,
+                                           :pull [:db/ident]}]}}
+        {:as :hyperfiddle.io.datomic.hfql-test/genders,
+         :query genders}]
        (hfql/parse fiddle))))
-
 
 (deftest test|interpret
   (testing "Interpret"
-    (with-redefs [datomic.api/pull-many (->mock-fn {:mapping {(constantly true) pull-result}})]
-      (is
-        (= (hfql/interpret $ (hfql/parse fiddle))
-           '[#:hyperfiddle.io.datomic.hfql-test{query [#:scratch{:email "alice@example.com"}
-                                                       #:scratch{:email "bob@example.com"}
-                                                       #:scratch{:email "charlie@example.com"}]}])))))
+    (is (= (hfql/interpret $ (hfql/parse fiddle))
+           [#:hyperfiddle.io.datomic.hfql-test{:submissions [#:scratch{:email "alice@example.com",
+                                                                       :gender {:db/ident :scratch/female,
+                                                                                :hyperfiddle.io.datomic.hfql-test/shirt-sizes [#:db{:ident :scratch/womens-medium}
+                                                                                                                               #:db{:ident :scratch/womens-large}
+                                                                                                                               #:db{:ident :scratch/womens-small}]}}
+                                                             #:scratch{:email "bob@example.com",
+                                                                       :gender {:db/ident :scratch/male,
+                                                                                :hyperfiddle.io.datomic.hfql-test/shirt-sizes [#:db{:ident :scratch/mens-small}
+                                                                                                                               #:db{:ident :scratch/mens-medium}
+                                                                                                                               #:db{:ident :scratch/mens-large}]}}
+                                                             #:scratch{:email "charlie@example.com",
+                                                                       :gender {:db/ident :scratch/male,
+                                                                                :hyperfiddle.io.datomic.hfql-test/shirt-sizes [#:db{:ident :scratch/mens-small}
+                                                                                                                               #:db{:ident :scratch/mens-medium}
+                                                                                                                               #:db{:ident :scratch/mens-large}]}}]}
+            #:hyperfiddle.io.datomic.hfql-test{:genders [#:db{:ident :scratch/male} #:db{:ident :scratch/female}]}]))))

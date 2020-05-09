@@ -126,7 +126,7 @@
 (def transformer-map
   {:hyperfiddle/query
    (fn [sym]
-     {:as (keyword sym)
+     {:as sym
       :query (-> sym resolve deref)})
 
    :hyperfiddle.pull/attr+
