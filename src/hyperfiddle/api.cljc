@@ -201,3 +201,8 @@
 
 (s/def ::invalid-messages (s/coll-of string?))
 (s/def ::is-invalid boolean?)
+
+(s/def :html/placeholder string?)
+
+(s/def :hf/where any?)
+(s/def :hf/where-spec any?)

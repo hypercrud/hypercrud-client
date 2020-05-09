@@ -440,13 +440,11 @@ User renderers should not be exposed to the reaction."
                        (hf/set-route (:runtime ctx) (:partition-id ctx)))))
    contrib.ui/text])
 
-(s/def :hf/where any?)
-(s/def :hf/where-spec any?)
-
 (defn needle-input2 [ctx props]
   {:pre [(s/assert :hf/where props)]}
   (let [unfilled-where (:hf/where props)
-        props (merge {:placeholder (pr-str unfilled-where) :class "form-control"}
+        props (merge {:placeholder (:html/placeholder props (pr-str unfilled-where))
+                      :class "form-control"}
                      (select-keys props [:hf/where :hf/where-spec]))]
     [needle-input unfilled-where ctx props]))
 
