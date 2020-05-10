@@ -125,7 +125,7 @@
 (def transformer-map
   {:hyperfiddle/query
    (fn [sym]
-     {:as sym
+     {:as (keyword sym)
       :query (-> sym resolve deref)})
 
    :hyperfiddle.pull/attr+
@@ -146,10 +146,9 @@
 
    :hyperfiddle.pull/pull-query-map
    (fn [m]
-     ()
      (let [pull (-> m vals first)]
        (merge
-         {:as    (-> m keys first)
+         {:as    (-> m keys first keyword)
           :query (-> m keys first resolve deref)}
          (cond
            (map? pull)

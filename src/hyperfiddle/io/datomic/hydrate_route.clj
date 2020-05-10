@@ -40,7 +40,12 @@
 (defn hydrate-route [domain local-basis route pid partitions ?subject]
   (let [aux-io (reify io/IO
                  (hydrate-requests [io local-basis partitions requests]
-                   (p/do* (hydrate-requests/hydrate-requests domain local-basis requests partitions ?subject))))
+                   (if (-> route :hyperfiddle.route/fiddle (= :asdf/qwer)) ; TODO obviously this should be polymorphic
+                     (do
+                       (require (-> route :hyperfiddle.route/fiddle symbol namespace symbol)) ; TODO this should only happen once on initialization, or be cached
+                       (p/do* (hydrate-requests/hfql-requests domain local-basis requests partitions ?subject
+                                                              (-> route :hyperfiddle.route/fiddle symbol resolve deref))))
+                     (p/do* (hydrate-requests/hydrate-requests domain local-basis requests partitions ?subject)))))
         aux-rt (reify hf/HF-Runtime
                  (io [rt] aux-io)
                  (domain [rt] domain))]

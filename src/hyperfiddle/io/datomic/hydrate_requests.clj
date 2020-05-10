@@ -15,6 +15,7 @@
     [hypercrud.types.DbRef :refer [->DbRef]]
     [hyperfiddle.api :as hf]
     [hyperfiddle.io.datomic.core :as d]
+    [hyperfiddle.io.datomic.hfql :as hfql]
     [hyperfiddle.security]
     [taoensso.timbre :as timbre])
   (:import
@@ -196,4 +197,14 @@
                           (doall))
         tempid-lookups (map-values #(map-values extract-tempid-lookup+ %) @db-with-lookup)]
     {:pulled-trees pulled-trees
+     :tempid-lookups tempid-lookups}))
+
+(defn hfql-requests [domain local-basis requests partitions ?subject fiddle]
+  (let [db-with-lookup (atom {})
+        local-basis (into {} local-basis)
+        get-secure-db-with+ (build-get-secure-db-with+ domain (constantly partitions) db-with-lookup local-basis ?subject)
+        $ (:db ((comp exception/extract get-secure-db-with+) "$" "user"))
+        pulled-trees (hfql/interpret $ (hfql/parse fiddle))
+        tempid-lookups (map-values #(map-values extract-tempid-lookup+ %) @db-with-lookup)]
+    {:pulled-trees (mapv either/right pulled-trees)
      :tempid-lookups tempid-lookups}))
