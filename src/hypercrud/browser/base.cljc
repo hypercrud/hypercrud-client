@@ -130,7 +130,7 @@
                  (reader/memoized-read-string+ (:fiddle/eval fiddle))
                  (either/branch (constantly nil) identity))]
       ; todo, this path needs abstraction assistance for paging/offset
-      (either/right (->EvalRequest form
+      (either/right (->EvalRequest (:fiddle/eval fiddle)
                                    pid                      ; dbval is reconstructed from the pid on the backend
                                    ; ::route/where ::route/datomic-args
                                    route)))                 ; Other request types are able to abstract over the route; but the eval path needs full control

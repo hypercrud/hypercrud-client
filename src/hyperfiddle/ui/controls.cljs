@@ -44,7 +44,7 @@
      #_(hf-remove val ctx)]))
 
 (defn element-label [_ {:keys [:hypercrud.browser/element] :as ctx} & [props]]
-  {:pre [(context/qfind-level? ctx) element (:hypercrud.browser/schema ctx)]}
+  #_{:pre [(context/qfind-level? ctx) element (:hypercrud.browser/schema ctx)]}
   (let [el @element
         label (case (unqualify (contrib.datomic/parser-type el))
                 ; :pull addresses the grouped double header which our grids don't ask for today

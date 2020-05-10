@@ -120,8 +120,9 @@
               (when (contrib.datomic/tempid? id') id')))))
 
 (defn lookup-ref [schema e-map]
-  (if-let [a (contrib.datomic/find-identity-attr schema e-map)]
-    [a (a e-map)]))
+  (when-not (some symbol? (keys e-map))
+    (if-let [a (contrib.datomic/find-identity-attr schema e-map)]
+      [a (a e-map)])))
 
 (defn smart-entity-identifier "key-entity except without the pr-str fallback.
   Generates the best Datomic lookup ref for a given pull. ctx needs :runtime and :partition-id"
@@ -291,7 +292,7 @@ a speculative db/id."
   ([ctx a]                                                  ; eav order of init issues, ::eav depends on this in :many
    {:pre [(> (pull-depth ctx) 0)]}
    (assert (not (:hypercrud.browser/head-sentinel ctx)) "this whole flag is trouble, not sure if this assert is strictly necessary")
-   (assert (boolean (hf/attr ctx a)) (str "attribute " a " not in :hypercrud.browser/schema"))
+   #_(assert (boolean (hf/attr ctx a)) (str "attribute " a " not in :hypercrud.browser/schema"))
    (case (contrib.datomic/cardinality @(:hypercrud.browser/schema ctx) a)
 
      ; For absense of schema provider, we can inspect result here
@@ -314,7 +315,7 @@ a speculative db/id."
                                          :scalar
                                          ; Sets are an index that evaluate to the key.
                                          set)))))
-     nil (throw (ex-info "Invalid Schema Cardinality" {:schema (contrib.datomic/cardinality @(:hypercrud.browser/schema ctx) a) :attribute a})))))
+     nil ctx #_(throw (ex-info "Invalid Schema Cardinality" {:schema (contrib.datomic/cardinality @(:hypercrud.browser/schema ctx) a) :attribute a})))))
 
 
 (defn data "Works in any context and infers the right stuff"
