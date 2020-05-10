@@ -4,7 +4,6 @@
     [backtick :refer [template]]
     [hyperfiddle.config]
     [hyperfiddle.domain]
-    [hyperfiddle.api :as hf]
     [clojure.spec.alpha :as s]))
 
 (s/def :hyperfiddle/root
@@ -150,7 +149,7 @@
      ()
      (let [pull (-> m vals first)]
        (merge
-         {:as    (-> m keys first keyword)
+         {:as    (-> m keys first)
           :query (-> m keys first resolve deref)}
          (cond
            (map? pull)
