@@ -13,7 +13,7 @@
 
 (defonce compile-state-ref (env/default-compiler-env))
 
-(def booted ((p/promisify boot/init) compile-state-ref {:path "/static/dev"}))
+(def booted ((p/promisify boot/init) compile-state-ref {:path "/static/_/boot"}))
 
 ; These are like clj readers in resources/data-readers.cljc ??
 ; Should we just slurp those here?
