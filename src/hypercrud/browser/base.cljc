@@ -21,12 +21,63 @@
     [hyperfiddle.fiddle :as fiddle]
     [hyperfiddle.route :as route]
     [hyperfiddle.runtime :as runtime]
-    [taoensso.timbre :as timbre])
+    [hyperfiddle.scope :refer [scope]]
+    [taoensso.timbre :as timbre]
+    [contrib.expr :as expr])
   #?(:clj
      (:import
        (hypercrud.types.DbName DbName)
        (hypercrud.types.ThinEntity ThinEntity))))
 
+(declare eval-fiddle+)
+(declare resolve-fiddle+)
+(declare request-for-fiddle+)
+(declare nil-or-hydrate+)
+
+(def browser-query-limit 50)
+
+; internal bs abstraction to support hydrate-result-as-fiddle
+(defn- internal-browse-route+ [{rt :runtime pid :partition-id :as ctx} route]
+  (do-result
+
+    (when-let [e (runtime/get-error rt pid)]
+      (throw e))
+
+    (let [; todo runtime should prevent invalid routes from being set
+          route (from-result (route/validate-route+ route)) ; terminate immediately on a bad route
+          ;_ (timbre/debug "route " route)
+          route (from-result (route/invert-route route (partial runtime/tempid->id! rt pid)))
+          ;_ (timbre/debug "route " route)
+          r-fiddle (from-result @(r/apply-inner-r (r/track resolve-fiddle+ rt pid route ctx))) ; inline query
+          ;_ (timbre/debug "fiddle" @r-fiddle)
+          r-request (from-result @(r/apply-inner-r (r/fmap->> r-fiddle (request-for-fiddle+ rt pid route))))
+          ;_ (timbre/debug "request" @r-request)
+          r-result (from-result @(r/apply-inner-r (r/fmap->> r-request (nil-or-hydrate+ rt pid))))
+          ;_ (timbre/debug "result" @r-fiddle :-> @r-result)
+          ]
+
+      ; fiddle request can be nil for no-arg pulls (just draw readonly form)
+      (context/result
+        (from-result
+          (-> ctx
+              ; route should be a ref, provided by the caller, that we fmap over
+              ; because it is not, this is obviously fragile and will break on any change to the route
+              ; this is acceptable today (Jun-2019) because changing a route in ANY way assumes the entire iframe will be re-rendered
+              (assoc :hypercrud.browser/route (r/pure route))
+              (context/fiddle+ r-fiddle)))
+        r-result))))
+
+(defn browse-partition+ [ctx]
+  (internal-browse-route+ ctx (runtime/get-route (:runtime ctx) (:partition-id ctx))))
+
+(defn browse-result-as-fiddle+ [{rt :runtime pid :partition-id :as ctx}]
+  (timbre/warn "legacy invocation; browse-route+ is deprecated")
+  ; This only makes sense on :fiddle/type :query because it has arbitrary arguments
+  ; EntityRequest args are too structured.
+  (let [[inner-fiddle & inner-args] (::route/datomic-args (runtime/get-route rt pid))
+        route (cond-> {:hyperfiddle.route/fiddle inner-fiddle}
+                (seq inner-args) (assoc :hyperfiddle.route/datomic-args (vec inner-args)))]
+    (internal-browse-route+ ctx route)))
 
 (defn legacy-fiddle-ident->lookup-ref [fiddle]
   ; SHould be an ident but sometimes is a long today
@@ -45,12 +96,157 @@
       lookup-ref)
     lookup-ref))
 
-(defn- resolve-fiddle+ [rt pid fiddle-ident]                ; no ctx
+(defn for-kv [kv init f]
+  (reduce-kv f init kv))
+
+(defn interp-attr [fiddle scope x]
+  (let [eval-mode (= (:eval/mode scope) :eval)]
+    (-> x
+        (expr/unquote-via
+          (fn eval-expr [x]
+            (cond (qualified-keyword? x) {:fiddle/ident (str x)}
+
+                  (expr/form? x)
+                  (cond (qualified-keyword? (first x))
+                        {:fiddle/ident (first x)
+                         :fiddle/apply (vec (rest x))}
+                        () (if eval-mode x (list 'quote (list 'unquote x))))
+
+                  (not eval-mode)
+                  (list 'quote (list 'unquote x))
+
+                  (symbol? x)
+                  (get scope x x)
+
+                  (simple-keyword? x)
+                  (or (if (contains? scope x) (get scope x))
+                      (throw (ex-info (str "var " x " not defined in" (:fiddle/ident fiddle))
+                               {:x x :fiddle fiddle :scope scope})))
+
+                  () (throw (ex-info (str "unknown form" x "in" (:fiddle/ident fiddle))
+                              {:x x :fiddle fiddle :scope scope})))))
+        eval)))
+
+(defn eval-attr [fiddle scope x]
+  (cond-> (interp-attr fiddle scope x)
+    (= (:eval/mode scope) :eval) eval))
+
+(defn get-fiddle-def [fiddle #_{rt :runtime pid :partition-id :as ctx}]
+  (when (find-ns 'hyperfiddle.def)
+    (hyperfiddle.def/get-fiddle fiddle)))
+
+(defn normalize [scope key val]
+  (case key
+    :fiddle/links
+    (reduce
+      (fn [[scope acc] link]
+        (let [[scope link]
+              (reduce-kv
+                (fn [[scope kv] k v]
+                  (let [[scope v] (normalize scope k v)]
+                    [scope (assoc kv k v)]))
+                [scope {}] link)]
+          [scope (conj acc link)]))
+      [scope []]
+      val)
+
+    :link/fiddle
+    (cond (expr/form? val)
+          [scope val]
+
+          (map? val)
+          [(update scope :eval/refs concat [(:fiddle/ident val)])
+           (cond (and (:fiddle/apply val)
+                      (= (:eval/mode val) :eval))
+                 (from-result
+                   (eval-fiddle+
+                     (merge (get-fiddle-def (:fiddle/ident val))
+                            (select-keys val [:fiddle/apply]))
+                     (:eval/env scope)))
+                 () (merge val
+                           (-> (get-fiddle-def (:fiddle/ident val))
+                               (select-keys [:db/id :fiddle/type :fiddle/query :fiddle/pull]))))]
+
+          () [scope val])
+
+    [scope
+     (cond-> val
+       ((-> key name keyword) #{:code :cljs-ns :renderer :markdown :css
+                                :query :pull :formula :path}) str)]))
+
+(defn eval-fiddle+ [fiddle {:keys [domain route ctx] :as env}]
+  (scope (into [`eval-fiddle+ (:fiddle/ident fiddle)] (:fiddle/apply fiddle))
+    (->
+      (do-result
+
+        (let
+          [[_ system-fiddle db] (re-find #"([^\$]*)(\$.*)" (name (:fiddle/ident fiddle)))
+           fiddle (fiddle/apply-defaults fiddle)
+
+           scope
+           (reduce-kv
+             (fn [scope k v]
+               (assoc scope k (eval-attr fiddle scope v)))
+             (merge
+               {:eval/env  env
+                :eval/mode (fiddle/kind fiddle)}
+               (when system-fiddle
+                 {'domain       domain
+                  'db           db
+                  'user-db->ide (:hyperfiddle.ide.domain/user-dbname->ide domain)}))
+             (merge
+               (zipmap (:fiddle/args fiddle)
+                       (concat (:fiddle/apply fiddle) (repeat nil)))
+               (:fiddle/with fiddle)))
+
+           fiddle
+           (-> fiddle
+               (dissoc
+                 :fiddle/args
+                 :fiddle/with
+                 :fiddle/apply
+                 :fiddle/source)
+               (assoc :fiddle/ident
+                 (or (:ident scope) (:fiddle/ident fiddle))))
+           [scope fiddle]
+           (case (:eval/mode scope)
+             :skip [scope
+                    (merge {:fiddle/type :blank}
+                      (select-keys fiddle [:fiddle/source]))]
+             (for-kv fiddle [scope {}]
+               (fn [[scope kv] attr val]
+                 (let [x (interp-attr fiddle scope val)
+                       [scope x] (normalize scope attr x)]
+                   [scope (assoc kv attr x)]))))
+           ]
+          (timbre/debug :->
+            fiddle (dissoc scope :eval/env))
+
+          fiddle
+          ))
+        (either/branch-left
+          (fn [e]
+            (timbre/error e)
+            (either/left e))))))
+
+(defn- resolve-route [route]
+  (let [fiddle (::route/fiddle route)]
+    (if-let [[_ fiddle-name db] (re-find #"([^\$]*)(\$.*)" (name fiddle))]
+      (assoc route
+             ::route/fiddle (keyword (namespace fiddle) (str fiddle-name "$"))
+             ::route/db db)
+      route)))
+
+(defn- resolve-fiddle+ [rt pid route ctx]
   (do-result
-    (let [db (runtime/db rt pid (domain/fiddle-dbname (runtime/domain rt)))
-          request (->EntityRequest (legacy-fiddle-ident->lookup-ref fiddle-ident) db fiddle/browser-pull)
+
+    (let [route (resolve-route route)
+          fiddle-ident (::route/fiddle route)
+          db (runtime/db rt pid (domain/fiddle-dbname (runtime/domain rt)))
+          request (->EntityRequest (legacy-fiddle-ident->lookup-ref fiddle-ident) db :default)
           record (from-result @(runtime/request rt pid request))]
-      (when-not (:db/id record)
+
+      (when-not (or (:db/id record) (:fiddle/source record))
         (throw (ex-info (str :hyperfiddle.error/fiddle-not-found)
                  {:ident        :hyperfiddle.error/fiddle-not-found
                   :fiddle/ident fiddle-ident
@@ -58,9 +254,11 @@
                   :error-msg    (str "Fiddle not found (" fiddle-ident ")")
                   :human-hint   "Did you just edit :fiddle/ident?"})))
 
-      (fiddle/apply-defaults record))))
-
-(def browser-query-limit 50)
+      (eval-fiddle+ (fiddle/apply-defaults record)
+        {:ctx    ctx
+         :route  route
+         :domain (runtime/domain (:runtime ctx))})
+      )))
 
 ; This factoring is legacy, can the whole thing can be inlined right above the datomic IO?
 ; UI runs it as validation for tooltip warnings (does the query match the params)
@@ -136,7 +334,8 @@
                         [nil (first args)])]
       (if-let [dbname (or dbname (:fiddle/pull-database fiddle))]
         (let [db (runtime/db rt pid dbname)
-              pull-exp (or (-> (memoized-read-edn-string+ (:fiddle/pull fiddle))
+              pull-exp (or (-> (cond (string? (:fiddle/pull fiddle)) (reader/memoized-read-string+ (:fiddle/pull fiddle))
+                                     () (either/right (:fiddle/pull fiddle)))
                                ; todo it SHOULD be assertable that fiddle/pull is valid edn (and datomic-pull) by now (but its not yet)
                                (either/branch (constantly nil) identity))
                            ; todo this default is garbage, fiddle/pull should never be nil (defaults already applied)
@@ -151,50 +350,3 @@
   (if request
     @(runtime/request rt pid request)
     (either/right nil)))
-
-; internal bs abstraction to support hydrate-result-as-fiddle
-(defn- internal-browse-route+ [{rt :runtime pid :partition-id :as ctx} route]
-  (mlet [_ (if-let [e (runtime/get-error rt pid)]
-             (either/left e)
-             (either/right nil))
-
-         ; todo runtime should prevent invalid routes from being set
-         route (route/validate-route+ route)                ; terminate immediately on a bad route
-         ;:let [_ (timbre/debug "route " route)]
-         route (try-either (route/invert-route route (partial runtime/tempid->id! rt pid)))
-         ;:let [_ (timbre/debug "route " route)]
-
-         r-fiddle @(r/apply-inner-r (r/track resolve-fiddle+ rt pid (::route/fiddle route))) ; inline query
-         :let [_ (timbre/debug "fiddle" @r-fiddle)]
-
-         r-fiddle @(r/apply-inner-r (r/fmap-> r-fiddle (fiddle/eval-fiddle+
-                                                         {:ctx ctx
-                                                          :route route
-                                                          :domain (runtime/domain (:runtime ctx))})))
-         :let [_ (timbre/debug "fiddle eval" @r-fiddle)]
-         r-request @(r/apply-inner-r (r/fmap->> r-fiddle (request-for-fiddle+ rt pid route)))
-         :let [_ (timbre/debug "request" @r-request)]
-         r-result @(r/apply-inner-r (r/fmap->> r-request (nil-or-hydrate+ rt pid)))
-         :let [_ (timbre/debug "result" @r-result)]
-
-         ctx (-> ctx
-                 ; route should be a ref, provided by the caller, that we fmap over
-                 ; because it is not, this is obviously fragile and will break on any change to the route
-                 ; this is acceptable today (Jun-2019) because changing a route in ANY way assumes the entire iframe will be re-rendered
-                 (assoc :hypercrud.browser/route (r/pure route))
-                 (context/fiddle+ r-fiddle))
-         :let [ctx (context/result ctx r-result)]]
-    ; fiddle request can be nil for no-arg pulls (just draw readonly form)
-    (return ctx)))
-
-(defn browse-partition+ [ctx]
-  (internal-browse-route+ ctx (runtime/get-route (:runtime ctx) (:partition-id ctx))))
-
-(defn browse-result-as-fiddle+ [{rt :runtime pid :partition-id :as ctx}]
-  (timbre/warn "legacy invocation; browse-route+ is deprecated")
-  ; This only makes sense on :fiddle/type :query because it has arbitrary arguments
-  ; EntityRequest args are too structured.
-  (let [[inner-fiddle & inner-args] (::route/datomic-args (runtime/get-route rt pid))
-        route (cond-> {:hyperfiddle.route/fiddle inner-fiddle}
-                (seq inner-args) (assoc :hyperfiddle.route/datomic-args (vec inner-args)))]
-    (internal-browse-route+ ctx route)))

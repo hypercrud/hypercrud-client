@@ -97,14 +97,14 @@
   (cond
     (symbol? form) `'~form
     ;(symbol? form) `'~(resolve form)
-    (unquote? form) `'~(unquote-via (second form) f)
+    (unquote? form) `'~(f (eval (unquote-via (second form) f)))
     (unquote-splicing? form) (throw (Exception. "splice not in list"))
     (record? form) `'~form
     (coll? form)
     (let [xs (if (map? form) (apply concat form) form)
           parts (for [x xs]
                   (if (unquote-splicing? x)
-                    (second x)
+                    (f (eval (unquote-via (second form) f)))
                     [(unquote-via x f)]))
           cat (doall `(concat ~@parts))]
       (cond

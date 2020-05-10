@@ -64,6 +64,11 @@
 (declare fiddle-defaults)
 (declare apply-defaults)
 
+(defn kind [fiddle]
+  (cond (:fiddle/apply fiddle) :eval
+        (:fiddle/args fiddle) :fn
+        () :static))
+
 (defn infer-query-formula [query]
   (unwrap
     #(timbre/warn %)
@@ -214,50 +219,3 @@
                       fake-q `[:find (~'pull ~source ~'?e ~pull) . :in ~source :where [~source ~'?e]]]
                   (datascript.parser/parse-query fake-q))))
     :query (do-result (datascript.parser/parse-query (from-result (as-expr query))))))
-
-(declare
-  domain
-  db
-  user-db->ide)
-
-(defn eval-fiddle+ [fiddle {:keys [domain route ctx]}]
-  (letfn
-    [(eval-attr [scope x]
-       (eval
-         (expr/unquote-via x
-           (fn eval-expr [x]
-             (cond (simple-keyword? x) (get scope x)
-                   (symbol? x) (get scope x x)
-                   (qualified-keyword? x) {:fiddle/ident x}
-                   (and (seq? x)
-                        (qualified-keyword? (first x)))
-                   {:fiddle/ident (first x)
-                    :fiddle/apply (rest x)}
-                   (seq? x) x
-                   (coll? x) x
-                   () (timbre/error "unknown form" x "in" (:fiddle/ident fiddle)))))))]
-    (do-result
-      (let [scope
-            (reduce
-              (fn [s f] (f s))
-              {`domain       domain
-               `db           (if (= (name (:fiddle/ident fiddle)) "$")
-                               (let [[_ schema-type dbname] (re-find #"([^\$]*)(\$.*)" (name (:fiddle/ident fiddle)))] dbname))
-               `user-db->ide (:hyperfiddle.ide.domain/user-dbname->ide domain)}
-              [#(reduce (fn [args k] (assoc args k :?)) % (:fiddle/args fiddle))
-               #(reduce-kv (fn [scope k v] (assoc scope k (eval-attr scope v))) % (:fiddle/apply fiddle))
-               #(reduce-kv
-                  (fn [scope k v]
-                    (assoc scope k (eval-attr scope v)))
-                  % (merge {} (:fiddle/with fiddle)))])]
-        (reduce-kv
-          (fn [evaled attr v]
-            (assoc
-              evaled attr
-              (eval-attr scope v)))
-          {}
-          (-> fiddle
-              (dissoc :fiddle/args :fiddle/with :fiddle/apply)
-              (assoc :fiddle/ident (or (:ident scope) (:fiddle/ident fiddle)))))
-        ))))
-
