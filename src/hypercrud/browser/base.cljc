@@ -28,7 +28,8 @@
        (hypercrud.types.ThinEntity ThinEntity))))
 
 
-(defn legacy-fiddle-ident->lookup-ref [fiddle]              ; SHould be an ident but sometimes is a long today
+(defn legacy-fiddle-ident->lookup-ref [fiddle]
+  ; SHould be an ident but sometimes is a long today
   ; Keywords are not a db/ident, turn it into the fiddle-id lookup ref.
   ; Otherwise, pass it through, its already a lookup-ref or eid or whatever.
   (cond
@@ -73,7 +74,8 @@
 
     ; Can we just do sub requests first, no need for splicing?
 
-    :query (mlet [q (reader/memoized-read-string+ (:fiddle/query fiddle)) ; todo why read-string instead of read-edn-string?
+    :query (mlet [q (cond (string? (:fiddle/query fiddle)) (reader/memoized-read-string+ (:fiddle/query fiddle))
+                      () (either/right (:fiddle/query fiddle))) ; todo why read-string instead of read-edn-string?
                   needle-clauses (either/right nil) #_(reader/memoized-read-edn-string+ (:fiddle/query-needle fiddle))
                   :let [[inputs appended-$] (if-let [in (:in (query/q->map q))]
                                               [(mapv str in) false]
@@ -155,17 +157,26 @@
   (mlet [_ (if-let [e (runtime/get-error rt pid)]
              (either/left e)
              (either/right nil))
+
          ; todo runtime should prevent invalid routes from being set
          route (route/validate-route+ route)                ; terminate immediately on a bad route
-         ;:let [_ (println "route " route)]
+         ;:let [_ (timbre/debug "route " route)]
          route (try-either (route/invert-route route (partial runtime/tempid->id! rt pid)))
-         ;:let [_ (println "route " route)]
-         r-fiddle @(r/apply-inner-r (r/track hydrate-fiddle+ rt pid (::route/fiddle route))) ; inline query
-         ;:let [_ (println "fiddle " @r-fiddle)]
+         ;:let [_ (timbre/debug "route " route)]
+
+         r-fiddle @(r/apply-inner-r (r/track resolve-fiddle+ rt pid (::route/fiddle route))) ; inline query
+         :let [_ (timbre/debug "fiddle" @r-fiddle)]
+
+         r-fiddle @(r/apply-inner-r (r/fmap-> r-fiddle (fiddle/eval-fiddle+
+                                                         {:ctx ctx
+                                                          :route route
+                                                          :domain (runtime/domain (:runtime ctx))})))
+         :let [_ (timbre/debug "fiddle eval" @r-fiddle)]
          r-request @(r/apply-inner-r (r/fmap->> r-fiddle (request-for-fiddle+ rt pid route)))
-         ;:let [_ (println "request " @r-request)]
+         :let [_ (timbre/debug "request" @r-request)]
          r-result @(r/apply-inner-r (r/fmap->> r-request (nil-or-hydrate+ rt pid)))
-         ;:let [_ (println "result " @r-result)]
+         :let [_ (timbre/debug "result" @r-result)]
+
          ctx (-> ctx
                  ; route should be a ref, provided by the caller, that we fmap over
                  ; because it is not, this is obviously fragile and will break on any change to the route

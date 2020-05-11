@@ -32,7 +32,9 @@
           (-> (context/set-partition link-ctx new-pid)
               (base/browse-partition+)
               (either/branch
-                (fn [e] (runtime/set-error rt new-pid e))
+                (fn [e]
+                  (timbre/warn e)
+                  (runtime/set-error rt new-pid e))
                 requests)))))))
 
 ; at this point we only care about inline links and popovers are hydrated on their on hydrate-route calls
@@ -68,7 +70,9 @@
 (defn requests [ctx]
   ; More efficient to drive from links. But to do this, we need to refocus
   ; from the top, multiplying out for all possible dependencies.
-  (scope [`requests ctx]
+  (scope [`requests {:pid    (:partition-id ctx)
+                     :fiddle (:fiddle/ident @(:hypercrud.browser/fiddle ctx))
+                     :route  @(:hypercrud.browser/route ctx)}]
     (scope 'requests-here
       (requests-here ctx))
     (scope 'spread

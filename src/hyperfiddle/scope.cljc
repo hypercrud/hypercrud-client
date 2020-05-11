@@ -1,4 +1,6 @@
-(ns hyperfiddle.scope)
+(ns hyperfiddle.scope
+  #?(:cljs
+     (:require-macros hyperfiddle.scope)))
 
 (def ^:dynamic *vars {})
 (def ^:dynamic *scope nil)
