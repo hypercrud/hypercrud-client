@@ -20,13 +20,6 @@
 (defn attr-datomic? [$ e-attr]
   (<= e-attr 62))
 
-(defn entrypoint-fiddle? [$ e-fiddle]
-  (let [fiddle (fiddle/apply-defaults (d/pull $ fiddle/browser-pull e-fiddle))]
-    (condp = (:fiddle/type fiddle)
-      :blank true
-      :entity false
-      :query (empty? (q-util/args (:fiddle/query fiddle))))))
-
 (defn entity-creation-tx [$ e]
   (->> (d/q '[:find [?time ...]
               :in $ ?e

@@ -198,35 +198,6 @@
                  (cats/sequence link+s))]
     (cats/fmap #(assoc fiddle :fiddle/links %) links+)))
 
-(def browser-pull                                           ; synchronized with http://hyperfiddle.hyperfiddle.net/:hyperfiddle!ide/
-  [:db/id
-   :fiddle/css
-   :fiddle/ident
-   :fiddle/uuid
-   {:fiddle/links [:db/id
-                   :link/class
-                   {:link/fiddle [:db/id
-                                  :fiddle/ident             ; routing
-                                  :fiddle/query             ; validation
-                                  ;:fiddle/query-needle      ; validation
-                                  :fiddle/type              ; validation
-                                  ]}
-                   :link/formula
-                   :link/path
-                   :link/tx-fn]}
-   :fiddle/markdown
-   :fiddle/pull
-   :fiddle/pull-database
-   :fiddle/query
-   ;:fiddle/query-needle
-   :fiddle/cljs-ns
-   :fiddle/renderer
-   :fiddle/type
-   :fiddle/hydrate-result-as-fiddle
-   '*                                                       ; For hyperblog, so we can access :hyperblog.post/title etc from the fiddle renderer
-   ])
-
-
 (defn as-expr [val]
   (cond (string? val) (contrib.reader/memoized-read-edn-string+ val)
         () (either/right val)))

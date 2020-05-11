@@ -20,6 +20,10 @@
     [hyperfiddle.domain :as domain]))
 
 
+(defn fiddle-request? [req]
+  (and (some-> req :e vector?)
+       (contrib.data/in-ns? 'fiddle (-> req :e first))))
+
 (deftype RT [domain db-with-lookup get-secure-db-with+ state-atom ?subject]
   state/State
   (state [rt] state-atom)
@@ -30,11 +34,17 @@
     (let [ptm @(r/cursor state-atom [::runtime/partitions pid :ptm])]
       (-> (if (contains? ptm request)
             (get ptm request)
-            (let [result (or (if (some-> request :e vector?)
-                               (some-> (domain/resolve-fiddle (runtime/domain rt) (-> request :e second))
-                                       (assoc :db/id [:def (-> request :e second)])
-                                       either/right))
-                             (hydrate-requests/hydrate-request domain get-secure-db-with+ request ?subject))
+            (let [result
+                  (or (when (fiddle-request? request)
+                        (some->
+                          (domain/resolve-fiddle (runtime/domain rt) (-> request :e second))
+                          ;(assoc :db/id :?)
+                          either/right))
+                      (hydrate-requests/hydrate-request domain get-secure-db-with+
+                        (case (:pull-exp request)
+                          :default (assoc request :pull-exp (-> :hyperfiddle/ide hyperfiddle.def/get-fiddle :fiddle/pull))
+                          request)
+                        ?subject))
                   ptm (assoc ptm request result)
                   tempid-lookups (hydrate-requests/extract-tempid-lookups db-with-lookup pid)]
               (state/dispatch! rt [:hydrate!-success pid ptm tempid-lookups])
