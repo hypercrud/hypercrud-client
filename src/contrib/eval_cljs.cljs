@@ -23,6 +23,16 @@
    'long hyperfiddle.readers/long-clj-reader
    'schema hyperfiddle.readers/schema-clj-reader})
 
+(let [eval *eval*
+      st (cljs.js/empty-state)]
+  (set! *eval*
+    (fn [form]
+      (binding [cljs.env/*compiler* compile-state-ref
+                *ns* (find-ns cljs.analyzer/*cljs-ns*)
+                cljs.js/*eval-fn* cljs.js/js-eval
+                tags/*cljs-data-readers*]
+        (eval form)))))
+
 (defn eval-statement-str! [eval-in-ns code-str]
   {:pre [(string? code-str)]}
   (binding [ana/*cljs-warning-handlers* []
