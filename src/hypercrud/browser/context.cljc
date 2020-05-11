@@ -513,10 +513,12 @@ a speculative db/id."
           [?k (row ctx k)])))))
 
 (defn- validate-fiddle [fiddle]
-  (if-let [ed (s/explain-data :hyperfiddle/fiddle fiddle)]
-    (either/left (ex-info "Invalid fiddle" {:fiddle/ident (:fiddle/ident fiddle)
-                                            ::s/problems (::s/problems ed)}))
-    (either/right fiddle)))
+  (if (= (:fiddle/type fiddle) :blank)
+    (either/right fiddle)
+    (if-let [ed (s/explain-data :hyperfiddle/fiddle fiddle)]
+      (either/left (ex-info "Invalid fiddle" {:fiddle/ident (:fiddle/ident fiddle)
+                                              ::s/problems  (::s/problems ed)}))
+      (either/right fiddle))))
 
 (defn fiddle+ "Runtime sets this up, it's not public api.
   Responsible for setting defaults.
