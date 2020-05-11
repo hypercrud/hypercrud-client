@@ -23,10 +23,15 @@
 
 (defonce *defs (atom {}))
 
-(defn get-schema [id] (get-in @*defs [:schema id]))
-(defn get-fiddle [id] (get-in @*defs [:fiddle id]))
-(defn get-a [type id] (get-in @*defs [type id]))
+(defn get-def [& ks] (get-in @*defs ks))
 
+(defn get-schemas []
+  (@*defs :schema))
+
+(defn get-attrs []
+  (into {} (map (fn [[k v]] {k (:renderer v)}) (@*defs :attr))))
+
+(defn get-fiddle [id] (get-in @*defs [:fiddle id]))
 
 (defn def! [type ident form val]
   {:pre [(#{:schema :attr :fiddle :project} type)
@@ -98,13 +103,13 @@
         (let [desc (read-spec ::schema desc)]
           (merge
             {:db/ident    attr
-             :cardinality :db.cardinality/one}
+             :db/cardinality :db.cardinality/one}
             (when (:type desc)
               (let [[_ type mod] (re-matches #"(.+?)(\*?)" (name (:type desc)))]
-                (merge {:valueType (qualify 'db.type type)}
-                  (when (= mod "*") {:cardinality :db.cardinality/many}))))
-            (when (-> desc :mod #{:many}) {:cardinality :db.cardinality/many})
-            (when (-> desc :mod #{:unique}) {:unique :db.unique/identity})
+                (merge {:db/valueType (qualify 'db.type type)}
+                  (when (= mod "*") {:db/cardinality :db.cardinality/many}))))
+            (when (-> desc :mod #{:many}) {:db/cardinality :db.cardinality/many})
+            (when (-> desc :mod #{:unique}) {:db/unique :db.unique/identity})
             (select-keys desc [:doc])
             (when-let [[& {:as rest}] (:& desc)] rest)))))
     {}
