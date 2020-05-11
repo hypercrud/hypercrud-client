@@ -1,16 +1,18 @@
 (ns hyperfiddle.pprint
   (:require
+    clojure.pprint
     [cats.core :as cats]
     [cats.monad.either :refer [#?@(:cljs [Left Right])]]
     [cats.monad.exception :refer [#?@(:cljs [Failure Success])]]
-    [clojure.pprint]
     [hypercrud.types.ThinEntity :refer [#?(:cljs ThinEntity)]]
+    [contrib.datomic :refer [#?(:cljs Schema)]]
     #?(:cljs [reagent.ratom]))
   #?(:clj
      (:import
        [cats.monad.either Left Right]
        [cats.monad.exception Failure Success]
-       hypercrud.types.ThinEntity.ThinEntity)))
+       hypercrud.types.ThinEntity.ThinEntity
+       [contrib.datomic Schema])))
 
 
 (defn pprint-simple-thinentity [^ThinEntity o]
@@ -50,6 +52,8 @@
     Left (pprint-cats-extractable "#left" o)
     Failure (pprint-cats-extractable "#failure" o)
     Success (pprint-cats-extractable "#success" o)
+    Schema (do (#?(:clj .write :cljs -write) *out* "#schema")
+               (clojure.pprint/write-out (.-schema-by-attr o)))
     (clojure.pprint/simple-dispatch o)))
 
 (comment
