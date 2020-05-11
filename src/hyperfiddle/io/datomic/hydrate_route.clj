@@ -5,6 +5,7 @@
     [cats.labs.promise]
     [contrib.performance :as perf]
     [contrib.reactive :as r]
+    [contrib.do :refer :all]
     [hypercrud.browser.base :as base]
     [hypercrud.browser.browser-request :as browser-request]
     [hypercrud.browser.context :refer [map->Context]]
@@ -14,42 +15,65 @@
     [hyperfiddle.runtime :as runtime]
     [hyperfiddle.schema :as schema]
     [hyperfiddle.state :as state]
+    [hyperfiddle.def :as hf-def]
+    [hyperfiddle.domain :as domain]
     [promesa.core :as p]
     [hyperfiddle.scope :refer [scope]]
-    [taoensso.timbre :as timbre]
-    [hyperfiddle.domain :as domain]))
+    [taoensso.timbre :as timbre])
+  (:import
+    (hypercrud.types.EntityRequest EntityRequest)))
 
+
+(defn resolve-id [req]
+  (and (instance? EntityRequest req)
+       (some-> req :e second)))
 
 (defn fiddle-request? [req]
   (and (some-> req :e vector?)
        (contrib.data/in-ns? 'fiddle (-> req :e first))))
+
+(defn resolve-map []
+  (->> (hf-def/get-def)
+       (reduce-kv
+         (fn [defs k v]
+           (if (keyword? k)
+             (merge defs v))) {})))
 
 (deftype RT [domain db-with-lookup get-secure-db-with+ state-atom ?subject]
   state/State
   (state [rt] state-atom)
 
   runtime/HF-Runtime
+
   (domain [rt] domain)
+
   (request [rt pid request]
     (let [ptm @(r/cursor state-atom [::runtime/partitions pid :ptm])]
+
       (-> (if (contains? ptm request)
+
             (get ptm request)
+
             (let [result
                   (or (when (fiddle-request? request)
-                        (some->
-                          (domain/resolve-fiddle (runtime/domain rt) (-> request :e second))
-                          ;(assoc :db/id :?)
-                          either/right))
+                        (from-result (domain/resolve-fiddle (runtime/domain rt) (resolve-id request))))
+                      (when (resolve-id request)
+                        (get (resolve-map) (resolve-id request)))
                       (hydrate-requests/hydrate-request domain get-secure-db-with+
                         (case (:pull-exp request)
                           :default (assoc request :pull-exp (-> :hyperfiddle/ide hyperfiddle.def/get-fiddle :fiddle/pull))
                           request)
                         ?subject))
+
                   ptm (assoc ptm request result)
+
                   tempid-lookups (hydrate-requests/extract-tempid-lookups db-with-lookup pid)]
+
               (state/dispatch! rt [:hydrate!-success pid ptm tempid-lookups])
+
               result))
           (r/atom))))
+
   (set-route [rt pid route] (state/dispatch! rt [:partition-route pid route])))
 
 (defn hydrate-route [domain local-basis route pid partitions ?subject]
@@ -59,14 +83,19 @@
         aux-rt (reify runtime/HF-Runtime
                  (io [rt] aux-io)
                  (domain [rt] domain))]
-    (alet [schemas (schema/hydrate-schemas aux-rt pid local-basis partitions)
-           ; schemas can NEVER short the whole request
-           ; if the fiddle-db is broken (duplicate datoms), then attr-renderers and project WILL short it
-           attr-renderers (project/hydrate-attr-renderers aux-rt pid local-basis partitions)
-           project (project/hydrate-project-record aux-rt pid local-basis partitions)]
 
+    (do-async
       (scope [`hydrate-route (:hyperfiddle.route/fiddle route)]
-        (let [db-with-lookup (atom {})
+
+        (let [schemas @(schema/hydrate-schemas aux-rt pid local-basis partitions)
+
+              project (hyperfiddle.def/get-def :project :hyperfiddle/project)
+
+              attr-renderers
+              (into {} (map (fn [[k v]] {k (:attribute/renderer v)}) (hyperfiddle.def/get-def :attribute)))
+
+              db-with-lookup (atom {})
+
               initial-state {::runtime/user-id    ?subject
                              ; should this be constructed with reducers?
                              ; why dont we need to preheat the tempid lookups here for parent branches?
