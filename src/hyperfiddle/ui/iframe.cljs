@@ -27,7 +27,8 @@
 
 (defn- fiddle-css-renderer [s] [:style {:dangerouslySetInnerHTML {:__html @s}}])
 
-(defn- build-wrapped-render-expr-str [user-str] (str "(fn [val ctx props]\n" user-str ")"))
+(defn- build-wrapped-render-expr-str [user-str]
+  (str "(fn [val ctx props]\n" (cond-> user-str (not (string? user-str)) (clojure.string/join "\n")) ")"))
 
 (defn- fiddle-renderer-cmp [value ctx props & bust-component-did-update]
   (let [last-cljs-ns (atom nil)]                            ; don't spam the compiler - memoize buffer of 1
