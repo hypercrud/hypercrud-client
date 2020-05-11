@@ -45,8 +45,8 @@
              ::memoize-cache]))
 
 (defn resolve-fiddle [fiddle-ident]
-  #?(:cljs (js/console.trace :?!)
-     :clj (hf-def/get-fiddle fiddle-ident)))
+  (when (find-ns 'hyperfiddle.def)
+    (@(resolve 'hyperfiddle.def/get-fiddle) fiddle-ident)))
 
 (defrecord IdeDomain [config basis fiddle-dbname databases environment home-route build ?datomic-client
                       html-root-id memoize-cache]
@@ -73,16 +73,7 @@
 
   (resolve-fiddle [domain fiddle-ident]
     (resolve-fiddle fiddle-ident))
-
-  ;(system-fiddle? [domain fiddle-ident]
-  ;  (or (in-ns? 'hyperfiddle.ide.schema fiddle-ident)
-  ;    (system-fiddle/system-fiddle? fiddle-ident)))
-
-  ;(hydrate-system-fiddle [domain fiddle-ident]
-  ;  (cond
-  ;    (in-ns? 'hyperfiddle.ide.schema fiddle-ident) (ide-system-fiddle/hydrate fiddle-ident (::user-dbname->ide domain))
-  ;    :or (system-fiddle/hydrate fiddle-ident)))
-
+  
   #?(:clj (connect [domain dbname] (d/dyna-connect (domain/database domain dbname) ?datomic-client)))
 
   (memoize [domain f]
@@ -103,8 +94,6 @@
   (url-encode [domain route] (route/url-encode route home-route))
   (api-routes [domain] R/ide-user-routes)
   (resolve-fiddle [domain fiddle-ident] (resolve-fiddle fiddle-ident))
-  ;(system-fiddle? [domain fiddle-ident] (system-fiddle/system-fiddle? fiddle-ident))
-  ;(hydrate-system-fiddle [domain fiddle-ident] (system-fiddle/hydrate fiddle-ident))
   #?(:clj (connect [domain dbname] (d/dyna-connect (domain/database domain dbname) ?datomic-client)))
   (memoize [domain f]
     (if-let [f (get @memoize-cache f)]

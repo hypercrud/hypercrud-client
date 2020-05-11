@@ -5,6 +5,183 @@
 
 (declare ctx props args)
 
+(hf-def/fiddle :hyperfiddle.ide/home
+  :links {":hyperfiddle.ide/home" [[:hf/iframe ~:hyperfiddle/topnav]
+                                   [:hf/iframe ~:hyperfiddle.ide/fiddle-index]]}
+
+  :markdown "# :hyperfiddle.ide/home"
+
+  :renderer
+  [:<>
+   [hyperfiddle.ui/link :hyperfiddle/topnav ctx]
+   [:main.container-fluid props
+    [hyperfiddle.ui/markdown
+     (-> ctx :hypercrud.browser/fiddle deref :fiddle/markdown) ctx]
+    [hyperfiddle.ui/link :hyperfiddle.ide/fiddle-index ctx]
+    #_[user.domain/filter-controls user/needle]
+    #_(let [ctx (assoc ctx :hyperfiddle.ide.home/needle user/needle)]
+        [:div.row
+         [:div.col-sm-6
+          [hyperfiddle.ui/link :dustingetz/fiddle-index-recent ctx]]
+         [:div.col-sm-6
+          [hyperfiddle.ui/link :dustingetz/fiddle-index-owned ctx]]])]
+   #_[hyperfiddle.ide/ide-stage ctx]]
+
+  :code
+  (def needle (reagent.core/atom ""))
+
+  (defn filter-controls [needle is-regex]
+    [:div.form-group {:class (when (and @is-regex err) "has-error")}
+     [:input.form-control
+      {:style         {:display "inline-block"}            ; bootstrap styles are half imported, wonky hacks
+       :type          "text"
+       :on-change     #(reset! needle (.. % -target -value))
+       :auto-complete "off"
+       #_#_:auto-focus true                                ; page sroll pos gets lost, otherwise this is great
+       :placeholder   "filter"}]
+     #_[:span.col-sm-3 [contrib.ui/easy-checkbox-boolean "regex " is-regex]]
+     #_(when (and @is-regex err) [:span (ex-message err)])])
+
+  :css "
+    main {
+      flex: 1 1;
+      overflow: auto;
+    }
+  ")
+
+(hf-def/fiddle :hyperfiddle/topnav
+  :links
+  {":hyperfiddle/topnav"
+   [[~:hyperfiddle.ide/account :tx-fn ":zero"]
+    [:hf/iframe ~:hyperfiddle.ide/topnav-new]
+    [:hf/iframe ~:hyperfiddle.ide/entry-point-fiddles]
+    [~:hyperfiddle.ide/env]]}
+
+  :renderer
+  (hyperfiddle.ide.fiddles.topnav/renderer val ctx props)
+
+  :css "
+    .hyperfiddle-user.-hyperfiddle-topnav.user { padding: 0; }
+    .-hyperfiddle-topnav .-account { display: inline-block; }
+
+    .-hyperfiddle-topnav button,
+    .-hyperfiddle-topnav a { padding: 0 2px; }
+
+    .-hyperfiddle-topnav .-hyperfiddle-ide-entry-point-fiddles {
+      max-height: 50vh;
+      overflow-y: auto;
+    }
+  ")
+
+(hf-def/fiddle :hyperfiddle.ide/topnav-new
+  :pull [:fiddle/ident]
+  :links {":fiddle/ident" [:hf/new ~:hyperfiddle.ide/new-fiddle
+                           :tx-fn ":hyperfiddle.ide.fiddles.topnav/new-fiddle-tx"]})
+
+(hf-def/fiddle :hyperfiddle.ide/fiddle-index
+  :query '[:find
+           (pull ?e [:hyperfiddle/starred
+                     :fiddle/ident])
+           (max ?tx)
+           ?entrypoint
+           :where
+           [(ground true) ?entrypoint]
+           [?e :fiddle/ident ?ident]
+           [?e _ _ ?tx]]
+
+  :markdown "### Recently modified fiddles"
+
+  :code
+  (def fiddle-index-needle (reagent.core/atom ""))
+
+  :renderer
+  [:<>
+   [:div.form-group
+    [hyperfiddle.ui/needle-input '[[(str ?ident) ?si]
+                                   [(.contains ?si %)]] ctx
+     {:style         {:display "inline-block"}              ; bootstrap styles are half imported, wonky hacks
+      :class         "form-control"
+      :type          "text"
+      :on-change     #(reset! needle (.. % -target -value))
+      :auto-complete "off"
+      #_#_:auto-focus true                                  ; page sroll pos gets lost, otherwise this is great
+      :placeholder   "filter"}]]
+   [:div.row
+    [:div.col-sm-12
+     (let [{:keys [:hypercrud.browser/fiddle]} ctx]
+       [:div props
+        [hyperfiddle.ui/markdown (:fiddle/markdown @fiddle) ctx]
+        [js/user.domain.fiddle-list ctx]])]]])
+
+(hf-def/fiddle :hyperfiddle.ide/account
+  :query
+  '[:in $users
+    :find
+    (pull $users ?user
+      [:db/id
+       :user/name
+       :user/email
+       :user/last-seen
+       :user/sub
+       :user/picture
+       :user/user-id
+       #_:hyperfiddle.ide/parinfer
+       *])
+    .
+    :where
+    [(ground hyperfiddle.io.bindings/*subject*) ?user-id]
+    [$users ?user :user/user-id ?user-id]]
+
+  :renderer
+  (let [user @(:hypercrud.browser/result ctx)]
+    [:div.container-fluid props
+     [:div.p
+      [hyperfiddle.ui/img (:user/picture user) ctx {:class "avatar"}]]
+
+     [:h3 "Hello, " (:user/name user) "!"]
+
+     [:div.p
+      [:form {:action "/logout" :method "post"}
+       (str "Last login was " (or (some-> (:user/last-seen user) .toLocaleDateString) "–") ".")
+
+       [:button.btn.btn-link {:type  "submit"
+                              :style {:display        "inline"
+                                      :padding        "0"
+                                      :margin-left    ".25em"
+                                      :font-size      "inherit"
+                                      :vertical-align "inherit"}}
+        "logout"]]
+      ]
+
+     [:div.p [:div {:style {:margin-bottom "1em"}}]]
+
+     #_[:div.p "Feature flags"]
+     #_(->> (-> ctx :hypercrud.browser/field deref :hypercrud.browser.field/children)
+            (map (fn [{a :hypercrud.browser.field/path-segment}]
+                   (when (and (keyword? a) (= (namespace a) "hyperfiddle.ide"))
+                     ^{:key (str [a])}
+                     [hyperfiddle.ui/field [a] ctx])))
+            doall)
+     #_[hyperfiddle.ui/field ['*] ctx]
+     #_[hyperfiddle.ui/link :hyperfiddle.ide.user/domains ctx]
+
+     #_[:div (pr-str (:user/user-id user))]
+     [hyperfiddle.ui/field [:user/user-id] ctx]])
+
+  :code
+  (defmethod hyperfiddle.api/render #{:user/user-id
+                                      :hyperfiddle.ide/account}
+    [ctx props]
+    [:div.hyperfiddle-input-group
+     [:div.input
+      (pr-str (hypercrud.browser.context/data ctx))]])
+
+  :css "
+    img.avatar { border: 1px solid lightgray; border-radius: 50%; width: 80px; }
+    img.avatar { float: left; margin-top: 1rem; margin-right: 1rem; }
+    .-hyperfiddle-ide-user-settings h3 { margin-top: 1rem; }
+   ")
+
 (hf-def/fiddle :hyperfiddle.ide/project
   :pull "$" [:db/id
              :project/code
@@ -105,109 +282,6 @@
     .-hyperfiddle-ide-new-fiddle div.field > :nth-child(2) { flex: 1 1; }
   ")
 
-(hf-def/fiddle :hyperfiddle.ide/home
-  :links {":hyperfiddle.ide/home" [[:hf/iframe ~:hyperfiddle/topnav]
-                                   [:hf/iframe ~:hyperfiddle.ide/fiddle-index]]}
-
-  :markdown "# :hyperfiddle.ide/home"
-
-  :renderer
-  [:<>
-   [hyperfiddle.ui/link :hyperfiddle/topnav ctx]
-   [:main.container-fluid props
-    [hyperfiddle.ui/markdown
-     (-> ctx :hypercrud.browser/fiddle deref :fiddle/markdown) ctx]
-    [hyperfiddle.ui/link :hyperfiddle.ide/fiddle-index ctx]
-    #_[user.domain/filter-controls user/needle]
-    #_(let [ctx (assoc ctx :hyperfiddle.ide.home/needle user/needle)]
-        [:div.row
-         [:div.col-sm-6
-          [hyperfiddle.ui/link :dustingetz/fiddle-index-recent ctx]]
-         [:div.col-sm-6
-          [hyperfiddle.ui/link :dustingetz/fiddle-index-owned ctx]]])]
-   #_[hyperfiddle.ide/ide-stage ctx]]
-
-  :code
-  (def needle (reagent.core/atom ""))
-
-  (defn filter-controls [needle is-regex]
-    [:div.form-group {:class (when (and @is-regex err) "has-error")}
-     [:input.form-control
-      {:style         {:display "inline-block"}            ; bootstrap styles are half imported, wonky hacks
-       :type          "text"
-       :on-change     #(reset! needle (.. % -target -value))
-       :auto-complete "off"
-       #_#_:auto-focus true                                ; page sroll pos gets lost, otherwise this is great
-       :placeholder   "filter"}]
-     #_[:span.col-sm-3 [contrib.ui/easy-checkbox-boolean "regex " is-regex]]
-     #_(when (and @is-regex err) [:span (ex-message err)])])
-
-  :css "
-    main {
-      flex: 1 1;
-      overflow: auto;
-    }
-  ")
-
-(hf-def/fiddle :hyperfiddle/topnav
-  :links
-  {":hyperfiddle/topnav"
-   [[~:hyperfiddle.ide/account :tx-fn ":zero"]
-    [:hf/iframe ~:hyperfiddle.ide/topnav-new]
-    [:hf/iframe ~:hyperfiddle.ide/entry-point-fiddles]
-    [~:hyperfiddle.ide/env]]}
-
-  :renderer
-  (hyperfiddle.ide.fiddles.topnav/renderer val ctx props)
-
-  :css "
-    .hyperfiddle-user.-hyperfiddle-topnav.user { padding: 0; }
-    .-hyperfiddle-topnav .-account { display: inline-block; }
-
-    .-hyperfiddle-topnav button,
-    .-hyperfiddle-topnav a { padding: 0 2px; }
-
-    .-hyperfiddle-topnav .-hyperfiddle-ide-entry-point-fiddles {
-      max-height: 50vh;
-      overflow-y: auto;
-    }
-  ")
-
-(hf-def/fiddle :hyperfiddle.ide/fiddle-index
-  :query '[:find
-           (pull ?e [:hyperfiddle/starred
-                     :fiddle/ident])
-           (max ?tx)
-           ?entrypoint
-           :where
-           [(ground true) ?entrypoint]
-           [?e :fiddle/ident ?ident]
-           [?e _ _ ?tx]]
-
-  :markdown "### Recently modified fiddles"
-
-  :code
-  (def fiddle-index-needle (reagent.core/atom ""))
-
-  :renderer
-  [:<>
-   [:div.form-group
-    [hyperfiddle.ui/needle-input '[[(str ?ident) ?si]
-                                   [(.contains ?si %)]] ctx
-     {:style         {:display "inline-block"}              ; bootstrap styles are half imported, wonky hacks
-      :class         "form-control"
-      :type          "text"
-      :on-change     #(reset! needle (.. % -target -value))
-      :auto-complete "off"
-      #_#_:auto-focus true                                  ; page sroll pos gets lost, otherwise this is great
-      :placeholder   "filter"}]]
-   [:div.row
-    [:div.col-sm-12
-     (let [{:keys [:hypercrud.browser/fiddle]} ctx]
-       [:div props
-        [hyperfiddle.ui/markdown (:fiddle/markdown @fiddle) ctx]
-        [js/user.domain.fiddle-list ctx]])]]])
-
 (hf-def/fiddle :hyperfiddle.ide/env
   :links
   {":hyperfiddle.ide/env" [[:hf/iframe ~:hyperfiddle/topnav]
@@ -265,10 +339,66 @@
     }
   ")
 
-(hf-def/fiddle :hyperfiddle.ide/topnav-new
-  :pull [:fiddle/ident]
-  :links {":fiddle/ident" [:hf/new ~:hyperfiddle.ide/new-fiddle
-                           :tx-fn ":hyperfiddle.ide.fiddles.topnav/new-fiddle-tx"]})
+(hf-def/fiddle :hyperfiddle.ide/domain
+  :pull "$domains"
+  [#_:db/id
+   :domain/ident
+   :hyperfiddle/owners
+   {:domain/databases
+    [:db/id
+     :domain.database/name
+     {:domain.database/record
+      [#_:db/id
+       :database/uri]}]}
+   {:domain/fiddle-database
+    [#_:db/id
+     :database/uri]}
+   :domain/aliases
+   :domain/disable-javascript
+   :domain/home-route
+   :domain/environment]
+
+  :links {"$domains :domain/databases" [[:hf/remove]
+                                        [:hf/new ~:domain.databases/add]]
+          ":hyperfiddle.ide/domain"    [[:hf/remove]
+                                        [:hf/iframe ~:database/options-list]]}
+
+  :code
+  (defmethod hyperfiddle.api/render #{:domain/ident
+                                      :hyperfiddle.ide/domain}
+    [ctx props]
+    [:div
+     [:a (assoc props :href "/")
+      (hypercrud.browser.context/v ctx)]])
+
+  ; Information leak
+  #_(defmethod hyperfiddle.api/render #{:domain/fiddle-database
+                                        :hyperfiddle.ide/domain}
+      [ctx props]
+      [hyperfiddle.ui.select$/select nil ctx
+       {:options      :database/options-list
+        :option-label (comp str :database/uri)}])
+
+  :renderer
+  (if (= "nodejs" *target*)
+    (hyperfiddle.ui.loading/page (hyperfiddle.runtime/domain (:runtime ctx)))
+    ; slow to ssr
+    [:div props
+     [hyperfiddle.ui/result val ctx props]])
+
+  :css "
+    div.hyperfiddle.ui div.hyperfiddle.field.-domain-router,
+    div.hyperfiddle.ui div.hyperfiddle.field.-domain-environment,
+    div.hyperfiddle.ui div.hyperfiddle.field.-domain-code,
+    div.hyperfiddle.ui div.hyperfiddle.field.-domain-css
+    { display: block; }
+
+    .hyperfiddle-ide table.hyperfiddle { table-layout: fixed; }
+    .hyperfiddle-ide th.-db-id { width: 60px; }
+    .hyperfiddle-ide th.-domain-database-name { width: 200px; }
+    .hyperfiddle-ide td.-db-id button { padding: 0px; }
+    .hyperfiddle-ide td.-database-uri > div { padding: 4px 5px; }
+  ")
 
 (hf-def/fiddle :database/options-list
   :query '[:find (pull $domains ?e [:db/id :database/uri]) ?name
@@ -354,75 +484,6 @@
      [hyperfiddle.ui/field [:domain.database/record] ctx hyperfiddle.ui/hyper-control {:options      "databases"
                                                                                        :option-label (comp :database/uri first)}]]))
 
-(hf-def/fiddle :hyperfiddle.ide/account
-  :query
-  '[:in $users
-    :find
-    (pull $users ?user
-      [:db/id
-       :user/name
-       :user/email
-       :user/last-seen
-       :user/sub
-       :user/picture
-       :user/user-id
-       #_:hyperfiddle.ide/parinfer
-       *])
-    .
-    :where
-    [(ground hyperfiddle.io.bindings/*subject*) ?user-id]
-    [$users ?user :user/user-id ?user-id]]
-
-  :renderer
-  (let [user @(:hypercrud.browser/result ctx)]
-    [:div.container-fluid props
-     [:div.p
-      [hyperfiddle.ui/img (:user/picture user) ctx {:class "avatar"}]]
-
-     [:h3 "Hello, " (:user/name user) "!"]
-
-     [:div.p
-      [:form {:action "/logout" :method "post"}
-       (str "Last login was " (or (some-> (:user/last-seen user) .toLocaleDateString) "–") ".")
-
-       [:button.btn.btn-link {:type  "submit"
-                              :style {:display        "inline"
-                                      :padding        "0"
-                                      :margin-left    ".25em"
-                                      :font-size      "inherit"
-                                      :vertical-align "inherit"}}
-        "logout"]]
-      ]
-
-     [:div.p [:div {:style {:margin-bottom "1em"}}]]
-
-     #_[:div.p "Feature flags"]
-     #_(->> (-> ctx :hypercrud.browser/field deref :hypercrud.browser.field/children)
-            (map (fn [{a :hypercrud.browser.field/path-segment}]
-                   (when (and (keyword? a) (= (namespace a) "hyperfiddle.ide"))
-                     ^{:key (str [a])}
-                     [hyperfiddle.ui/field [a] ctx])))
-            doall)
-     #_[hyperfiddle.ui/field ['*] ctx]
-     #_[hyperfiddle.ui/link :hyperfiddle.ide.user/domains ctx]
-
-     #_[:div (pr-str (:user/user-id user))]
-     [hyperfiddle.ui/field [:user/user-id] ctx]])
-
-  :code
-  (defmethod hyperfiddle.api/render #{:user/user-id
-                                      :hyperfiddle.ide/account}
-    [ctx props]
-    [:div.hyperfiddle-input-group
-     [:div.input
-      (pr-str (hypercrud.browser.context/data ctx))]])
-
-  :css "
-    img.avatar { border: 1px solid lightgray; border-radius: 50%; width: 80px; }
-    img.avatar { float: left; margin-top: 1rem; margin-right: 1rem; }
-    .-hyperfiddle-ide-user-settings h3 { margin-top: 1rem; }
-   ")
-
 (hf-def/fiddle :hyperfiddle.ide.user/domains
   :query '[:find [(pull $domains ?domain [:domain/ident :db/id]) ...]
            :in $domains
@@ -471,67 +532,6 @@
     [:div props
      [hyperfiddle.ui/result val ctx {}]]
     ))
-
-(hf-def/fiddle :hyperfiddle.ide/domain
-  :pull "$domains"
-  [#_:db/id
-   :domain/ident
-   :hyperfiddle/owners
-   {:domain/databases
-    [:db/id
-     :domain.database/name
-     {:domain.database/record
-      [#_:db/id
-       :database/uri]}]}
-   {:domain/fiddle-database
-    [#_:db/id
-     :database/uri]}
-   :domain/aliases
-   :domain/disable-javascript
-   :domain/home-route
-   :domain/environment]
-
-  :links {"$domains :domain/databases" [[:hf/remove]
-                                        [:hf/new ~:domain.databases/add]]
-          ":hyperfiddle.ide/domain"    [[:hf/remove]
-                                        [:hf/iframe ~:database/options-list]]}
-
-  :code
-  (defmethod hyperfiddle.api/render #{:domain/ident
-                                      :hyperfiddle.ide/domain}
-    [ctx props]
-    [:div
-     [:a (assoc props :href "/")
-      (hypercrud.browser.context/v ctx)]])
-
-  ; Information leak
-  #_(defmethod hyperfiddle.api/render #{:domain/fiddle-database
-                                        :hyperfiddle.ide/domain}
-      [ctx props]
-      [hyperfiddle.ui.select$/select nil ctx
-       {:options      :database/options-list
-        :option-label (comp str :database/uri)}])
-
-  :renderer
-  (if (= "nodejs" *target*)
-    (hyperfiddle.ui.loading/page (hyperfiddle.runtime/domain (:runtime ctx)))
-    ; slow to ssr
-    [:div props
-     [hyperfiddle.ui/result val ctx props]])
-
-  :css "
-    div.hyperfiddle.ui div.hyperfiddle.field.-domain-router,
-    div.hyperfiddle.ui div.hyperfiddle.field.-domain-environment,
-    div.hyperfiddle.ui div.hyperfiddle.field.-domain-code,
-    div.hyperfiddle.ui div.hyperfiddle.field.-domain-css
-    { display: block; }
-
-    .hyperfiddle-ide table.hyperfiddle { table-layout: fixed; }
-    .hyperfiddle-ide th.-db-id { width: 60px; }
-    .hyperfiddle-ide th.-domain-database-name { width: 200px; }
-    .hyperfiddle-ide td.-db-id button { padding: 0px; }
-    .hyperfiddle-ide td.-database-uri > div { padding: 4px 5px; }
-  ")
 
 (hf-def/fiddle :hyperfiddle.ide/edit
   :links {":hyperfiddle.ide/edit" [[:hf/iframe ~:hyperfiddle/topnav]
@@ -829,58 +829,37 @@
                     [:li {:key (hash (:db/id db))} (str (:database/uri db))]))
              (doall))]])))
 
-(hf-def/fiddle :hyperfiddle.ide.schema/options.cardinality [:ide-dbname]
-  :with {:$db (symbol ~:ide-dbname)}
+(hf-def/fiddle :hyperfiddle.ide.schema/editor$ [:ide-dbname]
+  :with {:ident (keyword "hyperfiddle.ide.schema" (str "editor" ~:ide-dbname))
+         :$db   (symbol ~:ide-dbname)}
+
   :query
-  '[:in ~:$db :find (list 'pull ~:$db '?e [:db/ident]) :where
-   [~:$db ?e :db/ident ?ident]
-   [(namespace ?ident) ?ns]
-   [(= ?ns "db.cardinality")]])
+  '[:in ~:$db :find (pull ~:$db ?attr
+                      [:db/id
+                       :db/ident
+                       {:db/valueType [:db/ident]}
+                       {:db/cardinality [:db/ident]}
+                       {:db/unique [:db/ident]}
+                       :db/isComponent :db/fulltext :db/doc])
+    :where [~:$db :db.part/db :db.install/attribute '?attr]
+    ; binding for ui
 
-(hf-def/fiddle :hyperfiddle.ide.schema/options.unique [:ide-dbname]
-  :with {:$db (symbol ~:ide-dbname)}
-  :query '[:in ~$db :find (list 'pull ~$db '?e [:db/ident]) :where
-           [~$db ?e :db/ident ?ident]
-           [(namespace ?ident) ?ns]
-           [(= ?ns "db.unique")]])
+    [~:$db ?attr :db/ident ?ident]]
 
-(hf-def/fiddle :hyperfiddle.ide.schema/options.valueType [:ide-dbname]
-  :with {:$db (symbol ~:ide-dbname)}
-  :query
-  '[:in ~:$db :find (pull ~:$db ?valueType [:db/ident]) :where
-    [~:$db ?db-part :db.install/valueType ?valueType]
-    [~:$db ?db-part :db/ident :db.part/db]])
-
-(hf-def/fiddle :hyperfiddle.ide.schema/editor.attribute [:ide-dbname]
-  :with {:ident (contrib.data/qualify 'hyperfiddle.ide.schema (str "editor.attribute" ~:ide-dbname))}
-
-  :pull ~:ide-dbname
-        [:db/id                                             ; for smart-identity tempid stability
-         :db/ident
-         {:db/valueType [:db/ident]}
-         {:db/cardinality [:db/ident]}
-         :db/doc
-         {:db/unique [:db/ident]}
-         :db/isComponent
-         :db/fulltext]
-
-  :renderer hyperfiddle.ide.fiddles.schema-attribute/renderer
+  :renderer hyperfiddle.ide.fiddles.schema-editor/renderer
 
   :links
-  {~:ident [[#{:hf/iframe :cardinality-options}
-             ~(:hyperfiddle.ide.schema/options.cardinality ~:ide-dbname)]
-            [#{:hf/iframe :unique-options}
-             ~(:hyperfiddle.ide.schema/options.unique ~:ide-dbname)]
-            [#{:hf/iframe :valueType-options}
-             ~(:hyperfiddle.ide.schema/options.valueType ~:ide-dbname)]]})
+  {~(str ~:ide-dbname " :db/ident")
+   [[~(:hyperfiddle.ide.schema/attribute$ ~:ide-dbname)]
+    [:hf/new ~(:hyperfiddle.ide.schema/editor.attribute$ ~:ide-dbname)]]})
 
-(hf-def/fiddle :hyperfiddle.ide.schema/attribute [:user-dbname]
-  :with {:ident      (keyword "hyperfiddle.ide.schema" (str "attribute" ~hyperfiddle.fiddle/db))
-         :ide-dbname (~hyperfiddle.fiddle/user-db->ide ~hyperfiddle.fiddle/db)}
+(hf-def/fiddle :hyperfiddle.ide.schema/attribute$ [:user-dbname]
+  :with {:ident      (keyword "hyperfiddle.ide.schema" (str "attribute" ~db))
+         :ide-dbname (~user-db->ide ~db)}
 
   :links
   {~:ident [[:hf/iframe ~:hyperfiddle/topnav]
-            [:hf/iframe ~(:hyperfiddle.ide.schema/editor.attribute ~:ide-dbname)
+            [:hf/iframe ~(:hyperfiddle.ide.schema/editor.attribute$ ~:ide-dbname)
              :formula (constantly (first (:hyperfiddle.route/datomic-args @(:hypercrud.browser/route ctx))))]]}
 
   :renderer
@@ -888,7 +867,7 @@
    [hyperfiddle.ui/ui-from-link
     (hyperfiddle.data/select ctx :hyperfiddle/topnav) ctx {}]
    [hyperfiddle.ui/ui-from-link
-    (hyperfiddle.data/select ctx :hyperfiddle.ide.schema/editor.attribute ~:ide-dbname) ctx {}]]
+    (hyperfiddle.data/select ctx :hyperfiddle.ide.schema/editor.attribute$ ~:ide-dbname) ctx {}]]
 
   :fiddle/css "
     .-hyperfiddle-ide-schema-editor-attribute {
@@ -897,45 +876,66 @@
     }
   ")
 
-(hf-def/fiddle :hyperfiddle.ide.schema/editor [:ide-dbname]
-  :with {:ident (keyword "hyperfiddle.ide.schema" (str "editor" ~:ide-dbname))
-         :$db   (symbol ~:ide-dbname)}
+(hf-def/fiddle :hyperfiddle.ide.schema/editor.attribute$ [:ide-dbname]
+  :with {:ident (contrib.data/qualify 'hyperfiddle.ide.schema (str "editor.attribute" ~:ide-dbname))}
 
+  :pull ~:ide-dbname
+  [:db/id                                             ; for smart-identity tempid stability
+   :db/ident
+   {:db/valueType [:db/ident]}
+   {:db/cardinality [:db/ident]}
+   :db/doc
+   {:db/unique [:db/ident]}
+   :db/isComponent
+   :db/fulltext]
+
+  :renderer hyperfiddle.ide.fiddles.schema-attribute/renderer
+
+  :links
+  {~:ident [[#{:hf/iframe :cardinality-options}
+             ~(:hyperfiddle.ide.schema/options.cardinality$ ~:ide-dbname)]
+            [#{:hf/iframe :unique-options}
+             ~(:hyperfiddle.ide.schema/options.unique$ ~:ide-dbname)]
+            [#{:hf/iframe :valueType-options}
+             ~(:hyperfiddle.ide.schema/options.valueType$ ~:ide-dbname)]]})
+
+(hf-def/fiddle :hyperfiddle.ide.schema/options.cardinality$ [:ide-dbname]
+  :with {:$db (symbol ~:ide-dbname)}
   :query
-  '[:in ~:$db :find (pull ~:$db ?attr
-                    [:db/id
-                     :db/ident
-                     {:db/valueType [:db/ident]}
-                     {:db/cardinality [:db/ident]}
-                     {:db/unique [:db/ident]}
-                     :db/isComponent :db/fulltext :db/doc])
-   :where [~:$db :db.part/db :db.install/attribute '?attr]
-   ; binding for ui
+  '[:in ~:$db :find (list 'pull ~:$db '?e [:db/ident]) :where
+    [~:$db ?e :db/ident ?ident]
+    [(namespace ?ident) ?ns]
+    [(= ?ns "db.cardinality")]])
 
-   [~:$db ?attr :db/ident ?ident]]
+(hf-def/fiddle :hyperfiddle.ide.schema/options.unique$ [:ide-dbname]
+  :with {:$db (symbol ~:ide-dbname)}
+  :query '[:in ~$db :find (list 'pull ~$db '?e [:db/ident]) :where
+           [~$db ?e :db/ident ?ident]
+           [(namespace ?ident) ?ns]
+           [(= ?ns "db.unique")]])
 
-  :renderer hyperfiddle.ide.fiddles.schema-editor/renderer
+(hf-def/fiddle :hyperfiddle.ide.schema/options.valueType$ [:ide-dbname]
+  :with {:$db (symbol ~:ide-dbname)}
+  :query
+  '[:in ~:$db :find (pull ~:$db ?valueType [:db/ident]) :where
+    [~:$db ?db-part :db.install/valueType ?valueType]
+    [~:$db ?db-part :db/ident :db.part/db]])
 
-  :links
-  {~(str ~:ide-dbname " :db/ident")
-   [[~(:hyperfiddle.ide.schema/attribute ~:ide-dbname)]
-    [:hf/new ~(:hyperfiddle.ide.schema/editor.attribute ~:ide-dbname)]]})
-
-(hf-def/fiddle :hyperfiddle.ide.schema/$
+(hf-def/fiddle :hyperfiddle.ide.schema/$ []
   :with
-  {:ident      ~(keyword "hyperfiddle.ide.schema" ~hyperfiddle.fiddle/db)
-   :ide-dbname ~(hyperfiddle.fiddle/user-db->ide ~hyperfiddle.fiddle/db)}
+  {:ident      ~(keyword "hyperfiddle.ide.schema" ~db)
+   :ide-dbname ~(~user-db->ide ~db)}
 
   :links
-  {~:ident [[:hf/iframe ~(:hyperfiddle.ide.schema/editor ~:ide-dbname)]
-            [:hf/iframe ~(:hyperfiddle/topnav)]]}
+  {~:ident [[:hf/iframe ~(:hyperfiddle.ide.schema/editor$ ~:ide-dbname)]
+            [:hf/iframe ~:hyperfiddle/topnav]]}
 
   :renderer
   [:<>
    [hyperfiddle.ui/ui-from-link
     (hyperfiddle.data/select ctx :hyperfiddle/topnav) ctx {}]
    [hyperfiddle.ui/ui-from-link
-    (hyperfiddle.data/select ctx :hyperfiddle.ide.schema/editor
+    (hyperfiddle.data/select ctx :hyperfiddle.ide.schema/editor$
       ~:ide-dbname) ctx {}]]
 
   :css "

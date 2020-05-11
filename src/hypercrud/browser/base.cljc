@@ -101,8 +101,8 @@
 
 (defn interp-attr [fiddle scope x]
   (let [eval-mode (= (:eval/mode scope) :eval)]
-    (-> x
-        (expr/unquote-via
+    (eval
+        (expr/unquote-via x
           (fn eval-expr [x]
             (cond (qualified-keyword? x) {:fiddle/ident (str x)}
 
@@ -124,16 +124,22 @@
                                {:x x :fiddle fiddle :scope scope})))
 
                   () (throw (ex-info (str "unknown form" x "in" (:fiddle/ident fiddle))
-                              {:x x :fiddle fiddle :scope scope})))))
-        eval)))
+                              {:x x :fiddle fiddle :scope scope}))))))))
 
 (defn eval-attr [fiddle scope x]
-  (cond-> (interp-attr fiddle scope x)
-    (= (:eval/mode scope) :eval) eval))
+  (->
+    (do-result
+        (cond-> (interp-attr fiddle scope x)
+          (= (:eval/mode scope) :eval) eval))
+    (either/branch-left
+      (fn [e]
+        (timbre/error e "error in fiddle eval")
+        (either/left e)))
+    from-result))
 
 (defn get-fiddle-def [fiddle #_{rt :runtime pid :partition-id :as ctx}]
   (when (find-ns 'hyperfiddle.def)
-    (hyperfiddle.def/get-fiddle fiddle)))
+    (@(resolve 'hyperfiddle.def/get-fiddle) fiddle)))
 
 (defn normalize [scope key val]
   (case key
@@ -175,13 +181,14 @@
                                 :query :pull :formula :path}) str)]))
 
 (defn eval-fiddle+ [fiddle {:keys [domain route ctx] :as env}]
-  (scope (into [`eval-fiddle+ (:fiddle/ident fiddle)] (:fiddle/apply fiddle))
+  (scope (into [`eval-fiddle+ (:fiddle/ident fiddle)] (seq (:fiddle/apply fiddle)))
     (->
       (do-result
 
         (let
-          [[_ system-fiddle db] (re-find #"([^\$]*)(\$.*)" (name (:fiddle/ident fiddle)))
-           fiddle (fiddle/apply-defaults fiddle)
+          [fiddle (fiddle/apply-defaults fiddle)
+
+           [_ system-fiddle db] (re-find #"([^\$]*)(\$.*)" (name (:fiddle/ident fiddle)))
 
            scope
            (reduce-kv
@@ -201,13 +208,10 @@
 
            fiddle
            (-> fiddle
-               (dissoc
-                 :fiddle/args
-                 :fiddle/with
-                 :fiddle/apply
-                 :fiddle/source)
+               (dissoc :fiddle/args :fiddle/with :fiddle/apply)
                (assoc :fiddle/ident
                  (or (:ident scope) (:fiddle/ident fiddle))))
+
            [scope fiddle]
            (case (:eval/mode scope)
              :skip [scope
@@ -219,9 +223,6 @@
                        [scope x] (normalize scope attr x)]
                    [scope (assoc kv attr x)]))))
            ]
-          (timbre/debug :->
-            fiddle (dissoc scope :eval/env))
-
           fiddle
           ))
         (either/branch-left
