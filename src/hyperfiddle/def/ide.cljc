@@ -1,7 +1,6 @@
 (ns hyperfiddle.def.ide
-  #?(:clj
-     (:require
-       [hyperfiddle.def :as hf-def])))
+  (:require
+    [hyperfiddle.def :as hf-def]))
 
 (declare ctx props args)
 

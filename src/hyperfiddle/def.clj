@@ -3,6 +3,7 @@
     [taoensso.timbre :as timbre]
     [clojure.spec.alpha :as s]
     [contrib.expr :refer :all]
+    [contrib.do :refer [do-result]]
     [contrib.data :refer [qualify trim-str]]))
 
 
@@ -23,18 +24,20 @@
 
 (defonce *defs (atom {}))
 
+(defmacro lookup [& ks] `'~(get-in @*defs ks))
+
 (defn get-def [& ks] (get-in @*defs ks))
 
 (defn get-schemas []
   (@*defs :schema))
 
 (defn get-attrs []
-  (into {} (map (fn [[k v]] {k (:renderer v)}) (@*defs :attr))))
+  (into {} (map (fn [[k v]] {k (:renderer v)}) (@*defs :attribute))))
 
 (defn get-fiddle [id] (get-in @*defs [:fiddle id]))
 
 (defn def! [type ident form val]
-  {:pre [(#{:schema :attr :fiddle :project} type)
+  {:pre [(#{:schema :attribute :fiddle :project} type)
          (qualified-keyword? ident)
          form
          val]}
@@ -50,7 +53,7 @@
 
 (defmacro attr [ident & attrs]
   (doseq [[key attr] (apply merge attrs)]
-    (def! :attr key &form attr)))
+     (def! :attribute key &form (map-attrs :attribute attr))))
 
 (defmacro fiddle [ident & attrs]
   (def! :fiddle ident &form
@@ -149,7 +152,9 @@
         () v))
 
 (defn repr-val [v]
-  (cond (or (seq? v) (vector? v))
+  (cond (seq? v)
+        (str v)
+        (vector? v)
         (clojure.string/join "\n" (map str v))
         (string? v) (trim-str v)
         () v))
@@ -165,7 +170,7 @@
   )
 
 (defn map-attr [type k v]
-  (s/assert #{:project :fiddle :attr :link} type)
+  (s/assert #{:project :fiddle :attribute :link} type)
   (s/assert keyword? k)
   (s/assert (comp not nil?) v)
 
@@ -173,8 +178,6 @@
     [kv
      (case (qualify type k)
        :project/ident  :db/ident
-       :attr/ident     :attribute/ident
-       :fiddle/ident   :fiddle/ident
 
        :fiddle/pull
        (let [[db q] (->> v map-expr (split-with (some-fn string? seq?)))]
@@ -244,7 +247,8 @@
   (when (not= @*file-ref *file*)
     (timbre/info "loading fiddle defs" *file*)
     (reset! *file-ref *file*)
-    (swap! *defs assoc *file* (annotate-source (slurp (or (clojure.java.io/resource *file*) *file*)))))
+    (do-result
+      (swap! *defs assoc *file* (annotate-source (slurp (or (clojure.java.io/resource *file*) *file*))))))
   nil)
 
 (defn annotate-source [input & [origin]]

@@ -1,8 +1,6 @@
 (ns hyperfiddle.def.system
-  #?(:clj
-     (:require
-       [hyperfiddle.def :as hf-def])))
-
+  (:require
+    [hyperfiddle.def :as hf-def]))
 
 (hf-def/schema
   #:hyperfiddle
@@ -109,6 +107,20 @@
     div.hyperfiddle.ui div.hyperfiddle.field.-fiddle-markdown { display: block !important; }
   ")
 
+(hf-def/fiddle :hyperfiddle.system/decoding-error []
+  :renderer
+  (let [[s message data] (:hyperfiddle.route/datomic-args @(:hypercrud.browser/route ctx))]
+    [:div
+     [:h3 (str "Unable to decode route: " s)]
+     [:h4 message]
+     [:pre data]]))
+
+(hf-def/fiddle :hyperfiddle.system/not-found []
+  :markdown "# Route for url not found")
+
+(hf-def/fiddle :hyperfiddle.system/unauthorized []
+  :markdown "## Credentials invalid or stale. Please login again.")
+
 (hf-def/attr
   #:project
       {:code {:renderer hyperfiddle.ui.controls/code}
@@ -175,17 +187,3 @@
                   (fn [value ctx props]
                     (let [props (assoc props :debounce/interval contrib.ui/default-debounce-ms)]
                       [hyperfiddle.ui.controls/code value ctx props]))}})
-
-(hf-def/fiddle :hyperfiddle.system/decoding-error []
-  :renderer
-  (let [[s message data] (:hyperfiddle.route/datomic-args @(:hypercrud.browser/route ctx))]
-    [:div
-     [:h3 (str "Unable to decode route: " s)]
-     [:h4 message]
-     [:pre data]]))
-
-(hf-def/fiddle :hyperfiddle.system/not-found []
-  :markdown "# Route for url not found")
-
-(hf-def/fiddle :hyperfiddle.system/unauthorized []
-  :markdown "## Credentials invalid or stale. Please login again.")
