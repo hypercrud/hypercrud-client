@@ -247,11 +247,9 @@
      [hyperfiddle.ui/markdown (:fiddle/markdown @fiddle) ctx]])
 
   :markdown "
-    #### new-link
-
-    !field(:link/path){placeholder=\":district/region\"}
-  "
-
+#### new-link
+!field(:link/path){placeholder=\":district/region\"}
+"
   :css "
     .-hyperfiddle-ide-new-link .field { display: flex; }
     .-hyperfiddle-ide-new-link div.field > :first-child {
