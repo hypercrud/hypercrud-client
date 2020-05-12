@@ -40,7 +40,7 @@
                                                                              [dbname (select-keys database [:database/uri :database/db-name])]))
                                                                       (into {}))
                                                          :environment (hf/environment domain)
-                                                         :type-name (hf/type-name domain)})}
+                                                         :type-name (str (type domain))})}
                                    :user user-basis})))
     (fn [err total-time]
       (timbre/debugf "global-basis failure; total time: %sms" total-time))

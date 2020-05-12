@@ -15,7 +15,8 @@
     [hyperfiddle.runtime :as runtime]
     [hyperfiddle.ui.error :as ui-error]
     [hyperfiddle.ui.stale :as stale]
-    [hyperfiddle.api :as hf]))
+    [hyperfiddle.api :as hf]
+    [taoensso.timbre :as timbre]))
 
 
 (defn auto-ui-css-class [?ctx]                              ; semantic css

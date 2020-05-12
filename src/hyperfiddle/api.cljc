@@ -61,16 +61,14 @@
   (url-decode [domain s])
   (url-encode [domain route])
   (api-routes [domain])
-
-  (system-fiddle? [domain fiddle-ident])
-  (hydrate-system-fiddle [domain fiddle-ident])
+  (resolve-fiddle [domain fiddle-ident])
   #?(:clj (connect [domain dbname] [domain dbname on-created!]))
   (memoize [domain f]))
 
 (defprotocol HF-Runtime
   (domain [rt])
   (io [rt])
-  (hydrate [rt pid request])
+  (request [rt pid request])
   (set-route [rt pid route] [rt pid route force-hydrate] "Set the route of the given branch. This may or may not trigger IO. Returns a promise"))
 
 ;(def def-validation-message hypercrud.browser.context/def-validation-message)

@@ -128,7 +128,7 @@
        *])
     .
     :where
-    [(ground hyperfiddle.io.bindings/*subject*) ?user-id]
+    [(ground hyperfiddle.api/*subject*) ?user-id]
     [$users ?user :user/user-id ?user-id]]
 
   :renderer
@@ -283,7 +283,7 @@
   :links
   {":hyperfiddle.ide/env" [[:hf/iframe ~:hyperfiddle/topnav]
                            [:hf/iframe ~:hyperfiddle.ide/domain
-                            :formula (constantly #entity["$domains" [:domain/ident (:app-domain-ident (hyperfiddle.runtime/domain (:runtime ctx)))]])]
+                            :formula (constantly #entity["$domains" [:domain/ident (:app-domain-ident (hyperfiddle.api/domain (:runtime ctx)))]])]
                            [:hf/iframe ~:hyperfiddle.ide/project
                             :formula (constantly #entity ["$" :hyperfiddle/project])]
                            [:hf/iframe ~:hyperfiddle.ide/attribute-renderers]]}
@@ -295,27 +295,27 @@
 
    [:div.container-fluid.hyperfiddle-ide-env-content
     (if (= "nodejs" *target*)
-      (hyperfiddle.ui.loading/page (hyperfiddle.runtime/domain (:runtime ctx)))
+      (hyperfiddle.ui.loading/page (hyperfiddle.api/domain (:runtime ctx)))
       ; this content chunk takes too long to ssr
       [:<>
        [:h3 "Environment"]
-       (if (-> (hyperfiddle.runtime/domain (:runtime ctx))
-               (hyperfiddle.domain/database "$domains"))
+       (if (-> (hyperfiddle.api/domain (:runtime ctx))
+               (hyperfiddle.api/database "$domains"))
          ; $domains exists only with directory service
          [hyperfiddle.ui/link :hyperfiddle.ide/domain ctx {}]
-         (-> (hyperfiddle.runtime/domain (:runtime ctx))
+         (-> (hyperfiddle.api/domain (:runtime ctx))
              :hyperfiddle.ide.domain/user-domain+
              (cats.monad.either/branch
                (fn [e] [:pre (js/pprint-str e)])
                (fn [domain]
                  (->> (for [[label f] [#_:domain/ident
                                        #_:hyperfiddle/owners
-                                       ["databases" hyperfiddle.domain/databases]
-                                       ["fiddle-dbname" hyperfiddle.domain/fiddle-dbname]
+                                       ["databases" hyperfiddle.api/databases]
+                                       ["fiddle-dbname" hyperfiddle.api/fiddle-dbname]
                                        #_:domain/aliases
                                        #_:domain/disable-javascript
                                        #_:domain/home-route
-                                       ["environment" hyperfiddle.domain/environment]]]
+                                       ["environment" hyperfiddle.api/environment]]]
                         [:<> [:dt label] [:dd (contrib.pprint/pprint-str (f domain))]])
                       (into [:dl]))))))
        [:h5 "Project"]
@@ -378,7 +378,7 @@
 
   :renderer
   (if (= "nodejs" *target*)
-    (hyperfiddle.ui.loading/page (hyperfiddle.runtime/domain (:runtime ctx)))
+    (hyperfiddle.ui.loading/page (hyperfiddle.api/domain (:runtime ctx)))
     ; slow to ssr
     [:div props
      [hyperfiddle.ui/result val ctx props]])
@@ -485,7 +485,7 @@
   :query '[:find [(pull $domains ?domain [:domain/ident :db/id]) ...]
            :in $domains
            :where
-           [(ground hyperfiddle.io.bindings/*subject*) ?user-id]
+           [(ground hyperfiddle.api/*subject*) ?user-id]
            [$domains ?domain :domain/ident]
            [$domains ?domain :hyperfiddle/owners ?user-id]]
 
@@ -501,7 +501,7 @@
            (map (fn [domain]
                   [:li {:key (hash (:db/id domain))}
                    [:a
-                    {:href (str "http://" (:domain/ident domain) "." (:ide-domain (hyperfiddle.runtime/domain (:runtime ctx))) "/")}
+                    {:href (str "http://" (:domain/ident domain) "." (:ide-domain (hyperfiddle.api/domain (:runtime ctx))) "/")}
                     (:domain/ident domain)]]))
            (doall))]]))
 
@@ -524,7 +524,7 @@
 
   :renderer
   (if (= "nodejs" *target*)
-    (hyperfiddle.ui.loading/page (hyperfiddle.runtime/domain (:runtime ctx)))
+    (hyperfiddle.ui.loading/page (hyperfiddle.api/domain (:runtime ctx)))
     ; this table is awful on ssr
     [:div props
      [hyperfiddle.ui/result val ctx {}]]
@@ -587,7 +587,7 @@
            (or-join [?e]
              ; todo *subject* unsupported on peer
              #_(and
-                 [(ground hyperfiddle.io.bindings/*subject*) ?user-id]
+                 [(ground hyperfiddle.api/*subject*) ?user-id]
                  [?e :hyperfiddle/owners ?user-id])
              [(missing? $ ?e :hyperfiddle/owners)])
            [?e _ _ ?tx]]
@@ -648,7 +648,7 @@
 (hf-def/fiddle :hyperfiddle.ide/please-login
   :renderer
   (let [tunneled-route (first (:hyperfiddle.route/datomic-args @(:hypercrud.browser/route ctx)))
-        state (hyperfiddle.domain/url-encode (hyperfiddle.runtime/domain (:runtime ctx)) tunneled-route)
+        state (hyperfiddle.api/url-encode (hyperfiddle.api/domain (:runtime ctx)) tunneled-route)
         href (hyperfiddle.ide/stateless-login-url ctx state)]
     [:div
      [:br]
@@ -659,7 +659,7 @@
           [[:hf/iframe ~:hyperfiddle.ide/schema-editor
             :formula (constantly (->> @(:hypercrud.browser/route ctx)
                                       second first
-                                      (get (:hyperfiddle.ide.domain/user-dbname->ide (hyperfiddle.runtime/domain (:runtime ctx))))
+                                      (get (:hyperfiddle.ide.domain/user-dbname->ide (hyperfiddle.api/domain (:runtime ctx))))
                                       hypercrud.types.DbName/->DbName))]
            [:hf/iframe ~:hyperfiddle/topnav]]}
 
@@ -708,7 +708,7 @@
                                  (filter #(cuerdas.core/includes? (-> % :db/ident str) @needle) xs) xs)))]
     (fn [val ctx props]
       [:div.container-fluid props
-       [:h3 (str "Datomic schema for " (-> (hyperfiddle.runtime/domain (:runtime ctx))
+       [:h3 (str "Datomic schema for " (-> (hyperfiddle.api/domain (:runtime ctx))
                                            :hyperfiddle.ide.domain/user-dbname->ide
                                            clojure.set/map-invert
                                            (get (-> @(:hypercrud.browser/route ctx) second first :dbname))))]
@@ -808,7 +808,7 @@
   :query '[:find [(pull $domains ?db [:database/uri :db/id]) ...]
            :in $domains
            :where
-           [(ground hyperfiddle.io.bindings/*subject*) ?user-id]
+           [(ground hyperfiddle.api/*subject*) ?user-id]
            [$domains ?db :database/uri]
            [$domains ?db :hyperfiddle/owners ?user-id]]
 

@@ -76,7 +76,7 @@
   (resolve-fiddle [domain fiddle-ident]
     (resolve-fiddle fiddle-ident))
   
-  #?(:clj (connect [domain dbname] (d/dyna-connect (domain/database domain dbname) ?datomic-client)))
+  #?(:clj (connect [domain dbname] (d/dyna-connect (hf/database domain dbname) ?datomic-client)))
 
   (memoize [domain f]
     (if-let [f (get @memoize-cache f)]
@@ -97,7 +97,7 @@
   (url-encode [domain route] (route/url-encode route home-route))
   (api-routes [domain] R/ide-user-routes)
   (resolve-fiddle [domain fiddle-ident] (resolve-fiddle fiddle-ident))
-  #?(:clj (connect [domain dbname] (d/dyna-connect (domain/database domain dbname) ?datomic-client)))
+  #?(:clj (connect [domain dbname] (d/dyna-connect (hf/database domain dbname) ?datomic-client)))
   (memoize [domain f]
     (if-let [f (get @memoize-cache f)]
       f

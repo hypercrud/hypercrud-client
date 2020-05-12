@@ -198,7 +198,8 @@
                (assoc scope k (eval-attr fiddle scope v)))
              (merge
                {:eval/env  env
-                :eval/mode (fiddle/kind fiddle)}
+                :eval/mode (fiddle/kind fiddle)
+                :route route}
                (when system-fiddle
                  {'domain       domain
                   'db           db
@@ -245,9 +246,9 @@
 
     (let [route (resolve-route route)
           fiddle-ident (::route/fiddle route)
-          db (runtime/db rt pid (domain/fiddle-dbname (runtime/domain rt)))
+          db (runtime/db rt pid (hf/fiddle-dbname (hf/domain rt)))
           request (->EntityRequest (legacy-fiddle-ident->lookup-ref fiddle-ident) db :default)
-          record (from-result @(runtime/request rt pid request))]
+          record (from-result @(hf/request rt pid request))]
 
       (when-not (or (:db/id record) (:fiddle/source record))
         (throw (ex-info (str :hyperfiddle.error/fiddle-not-found)
@@ -260,7 +261,7 @@
       (eval-fiddle+ (fiddle/apply-defaults record)
         {:ctx    ctx
          :route  route
-         :domain (runtime/domain (:runtime ctx))})
+         :domain (hf/domain (:runtime ctx))})
       )))
 
 ; This factoring is legacy, can the whole thing can be inlined right above the datomic IO?
@@ -351,5 +352,5 @@
 
 (defn- nil-or-hydrate+ [rt pid request]
   (if request
-    @(runtime/request rt pid request)
+    @(hf/request rt pid request)
     (either/right nil)))

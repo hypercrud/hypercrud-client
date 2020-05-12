@@ -15,7 +15,6 @@
     [hypercrud.types.DbRef :refer [->DbRef]]
     [hyperfiddle.api :as hf]
     [hyperfiddle.domain :as domain]
-    [hyperfiddle.io.bindings] ; userland
     [hyperfiddle.io.datomic.core :as d]
     [hyperfiddle.security]
     [hyperfiddle.scope :refer [scope]]
@@ -56,12 +55,12 @@
       (or
         (when (and (seqable? e)
                    (= (first e) :fiddle/ident))
-          (domain/resolve-fiddle domain (second e)))
+          (hf/resolve-fiddle domain (second e)))
         ;
         ;(when (seqable? e)
         ;  (get (resolve-map) (second e)))
 
-        (d/pull pull-db {:selector pull-exp :eid e})))))
+        (hf/pull pull-db {:selector pull-exp :eid e})))))
 
 (defmethod hydrate-request* QueryRequest [{:keys [query params opts]} domain get-secure-db-with]
   (assert query "hydrate: missing query")
@@ -212,7 +211,7 @@
   (scope [`hydrate-requests requests]
     (let [db-with-lookup (atom {})
           local-basis (into {} local-basis)                 ; :: ([dbname 1234]), but there are some duck type shenanigans happening
-          get-secure-db-with+ (build-get-secure-db-with+ domain (constantly partitions) db-with-lookup local-basis)
+          get-secure-db-with+ (build-get-secure-db-with+ domain (constantly partitions) db-with-lookup local-basis ?subject)
           pulled-trees (->> requests
                             (map #(hydrate-request domain get-secure-db-with+ % ?subject))
                             (doall))

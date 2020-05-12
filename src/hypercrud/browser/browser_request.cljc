@@ -24,8 +24,6 @@
         (let [new-pid (context/build-pid-from-link ctx link-ctx route)]
           (condp = (runtime/get-route rt new-pid)
             nil (do (runtime/create-partition rt (:partition-id ctx) new-pid)
-                    (runtime/set-route rt new-pid route))
-            route (timbre/debug "Revisiting already created pid. Potential performance issue" route)
                     (hf/set-route rt new-pid route))
             route (timbre/warn "Revisiting already created pid. Potential performance issue" route)
             (throw (ex-info "pid generation non-unique" {:new-pid new-pid
