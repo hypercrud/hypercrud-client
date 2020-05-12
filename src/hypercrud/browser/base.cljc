@@ -41,7 +41,8 @@
   (do-result
 
     (when-let [e (runtime/get-error rt pid)]
-      (throw e))
+      #_(throw e)                                           ; hypercrud.types.Err is not Throwable
+      (throw (ex-info (pr-str e) {})))
 
     (let [; todo runtime should prevent invalid routes from being set
           route (from-result (route/validate-route+ route)) ; terminate immediately on a bad route
@@ -188,6 +189,7 @@
         (let
           [fiddle (fiddle/apply-defaults fiddle)
 
+           ; parse dbname out of fiddle-ident
            [_ system-fiddle db] (re-find #"([^\$]*)(\$.*)" (name (:fiddle/ident fiddle)))
 
            scope
