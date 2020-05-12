@@ -6,10 +6,8 @@
     [hypercrud.browser.context :as context]
     [hyperfiddle.api :as hf]
     [hyperfiddle.security]
-    [hyperfiddle.security.client :as security]
     [hyperfiddle.runtime :as runtime]
-    [taoensso.timbre :as timbre]
-    [hyperfiddle.domain :as domain]))
+    [taoensso.timbre :as timbre]))
 
 
 (defn entity-change->tx                                     ; :Many editor is probably not idiomatic
@@ -42,19 +40,3 @@
 (defn with-entity-change! [ctx]
   (r/comp (r/partial runtime/with-tx (:runtime ctx) (:partition-id ctx) (context/dbname ctx))
           (r/partial entity-change->tx ctx)))
-
-(defn writable-entity? [ctx]
-  (and
-    ; If the db/id was not pulled, we cannot write through to the entity
-    (boolean (hf/e ctx))
-    @(r/track security/writable-entity? (:hypercrud.browser/parent ctx))))
-
-(defn writable-attr? [ctx]
-  (let [domain (runtime/domain (:runtime ctx))
-        database (domain/database domain (context/dbname ctx))]
-    (if-not (= (get-in database [:database/write-security :db/ident] ::security/allow-anonymous)
-              :hyperfiddle.security/tx-operation-whitelist)
-      true
-      (let [{a :db/ident is-whitelisted :hyperfiddle/whitelist-attribute} (hf/attr ctx)]
-        (or (true? is-whitelisted)
-          ((set (:hf/transaction-operation-whitelist database)) a))))))

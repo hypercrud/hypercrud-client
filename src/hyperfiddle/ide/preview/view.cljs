@@ -7,7 +7,7 @@
     [contrib.local-storage :as local-storage]
     [contrib.reactive :as r]
     [contrib.ui]
-    [hyperfiddle.domain :as domain]
+    [hyperfiddle.api :as hf]
     [hyperfiddle.foundation :as foundation]
     [hyperfiddle.ide.domain :as ide-domain]
     [hyperfiddle.ide.preview.runtime :as preview-rt]
@@ -36,7 +36,7 @@
           anchor-descendant (-> (.composedPath native-event) (aget 0) (.matches "a *"))]
       (when-not (or anchor anchor-descendant)
         (.stopPropagation event)
-        (js/window.open (domain/url-encode (runtime/domain rt) route) "_blank")))))
+        (js/window.open (hf/url-encode (hf/domain rt) route) "_blank")))))
 
 (defn ide-partition-reference [rt ide-pid]
   @(r/fmap-> (r/cursor (state/state rt) [::runtime/partitions ide-pid])
@@ -100,14 +100,14 @@
 
 (defn preview-content [{rt :runtime pid :partition-id :as ctx} ide-pid preview-state]
   (if @(r/cursor preview-state [:initial-render])
-    [loading/page (runtime/domain rt)]
+    [loading/page (hf/domain rt)]
     (let [code+ (project/eval-domain-code!+ (:project/code (runtime/get-project (:runtime ctx) (:partition-id ctx))))
           is-stale @(r/track preview-stale? rt ide-pid pid preview-state)]
       [:<>
        (when (either/left? code+)
          (let [e @code+]
            (timbre/error e)
-           (let [href (domain/url-encode (runtime/domain rt) {::route/fiddle :hyperfiddle.ide/env})
+           (let [href (hf/url-encode (hf/domain rt) {::route/fiddle :hyperfiddle.ide/env})
                  message (or (some-> (ex-cause e) ex-message) (ex-message e))]
              [:h6 {:style {:text-align "center" :background-color "lightpink" :margin 0 :padding "0.5em 0"}}
               "Exception evaluating " [:a {:href href} [:code ":domain/code"]] ": " message])))

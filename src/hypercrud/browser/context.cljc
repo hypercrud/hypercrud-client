@@ -13,7 +13,6 @@
     [contrib.try$ :refer [try-either]]
     [datascript.parser #?@(:cljs [:refer [FindRel FindColl FindTuple FindScalar Variable Aggregate Pull]])]
     [hypercrud.browser.q-util]
-    [hyperfiddle.domain :as domain]
     [hypercrud.types.DbName :refer [#?(:cljs DbName)]]
     [hypercrud.types.ThinEntity :refer [->ThinEntity #?(:cljs ThinEntity)]]
     [hyperfiddle.api :as hf]
@@ -1041,7 +1040,7 @@ a speculative db/id."
 ; controlled memoization, this will correctly bust on cljs-ns changes in the UI
 (let [f (fn [s cljs-ns] (eval/eval-expr-str!+ s))]
   (defn eval-expr-str!+ [{:keys [:hypercrud.browser/fiddle] :as ctx} s]
-    (let [memoized-f (domain/memoize (runtime/domain (:runtime ctx)) f)]
+    (let [memoized-f (hf/memoize (hf/domain (:runtime ctx)) f)]
       (memoized-f s @(r/cursor fiddle [:fiddle/cljs-ns])))))
 
 (defn build-args+ "Params are EAV-typed (uncolored)"
@@ -1181,6 +1180,8 @@ a speculative db/id."
 
 (defrecord Context []
   hf/Browser
+  (dbname [ctx]
+    (dbname ctx))
   (data [ctx]
     (data ctx))
   (fiddle [ctx]
@@ -1222,3 +1223,6 @@ a speculative db/id."
   (v [ctx]
     (v ctx))
   )
+
+(defmethod hf/subject Context [ctx] (hyperfiddle.runtime/get-user-id (:runtime ctx)))
+(defmethod hf/db-record Context [ctx] (hf/database (hf/domain (:runtime ctx)) (hf/dbname ctx)))

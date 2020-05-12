@@ -6,6 +6,7 @@
     [contrib.data :refer [in-ns?]]
     [contrib.ct :refer [unwrap]]
     [hypercrud.transit]
+    [hyperfiddle.api :as hf]
     [hyperfiddle.domain :as domain :refer [#?(:cljs EdnishDomain)]]
     [hyperfiddle.ide.routing :as ide-routing]
     [hyperfiddle.route :as route]
@@ -50,9 +51,10 @@
 
 (defrecord IdeDomain [config basis fiddle-dbname databases environment home-route build ?datomic-client
                       html-root-id memoize-cache]
-  domain/Domain
+  hf/Domain
   (basis [domain] basis)
   (fiddle-dbname [domain] fiddle-dbname)
+  (database [domain dbname] (get databases dbname))
   (databases [domain] databases)
   (environment [domain] environment)
 
@@ -85,9 +87,10 @@
 
 ; overlaps with EdnishDomain
 (defrecord IdeEdnishDomain [config basis fiddle-dbname databases environment home-route ?datomic-client memoize-cache]
-  domain/Domain
+  hf/Domain
   (basis [domain] basis)
   (fiddle-dbname [domain] fiddle-dbname)
+  (database [domain dbname] (get databases dbname))
   (databases [domain] databases)
   (environment [domain] environment)
   (url-decode [domain s] (route/url-decode s home-route))
@@ -150,9 +153,9 @@
    (build
      :config config
      :?datomic-client    (:?datomic-client user-domain)
-     :basis              (domain/basis user-domain)
-     :user-databases     (domain/databases user-domain)
-     :user-fiddle-dbname (domain/fiddle-dbname user-domain)
+     :basis              (hf/basis user-domain)
+     :user-databases     (hf/databases user-domain)
+     :user-fiddle-dbname (hf/fiddle-dbname user-domain)
      :user-domain+       (-> user-domain map->IdeEdnishDomain either/right)
      :ide-databases      (into {"$src" (if (is-uri? src-uri)
                                          {:database/uri src-uri}

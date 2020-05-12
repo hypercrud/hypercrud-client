@@ -22,7 +22,7 @@
     [hyperfiddle.io.datomic.transact :refer [transact!]]
     [hyperfiddle.io.datomic.hydrate-requests :refer [hydrate-requests]]
     [hyperfiddle.io.datomic.hydrate-route :refer [hydrate-route]]
-    ))
+    [hyperfiddle.api :as hf]))
 
 
 ; these are renamed from h.s.service-domain/route and h.s.http/handle-route
@@ -137,7 +137,7 @@
       (try
         (let [{:keys [domain route-params body-params user-id]} (:request context)
               io (R/via context R/IO)
-              route (domain/url-decode domain
+              route (hf/url-decode domain
                       (str (get-in context [:request :path-info]) "?" (get-in context [:request :query-string])))
               {:keys [http-status-code component]}
               (from-async (render/render (-> (R/from context) :config) domain io route user-id))]
@@ -204,7 +204,7 @@
                                        (mapcat :stage)
                                        (remove (comp empty? second))
                                        (map first)
-                                       (filter #(domain/database domain %)) ; only sync declared dbnames
+                                       (filter #(hf/database domain %)) ; only sync declared dbnames
                                        (distinct)))))]
 
             {:status  200

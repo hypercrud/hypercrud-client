@@ -31,7 +31,6 @@
     [hyperfiddle.ui.select$]
     [hyperfiddle.ui.sort :as sort]
     [hyperfiddle.ui.stale :as stale]
-    [hyperfiddle.ui.util :refer [writable-entity? writable-attr?]]
     [spec-coerce.alpha]))
 
 
@@ -188,12 +187,18 @@
          (map css-slugify)
          (apply css))))
 
+(defn writable-entity? [ctx]
+  (and
+    ; If the db/id was not pulled, we cannot write through to the entity
+    (boolean (hf/e ctx))
+    @(r/track hf/subject-may-edit-entity? (:hypercrud.browser/parent ctx))))
+
 (defn- value-props [props ctx]
   (let [r-validation-hints (r/track context/validation-hints-here ctx)]
     (as-> props props
           (update props :disabled #(or %
                                        (not @(r/track writable-entity? ctx))
-                                       (not @(r/track writable-attr? ctx))))
+                                       (not @(r/track hf/subject-may-edit-attr? ctx))))
           (assoc props ::hf/invalid-messages r-validation-hints) ; why would this be null
           (assoc props ::hf/is-invalid (boolean (seq @r-validation-hints)))
           (update props :class css (if (:disabled props) "disabled")))))
@@ -212,7 +217,7 @@ User renderers should not be exposed to the reaction."
         props (-> props
                   (update :class css "hyperfiddle")
                   (dissoc :route)
-                  (assoc :href (some->> route (domain/url-encode (runtime/domain (:runtime ctx)))))
+                  (assoc :href (some->> route (hf/url-encode (hf/domain (:runtime ctx)))))
                   (select-keys [:class :href :style]))]
     (into [:a props] children)))
 
@@ -331,7 +336,7 @@ User renderers should not be exposed to the reaction."
   [ctx Body Head props]
   (let []
     [:div {:class (css "field" (:class props))
-           :style {:border-color (domain/database-color (runtime/domain (:runtime ctx)) (context/dbname ctx))}}
+           :style {:border-color (domain/database-color (hf/domain (:runtime ctx)) (context/dbname ctx))}}
      [Head nil ctx props]                                   ; suppress ?v in head even if defined
      [Body (hypercrud.browser.context/data ctx) ctx (value-props props ctx)]]))
 
@@ -339,7 +344,7 @@ User renderers should not be exposed to the reaction."
   [ctx Body Head props]                                     ; Body :: (val props ctx) => DOM, invoked as component
   (case (if (:hypercrud.browser/head-sentinel ctx) :head :body) ; broken
     :head [:th {:class (css "field" (:class props))         ; hoist
-                :style {:background-color (domain/database-color (runtime/domain (:runtime ctx)) (context/dbname ctx))}}
+                :style {:background-color (domain/database-color (hf/domain (:runtime ctx)) (context/dbname ctx))}}
            [Head nil ctx (-> props
                              (update :class css (when (sort/sortable? ctx) "sortable")
                                      (if-let [[p ?d] (sort/sort-directive ctx)]
@@ -348,7 +353,7 @@ User renderers should not be exposed to the reaction."
                              (assoc :on-click (r/partial sort/toggle-sort! ctx)))]]
     ; Field omits [] but table does not, because we use it to specifically draw repeating anchors with a field renderer.
     :body [:td {:class (css "field" (:class props))
-                :style {:border-color (domain/database-color (runtime/domain (:runtime ctx)) (context/dbname ctx))}}
+                :style {:border-color (domain/database-color (hf/domain (:runtime ctx)) (context/dbname ctx))}}
            [Body (hypercrud.browser.context/data ctx) ctx (value-props props ctx)]]))
 
 (defn ^:export field "Works in a form or table context. Draws label and/or value."
@@ -432,16 +437,14 @@ User renderers should not be exposed to the reaction."
                          (assoc @route ::route/where (route/fill-where unfilled-where (if-let [spec (:hf/where-spec input-props)]
                                                                                         (spec-coerce.alpha/coerce spec needle)
                                                                                         needle))))
-                       (runtime/set-route (:runtime ctx) (:partition-id ctx)))))
+                       (hf/set-route (:runtime ctx) (:partition-id ctx)))))
    contrib.ui/text])
-
-(s/def :hf/where any?)
-(s/def :hf/where-spec any?)
 
 (defn needle-input2 [ctx props]
   {:pre [(s/assert :hf/where props)]}
   (let [unfilled-where (:hf/where props)
-        props (merge {:placeholder (pr-str unfilled-where) :class "form-control"}
+        props (merge {:placeholder (:html/placeholder props (pr-str unfilled-where))
+                      :class "form-control"}
                      (select-keys props [:hf/where :hf/where-spec]))]
     [needle-input unfilled-where ctx props]))
 
@@ -564,7 +567,7 @@ nil. call site must wrap with a Reagent component"          ; is this just hyper
                              (map (fn [pid]
                                     ^{:key (str pid)}
                                     [:<>
-                                     [:dt [iframe/route-editor (runtime/get-route rt pid) (r/partial runtime/set-route rt pid)]]
+                                     [:dt [iframe/route-editor (runtime/get-route rt pid) (r/partial hf/set-route rt pid)]]
                                      [:dd (let [ctx (context/set-partition (context/map->Context {:runtime rt}) pid)]
                                             [iframe/stale-browse ctx
                                              (fn [ctx e] [ui-error/error-block e])

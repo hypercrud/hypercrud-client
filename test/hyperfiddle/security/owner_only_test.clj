@@ -1,6 +1,7 @@
 ;(ns hyperfiddle.security.owner-only-test
 ;  (:require
 ;    [clojure.test :refer [compose-fixtures deftest is use-fixtures testing]]
+;    [hyperfiddle.api :as hf]
 ;    [hyperfiddle.directory.fixtures :as fixtures] ; todo these tests can run without a directory service
 ;    [hyperfiddle.directory.provisioning :as dp]
 ;    [hyperfiddle.domain :as domain]
@@ -32,7 +33,7 @@
 ;
 ;(defn process-tx [domains-uri subject hf-db-uri tx]
 ;  (let [hf-db (-> (dp/build-util-domain domains-uri)
-;                  (domain/database hf-db-uri))]
+;                  (hf/database hf-db-uri))]
 ;    (transact/process-tx $ domain dbname subject tx)))
 ;
 ;(defn transact! [domains-uri subject tx-groups]

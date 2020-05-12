@@ -11,10 +11,10 @@
     [contrib.ui.tooltip :refer [tooltip]]
     [hyperfiddle.domain :as domain]
     [hyperfiddle.runtime :as runtime]
-    [hyperfiddle.security.client :as security]
     [hyperfiddle.state :as state]
     [re-com.core :as re-com]
-    [re-com.tabs]))
+    [re-com.tabs]
+    [hyperfiddle.api :as hf]))
 
 
 (defn- default-tab-model [selected-dbname tab-ids]
@@ -23,9 +23,9 @@
     (first tab-ids)))
 
 (defn- writes-allowed?+ [rt selected-dbname]
-  (let [hf-db (domain/database (runtime/domain rt) selected-dbname)
+  (let [hf-db (hf/database (hf/domain rt) selected-dbname)
         subject (runtime/get-user-id rt)]
-    (security/subject-can-transact? hf-db subject)))
+    (hf/subject-may-transact+ hf-db subject)))
 
 (defn transact-button [rt pid selected-dbname-ref label]
   (let [selected-dbname @selected-dbname-ref
@@ -33,8 +33,8 @@
         stage (runtime/get-stage rt pid selected-dbname)]
     [tooltip (cond
                (either/left? writes-allowed?+) {:status :warning :label @writes-allowed?+}
-               (empty? stage) {:status :warning :label "no changes"})
-     (let [color (domain/database-color (runtime/domain rt) selected-dbname)
+               (empty? stage) {:status :warning :label "all changes saved"})
+     (let [color (domain/database-color (hf/domain rt) selected-dbname)
            is-disabled (or (either/left? writes-allowed?+) (empty? stage))]
        [:button {:disabled is-disabled
                  :class (css "btn btn-sm hf-btn-xs" (if is-disabled "btn-outline-secondary" "btn-secondary"))
@@ -69,7 +69,7 @@
       on-change (fn [rt pid dbname-ref o n] (runtime/set-stage rt pid @dbname-ref n))]
   (defn- tab-content [rt pid dbname-ref & [child]]
     [:div.hyperfiddle-stage-content
-     {:style {:border-color (domain/database-color (runtime/domain rt) @dbname-ref)}}
+     {:style {:border-color (domain/database-color (hf/domain rt) @dbname-ref)}}
      child
      (let [props {:value (runtime/get-stage rt pid @dbname-ref)
                   :readOnly (runtime/get-auto-transact rt @dbname-ref)
@@ -79,7 +79,7 @@
        [debounced props validated-cmp parse-string to-string code])]))
 
 (defn default-dbname-labels [rt]
-  (->> (runtime/domain rt) domain/databases keys sort
+  (->> (hf/domain rt) hf/databases keys sort
        (map (fn [%] {:id % :label (domain/dbname-label %)}))))
 
 (defn dirty-dbs [rt pid]
@@ -95,7 +95,7 @@
    (let [tabs-definition (mapv (fn [{:keys [id] s-label :label}]
                                  {:id id
                                   :label [:span
-                                          {:style {:border-color (domain/database-color (runtime/domain rt) id)}
+                                          {:style {:border-color (domain/database-color (hf/domain rt) id)}
                                            :class (when (contains? (dirty-dbs rt pid) id) "stage-dirty")}
                                           s-label]})
                                dbname-labels)
@@ -163,7 +163,7 @@
                                  {:id id
                                   :href "#"
                                   :label [:span
-                                          {:style {:border-color (domain/database-color (runtime/domain rt) id)}
+                                          {:style {:border-color (domain/database-color (hf/domain rt) id)}
                                            :class (when (contains? (dirty-dbs rt pid) id) "stage-dirty")}
                                           s-label]})
                                dbname-labels)

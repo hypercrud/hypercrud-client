@@ -17,7 +17,7 @@
     [hypercrud.types.EntityRequest :refer [->EntityRequest]]
     [hypercrud.types.QueryRequest :refer [->QueryRequest ->EvalRequest]]
     [hypercrud.types.ThinEntity :refer [#?(:cljs ThinEntity)]]
-    [hyperfiddle.domain :as domain]
+    [hyperfiddle.api :as hf]
     [hyperfiddle.fiddle :as fiddle]
     [hyperfiddle.route :as route]
     [hyperfiddle.runtime :as runtime]

@@ -11,8 +11,8 @@
 
 (defn maybe [v]
   (if (some? v)
-    (maybe/just v)
-    (maybe/nothing)))
+    (just v)
+    (nothing)))
 
 (defn maybe-branch [mv lf rf]
   {:pre [(maybe? mv)]}

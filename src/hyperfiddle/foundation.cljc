@@ -2,8 +2,7 @@
   (:require
     [cats.monad.either :as either]
     [hyperfiddle.project :as project]
-    [hyperfiddle.runtime :as runtime]
-    [hyperfiddle.security.domains]
+    [hyperfiddle.runtime]
     #?(:cljs [hyperfiddle.ui.iframe :as iframe])))
 
 
@@ -12,8 +11,8 @@
 #?(:cljs
    (defn view [ctx]
      [:<>
-      [:style {:dangerouslySetInnerHTML {:__html (:project/css (runtime/get-project (:runtime ctx) (:partition-id ctx)))}}]
-      (-> (runtime/get-project (:runtime ctx) (:partition-id ctx))
+      [:style {:dangerouslySetInnerHTML {:__html (:project/css (hyperfiddle.runtime/get-project (:runtime ctx) (:partition-id ctx)))}}]
+      (-> (hyperfiddle.runtime/get-project (:runtime ctx) (:partition-id ctx))
           :project/code
           project/eval-domain-code!+
           (either/branch

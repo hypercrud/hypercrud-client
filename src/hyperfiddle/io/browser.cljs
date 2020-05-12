@@ -2,7 +2,7 @@
   (:require
     [goog.object :as object]
     [hypercrud.types.Err :as Err]
-    [hyperfiddle.domain :as domain]
+    [hyperfiddle.api :as hf]
     [hyperfiddle.io.core :as io]
     [hyperfiddle.io.http-client :as http-client]
     [promesa.core :as p]
@@ -14,7 +14,7 @@
     (do
       (timbre/error e)
       ; just blast the window location to force a refresh
-      (object/set js/window "location" (domain/url-encode domain {:hyperfiddle.route/fiddle :hyperfiddle.system/unauthorized})))
+      (object/set js/window "location" (hf/url-encode domain {:hyperfiddle.route/fiddle :hyperfiddle.system/unauthorized})))
     (throw e)))
 
 (deftype IOImpl [domain]

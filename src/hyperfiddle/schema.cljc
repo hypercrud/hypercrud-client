@@ -5,7 +5,7 @@
     [cats.monad.exception :as exception]
     [contrib.datomic]
     [hypercrud.types.QueryRequest :refer [->QueryRequest]]
-    [hyperfiddle.domain :as domain]
+    [hyperfiddle.api :as hf]
     [hyperfiddle.io.core :as io]
     [hyperfiddle.runtime :as runtime]
     [promesa.core :as p])
@@ -15,7 +15,7 @@
 
 
 (defn hydrate-schemas [rt pid local-basis partitions]
-  (let [dbnames (-> (domain/databases (runtime/domain rt))
+  (let [dbnames (-> (hf/databases (hf/domain rt))
                     keys
                     vec)
         requests (mapv (fn [dbname]
@@ -27,7 +27,7 @@
                                          [(runtime/db rt pid dbname)]
                                          {:limit -1}))
                        dbnames)]
-    (-> (io/hydrate-requests (runtime/io rt) local-basis partitions requests)
+    (-> (io/hydrate-requests (hf/io rt) local-basis partitions requests)
         (p/then (fn [{:keys [pulled-trees]}]
                   (->> pulled-trees                         ; add local schemas from spec here?
                        (map (fn [pulled-tree+]
@@ -39,7 +39,7 @@
   "Hacks for namespace hyperfiddle.security which due to bootstrapping cannot be hydrated in-band.
   See https://github.com/hyperfiddle/hyperfiddle/issues/1003"
   [domain db-name $]
-  (let [result ((hyperfiddle.io.datomic.core/qf (domain/databases domain)
+  (let [result ((hyperfiddle.io.datomic.core/qf (hf/databases domain)
                                                 [(let [branch nil] ; qf ignores branch
                                                    (DbRef. db-name branch))])
                 {:query '[:find (pull ?attr [*

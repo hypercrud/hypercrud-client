@@ -6,19 +6,7 @@
     (java.io FileNotFoundException)))
 
 
-(defprotocol ConnectionFacade                               ; move to hyperfiddle.api
-  :extend-via-metadata true
-  (basis [conn])
-  (db [conn])
-  (transact [conn arg-map])
-  (with-db [conn]))
-
-(defprotocol DbFacade
-  :extend-via-metadata true
-  (as-of [db time-point])
-  (basis-t [db])
-  (pull [db arg-map])
-  (with [db arg-map]))
+; TODO Migrate these fns to hyperfiddle.api multimethods
 
 (def client-supported (delay (try (require 'datomic.client.api) true ; todo this is always true
                                   (catch FileNotFoundException e false))))

@@ -65,7 +65,7 @@
 
 (defmethod hydrate-request* QueryRequest [{:keys [query params opts]} domain get-secure-db-with]
   (assert query "hydrate: missing query")
-  (let [q (d/qf (domain/databases domain) params)
+  (let [q (d/qf (hf/databases domain) params)
         arg-map (-> (select-keys opts [:limit :offset])
                     (assoc :query query
                            :args (map #(parameter % get-secure-db-with) params)))]
@@ -82,7 +82,7 @@
 ; todo i18n
 (def ERROR-BRANCH-PAST ":hyperfiddle.error/basis-stale Branching the past is currently unsupported, please refresh your basis by refreshing the page")
 
-(defn build-get-secure-db-with+ [domain partitions-f db-with-lookup local-basis]
+(defn build-get-secure-db-with+ [domain partitions-f db-with-lookup local-basis ?subject]
   {:pre [(map? local-basis)
          (not-any? nil? (vals local-basis))]}
   (letfn [(get-secure-db-from-branch+ [partitions pid dbname]
@@ -97,15 +97,15 @@
                                         init-db-with (if-let [parent-pid (get-in partitions [pid :parent-pid])]
                                                        (get-secure-db-from-branch+ partitions parent-pid dbname)
                                                        (exception/try-on
-                                                         (let [$ (->> (domain/connect domain dbname)
-                                                                      (d/with-db))]
+                                                         (let [$ (->> (hf/connect domain dbname)
+                                                                      (hf/with-db))]
                                                            {:db-with $
-                                                            :secure-db (d/as-of $ t)})))]
+                                                            :secure-db (hf/as-of $ t)})))]
                                    ; is it a history query? (let [db (if (:history? dbval) (d/history db) db)])
                                    (if (empty? tx)
                                      (cats/return init-db-with)
                                      (mlet [:let [{:keys [db-with id->tempid with?]} init-db-with]
-                                            _ (if (and (not with?) (not= t (d/basis-t db-with)))
+                                            _ (if (and (not with?) (not= t (hf/basis-t db-with)))
                                                 ; can only run this assert once, on the first time a user d/with's
                                                 ; every subsequent d/with, the new db's basis will never again match the user submitted basis
                                                 ; however this is fine, since the original t is already known good
@@ -117,13 +117,10 @@
                                             ; - schema, in non-local datomic configurations we should reuse the schema we have
                                             ; - the domain's relevant hf-db with security metadata e.g. database owners
                                             ; - maybe: the dbval with basis right before this tx, to allow for additional queries (slow in non-local datomic config)
-                                            _ (let [hf-db (domain/database domain dbname)]
-                                                (if (= (get-in hf-db [:database/write-security :db/ident] :hyperfiddle.security/allow-anonymous)
-                                                       :hyperfiddle.security/tx-operation-whitelist)
-                                                  (try-on (hyperfiddle.security/tx-operation-whitelist! db-with domain dbname nil tx))
-                                                  (success nil)))
+                                            tx (binding [hf/*subject* ?subject]
+                                                 (try-on (hf/process-tx db-with domain dbname ?subject tx)))
                                             ;_ (assert schema "needed for d/with") ; not available for hydrate-schemas in request bootstrapping
-                                            {:keys [db-after tempids]} (exception/try-on (d/with db-with {:tx-data tx
+                                            {:keys [db-after tempids]} (exception/try-on (hf/with db-with {:tx-data tx
                                                                                                           #_(if-not schema
                                                                                                             tx ; bootstrapping
                                                                                                             (coerce-tx schema tx))}))]
@@ -132,7 +129,7 @@
                                        ; https://forum.datomic.com/t/interactions-of-d-basis-t-d-as-of-d-with/219
                                        (exception/try-on
                                          {:db-with db-after
-                                          :secure-db (d/as-of db-after (d/basis-t db-after))
+                                          :secure-db (hf/as-of db-after (hf/basis-t db-after))
                                           :with? true
                                           ; todo this merge is excessively duplicating data to send to the client
                                           :id->tempid (merge id->tempid (set/map-invert tempids))}))))]
@@ -201,7 +198,7 @@
   {:pre [(or (instance? EntityRequest request)
              (instance? QueryRequest request)
              (instance? EvalRequest request))]}
-  (binding [hyperfiddle.io.bindings/*subject* ?subject]
+  (binding [hf/*subject* ?subject]
     (either/branch-left
       (try-either (hydrate-request* request domain (comp exception/extract get-secure-db-with+)))
       (fn [e] (either/left (error-cleaner e request))))))

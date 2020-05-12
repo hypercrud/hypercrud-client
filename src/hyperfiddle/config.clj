@@ -4,9 +4,10 @@
     [contrib.data :refer [to-keys tag]]
     [contrib.io :refer [get-edn get-resource]]
     [hyperfiddle.scope :refer :all]
-    [hyperfiddle.domain :as domain :refer [map->EdnishDomain]]
-    [hyperfiddle.io.datomic.core :as d]
-    [taoensso.timbre :refer [warn debug info]]))
+    [hyperfiddle.domain :refer [map->EdnishDomain]]
+    [hyperfiddle.io.datomic.core]
+    [taoensso.timbre :refer [warn debug info]]
+    [hyperfiddle.api :as hf]))
 
 
 (declare get-config)                                        ; convert config files to server config and user domain values
@@ -36,7 +37,7 @@
              ::public-service-http-scheme]
     :req [:git/describe]))
 
-(defn get-config [config & [more-config]]
+(defn get-config [config & [more-config spec-selection]]
   (let [config (cond
                  (map? config) config
                  (string? config) (get-edn config))
@@ -45,23 +46,23 @@
                   :git/describe "dev"}
                  more-config
                  config)]
-    (s/assert :hyperfiddle.config/config config)
+    (s/assert (or spec-selection :hyperfiddle.config/config) config)
     config))
 
-(defn get-domain [config]
+(defn get-domain [config & [_ spec-selection]]
   ; should this validate the spec before returning it or is that the call-site job?
   (let [m (:domain config)
         domain (-> m
                  (update :basis #(or % (System/currentTimeMillis)))
                  (update :environment #(or % {}))
                  (update :home-route #(or % {:hyperfiddle.route/fiddle :index}))
-                 (update :fiddle-dbname #(or % "$hyperfiddle"))
-                 (cond-> (:client-config m) (assoc :?datomic-client (d/dyna-client (:client-config m))))
+                 (update :fiddle-dbname #(or % "$hyperfiddle")) ; but only if hyperfiddle is listed as a database, TODO
+                 (cond-> (:client-config m) (assoc :?datomic-client (hyperfiddle.io.datomic.core/dyna-client (:client-config m))))
                  (dissoc :client-config)
                  (assoc :memoize-cache (atom nil))
                  (assoc :config config)
                  hyperfiddle.domain/map->EdnishDomain)]
-    (s/assert hyperfiddle.domain/spec-ednish-domain domain)
+    (s/assert (or spec-selection hyperfiddle.domain/spec-ednish-domain) domain)
     domain))
 
 (defonce warned-in-mem? false)
@@ -71,19 +72,19 @@
   (when-not provisioned-db?
     (def provisioned-db? true)
 
-    (doseq [[dbname {:keys [database/uri]}] (domain/databases domain)
+    (doseq [[dbname {:keys [database/uri]}] (hf/databases domain)
             :when (and uri (clojure.string/starts-with? (str uri) "datomic:mem"))]
-      (let [conn (domain/connect domain dbname
+      (let [conn (hf/connect domain dbname
                    (fn on-created! [conn]
                      (info "Created DB" uri)
                      (when-not warned-in-mem?
                        (def warned-in-mem? true)
                        (warn "This is a temporary DB"))))]
 
-        (when (= dbname (domain/fiddle-dbname domain))
-          (d/transact conn {:tx-data (get-edn (get-resource "schema/fiddle.edn"))})
+        (when (= dbname (hf/fiddle-dbname domain))
+          (hf/transact conn {:tx-data (get-edn (get-resource "schema/fiddle.edn"))})
           (info "Added hyperfiddle schema"))
 
         (when (= dbname "$users")
-          (d/transact conn {:tx-data (get-edn (get-resource "schema/users.edn"))})
+          (hf/transact conn {:tx-data (get-edn (get-resource "schema/users.edn"))})
           (info "Added users schema"))))))

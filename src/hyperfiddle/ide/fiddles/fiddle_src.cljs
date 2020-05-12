@@ -26,7 +26,7 @@
     props))
 
 (defn schema-links [ctx]
-  (->> (runtime/domain (:runtime ctx)) ::ide-domain/user-dbname->ide keys sort
+  (->> (hf/domain (:runtime ctx)) ::ide-domain/user-dbname->ide keys sort
        (map (fn [user-dbname]
               (let [props {:route {::route/fiddle (keyword "hyperfiddle.ide.schema" user-dbname)}
                            #_#_:target "_blank"}]

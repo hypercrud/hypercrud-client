@@ -5,7 +5,7 @@
     [hyperfiddle.runtime :as runtime]
     [hypercrud.types.EntityRequest :refer [->EntityRequest]]
     [hypercrud.types.QueryRequest :refer [->QueryRequest]]
-    [hyperfiddle.domain :as domain]
+    [hyperfiddle.api :as hf]
     [hyperfiddle.io.core :as io]
     [promesa.core :as p]))
 
@@ -14,22 +14,22 @@
   (->QueryRequest '[:find ?i ?r :where
                     [?attr :attribute/ident ?i]
                     [?attr :attribute/renderer ?r]]
-                  [(runtime/db rt pid (domain/fiddle-dbname (runtime/domain rt)))]
+                  [(runtime/db rt pid (hf/fiddle-dbname (hf/domain rt)))]
                   {:limit -1}))
 
 (defn hydrate-attr-renderers [rt pid local-basis partitions]
-  (-> (io/hydrate-one! (runtime/io rt) local-basis partitions (attrs-request rt pid))
+  (-> (io/hydrate-one! (hf/io rt) local-basis partitions (attrs-request rt pid))
       (p/then #(into {} %))))
 
 (defn project-request [rt pid]
   (->EntityRequest
     :hyperfiddle/project
-    (runtime/db rt pid (domain/fiddle-dbname (runtime/domain rt)))
+    (runtime/db rt pid (hf/fiddle-dbname (hf/domain rt)))
     [:project/code
      :project/css]))
 
 (defn hydrate-project-record [rt pid local-basis partitions]
-  (io/hydrate-one! (runtime/io rt) local-basis partitions (project-request rt pid)))
+  (io/hydrate-one! (hf/io rt) local-basis partitions (project-request rt pid)))
 
 #?(:cljs
    (defn eval-domain-code!+ [code-str]

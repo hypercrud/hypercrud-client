@@ -4,6 +4,7 @@
     [hyperfiddle.service.resolve :as R]
     [contrib.do :refer :all]
     [contrib.data :refer [unqualify]]
+    [hyperfiddle.api :as hf]
     [hyperfiddle.domain :as domain]
     [hyperfiddle.ide.authenticate]
     [hyperfiddle.ide.directory :as ide-directory]           ; immoral
@@ -59,8 +60,8 @@
                      is-auth-configured                        ; if there is an auth0 config, require logins
                      is-no-subject
                      prevent-infinite-redirect))
-              (let [inner-route (domain/url-decode domain path)
-                    url (domain/url-encode domain {::route/fiddle :hyperfiddle.ide/please-login
+              (let [inner-route (hf/url-decode domain path)
+                    url (hf/url-encode domain {::route/fiddle :hyperfiddle.ide/please-login
                                                    ::route/datomic-args [inner-route]})]
                 (-> context
                     (assoc-in [:response :status] 302)

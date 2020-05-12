@@ -1,13 +1,12 @@
 (ns hyperfiddle.io.datomic.sync
   (:refer-clojure :exclude [sync])
   (:require
-    [hyperfiddle.domain :as domain]
-    [hyperfiddle.io.datomic.core :as d]
-    [taoensso.timbre :as timbre]))
+    [hyperfiddle.api :as hf]
+    [taoensso.timbre :refer [debug]]))
 
 
 (defn sync [domain dbnames]
-  (timbre/debug "syncing" (pr-str dbnames))
+  (debug "syncing" (pr-str dbnames))
   (->> dbnames
-       (map (juxt identity #(-> (domain/connect domain %) d/basis)))
+       (map (juxt identity #(-> (hf/connect domain %) hf/basis)))
        (into {})))

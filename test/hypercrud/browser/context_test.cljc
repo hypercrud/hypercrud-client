@@ -12,27 +12,26 @@
     [hyperfiddle.core]                                      ; avoid cycle hyperfiddle.api
     [hyperfiddle.api :as hf]
     [hyperfiddle.data]
-    [hyperfiddle.domain :as domain]
     [hyperfiddle.fiddle :as fiddle]
     [hyperfiddle.foundation :as foundation]
     [hyperfiddle.route :as route]
-    [hyperfiddle.runtime :as runtime]
+    [hyperfiddle.runtime]
     [hyperfiddle.state :as state]
     [hyperfiddle.ui.sort :as sort]))
 
 
 (defn mock-peer [pid schemas]
   ; Stop NPEs in tempid that inspect the stage.
-  (let [state-atom (-> {::runtime/partitions {pid {:is-branched true
-                                                   :schemas schemas}}}
+  (let [state-atom (-> {:hyperfiddle.runtime/partitions {pid {:is-branched true
+                                                              :schemas schemas}}}
                        state/initialize
                        (r/atom))
         databases (zipmap (keys schemas) (repeatedly (constantly {})))
-        domain (reify domain/Domain
+        domain (reify hf/Domain
                  (databases [domain] databases)
                  (memoize [domain f] (memoize f)))]
     (reify
-      runtime/HF-Runtime
+      hf/HF-Runtime
       (domain [rt] domain)
       state/State
       (state [rt] state-atom))))

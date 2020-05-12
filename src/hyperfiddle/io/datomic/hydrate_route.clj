@@ -9,6 +9,7 @@
     [hypercrud.browser.base :as base]
     [hypercrud.browser.browser-request :as browser-request]
     [hypercrud.browser.context :refer [map->Context]]
+    [hyperfiddle.api :as hf]
     [hyperfiddle.io.core :as io]
     [hyperfiddle.io.datomic.hydrate-requests :as hydrate-requests]
     [hyperfiddle.project :as project]
@@ -25,8 +26,7 @@
   state/State
   (state [rt] state-atom)
 
-  runtime/HF-Runtime
-
+  hf/HF-Runtime
   (domain [rt] domain)
 
   (request [rt pid request]
@@ -90,7 +90,7 @@
                                 (map (fn [[k v]]
                                        [k (select-keys v [:is-branched :partition-children :parent-pid :stage])]))
                                 (into {})))
-            get-secure-db-with+ (hydrate-requests/build-get-secure-db-with+ domain partitions-f db-with-lookup local-basis)
+            get-secure-db-with+ (hydrate-requests/build-get-secure-db-with+ domain partitions-f db-with-lookup local-basis ?subject)
             rt (->RT domain db-with-lookup get-secure-db-with+ state-atom ?subject)]
 
         (perf/time (fn [t] (when (> t 500) (timbre/debugf "hydrate-route hydrate-requests/extract-tempid-lookups %sms" t)))

@@ -1,5 +1,6 @@
 (ns hyperfiddle.ide.preview.runtime
   (:require
+    [hyperfiddle.api :as hf]
     [hyperfiddle.ide.routing :as ide-routing]
     [hyperfiddle.runtime :as runtime]
     [hyperfiddle.runtime-impl :as runtime-impl]
@@ -12,7 +13,7 @@
   state/State
   (state [rt] state-atom)
 
-  runtime/HF-Runtime
+  hf/HF-Runtime
   (domain [rt] domain)
   (io [rt] io)
   (request [rt pid request] (runtime-impl/hydrate-impl rt pid request))
