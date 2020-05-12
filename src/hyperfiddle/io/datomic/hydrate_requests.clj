@@ -15,11 +15,12 @@
     [hypercrud.types.DbRef :refer [->DbRef]]
     [hyperfiddle.api :as hf]
     [hyperfiddle.domain :as domain]
-    [hyperfiddle.io.bindings]                               ; userland
+    [hyperfiddle.io.bindings] ; userland
     [hyperfiddle.io.datomic.core :as d]
     [hyperfiddle.security]
     [hyperfiddle.scope :refer [scope]]
-    [taoensso.timbre :as timbre])
+    [taoensso.timbre :as timbre]
+    [hyperfiddle.def :as hf-def])
   (:import
     (hypercrud.types.DbRef DbRef)
     (hypercrud.types.EntityRequest EntityRequest)
@@ -37,12 +38,30 @@
 
 (defmulti hydrate-request* (fn [this & args] (class this)))
 
+(defn resolve-map []
+  (->>
+    (hf-def/get-def)
+    (select-keys [:project :attribute])
+    (reduce-kv
+      (fn [defs k v]
+        (merge defs v))
+      {})))
+
 (defmethod hydrate-request* EntityRequest [{:keys [e db pull-exp]} domain get-secure-db-with]
   (let [{pull-db :db} (get-secure-db-with (:dbname db) (:branch db))]
     (cond
       (nil? e) nil                                          ; This is probably an error, report it? Datomic says: (d/pull $ [:db/id] nil) => #:db{:id nil}
       (contrib.datomic/tempid? e) {:db/id e}                ; This introduces sloppy thinking about time!   https://github.com/hyperfiddle/hyperfiddle/issues/584
-      :happy (d/pull pull-db {:selector pull-exp :eid e}))))
+      ()
+      (or
+        (when (and (seqable? e)
+                   (= (first e) :fiddle/ident))
+          (domain/resolve-fiddle domain (second e)))
+        ;
+        ;(when (seqable? e)
+        ;  (get (resolve-map) (second e)))
+
+        (d/pull pull-db {:selector pull-exp :eid e})))))
 
 (defmethod hydrate-request* QueryRequest [{:keys [query params opts]} domain get-secure-db-with]
   (assert query "hydrate: missing query")
