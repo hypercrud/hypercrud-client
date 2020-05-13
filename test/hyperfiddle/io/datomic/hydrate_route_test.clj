@@ -29,7 +29,7 @@
     (databases [domain]
       {"$" {:database/uri (->URI (str "datomic:mem://" 'hyperfiddle.io.datomic.hydrate-route-test "$"))}
        "$src" {:database/uri (->URI (str "datomic:mem://" 'hyperfiddle.io.datomic.hydrate-route-test "$src"))}})
-    ;(system-fiddle? [domain fiddle-ident] false)
+    (resolve-fiddle [domain fiddle-ident] nil)
     ))
 
 (use-fixtures :each
@@ -78,3 +78,9 @@
                                    exception/success
                                    exception/failure)))]
       (is (thrown-with-msg? ExceptionInfo (re-pattern (Pattern/quote ":db.error/datoms-conflict")) @response+)))))
+
+(comment
+
+  (duplicate-datoms)
+  (clojure.test/run-tests)
+  )

@@ -34,7 +34,7 @@
 
       (-> (if (contains? ptm request)
 
-            (get ptm request)
+            (get ptm request)                               ; cache
 
             (let [result
                   (hydrate-requests/hydrate-request domain get-secure-db-with+
@@ -107,7 +107,7 @@
         (perf/time (fn [t] (when (> t 500) (timbre/warnf "browser-request/requests %sms route: %s" t route)))
           (-> (base/browse-partition+ (map->Context {:partition-id pid :runtime rt}))
               (either/branch
-                (fn [e] (timbre/warn e))
+                (fn [e] (timbre/warn e))                    ; write to server log, exception has been written to partition map for transmission to client
                 browser-request/requests)))
 
         (-> @(state/state rt)
