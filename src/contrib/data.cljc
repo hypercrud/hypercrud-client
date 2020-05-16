@@ -247,3 +247,6 @@
   (if-let [indent (some-> (re-find #"(\n +)\S" s) second)]
     (clojure.string/trim (clojure.string/replace s indent "\n"))
     (clojure.string/trim s)))
+
+(defn for-kv [kv init f]
+  (reduce-kv f init kv))

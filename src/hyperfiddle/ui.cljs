@@ -424,14 +424,16 @@ User renderers should not be exposed to the reaction."
     (= v form) identity))
 
 (defn route-input
+  "Example:
+      [route-input ctx {:as :foo :valmap name :on-change (fn [ov nv] (keyword nv))}]"
   [{:keys [:hypercrud.browser/route] :as ctx} & [{:keys [as valmap on-change]
                                                   :or {valmap identity
                                                        on-change (fn [_ nv] nv)}
                                                   :as props}]]
   {:pre [as]}
-  (let [val (valmap (get @route as))
+  (let [val (some-> (get @route as) valmap)
         handler (fn [val]
-                  (if val
+                  (if val                                   ; remove nil keys from route
                     (hf/swap-route! ctx assoc as val)
                     (hf/swap-route! ctx dissoc as)))
         props (assoc props :value val

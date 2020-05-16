@@ -6,7 +6,7 @@
     #?(:clj [backtick :refer [template]])
     [cats.core :as cats :refer [mlet return]]
     [cats.monad.either :as either]
-    [contrib.data :refer [update-existing]]
+    [contrib.data :refer [update-existing for-kv]]
     [contrib.do :refer [do-result from-result]]
     [clojure.string :as string]
     [contrib.datomic.common.query :as query]
@@ -97,9 +97,6 @@
       :fiddle/uuid (second lookup-ref)
       lookup-ref)
     lookup-ref))
-
-(defn for-kv [kv init f]
-  (reduce-kv f init kv))
 
 (defn interp-attr [fiddle scope x]
   (let [eval-mode (= (:eval/mode scope) :eval)]

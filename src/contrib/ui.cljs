@@ -3,7 +3,7 @@
   (:require
     [cats.core :as cats]
     [contrib.css :refer [css]]
-    [contrib.data :refer [orp update-existing]]
+    [contrib.data :refer [orp update-existing for-kv unqualify]]
     [contrib.pprint :refer [pprint-str]]
     [contrib.reactive :as r]
     [contrib.reader]
@@ -135,9 +135,12 @@
 (let [target-value (fn [e] (.. e -target -value))]          ; letfn not working #470
   (defn text [props]
     (let [props (-> (assoc props :type "text")
-                    (update-existing :on-change r/comp target-value))
-          control [:input (select-keys props [:type :value :default-value :on-change :class :style :read-only :disabled :placeholder])]]
-      control)))
+                    (update-existing :on-change r/comp target-value)
+                    (select-keys [:type :value :default-value :on-change :style :read-only :disabled
+                                  :html/placeholder :html/class
+                                  :placeholder :class])
+                    (for-kv {} (fn [m k v] (assoc m (unqualify k) v))))]
+      [:input props])))
 
 (let [parse-string (fn [s]                                  ; letfn not working #470
                      (let [v (some-> s contrib.reader/read-edn-string!)]
