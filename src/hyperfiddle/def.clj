@@ -9,7 +9,7 @@
 
 (declare def!) ; main definitions
 (declare attr)
-(declare fiddle)
+(declare fiddle)                                            ; hyperfiddle.api ?
 (declare project)
 
 (declare read-def) ; parsing

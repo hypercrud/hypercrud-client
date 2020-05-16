@@ -226,6 +226,7 @@
                        [scope x] (normalize scope attr x)]
                    [scope (assoc kv attr x)]))))
            ]
+          #_(timbre/debug fiddle)
           fiddle
           ))
         (either/branch-left
