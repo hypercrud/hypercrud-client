@@ -190,6 +190,10 @@
        {:fiddle/type  :query
         :fiddle/query (-> v one map-expr)}
 
+       :fiddle/eval
+       {:fiddle/type :eval
+        :fiddle/eval (-> v one map-expr)}
+
        :fiddle/code :fiddle/cljs-ns
 
        :fiddle/links

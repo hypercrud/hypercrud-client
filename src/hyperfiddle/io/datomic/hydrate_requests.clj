@@ -76,7 +76,7 @@
   {:pre [form]}
   (binding [hf/*route* route
             hf/*$* (:db (get-secure-db-with "$" pid))]
-    (eval form)))
+    (load-string form)))
 
 ; todo i18n
 (def ERROR-BRANCH-PAST ":hyperfiddle.error/basis-stale Branching the past is currently unsupported, please refresh your basis by refreshing the page")

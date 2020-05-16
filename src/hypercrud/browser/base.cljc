@@ -6,6 +6,7 @@
     #?(:clj [backtick :refer [template]])
     [cats.core :as cats :refer [mlet return]]
     [cats.monad.either :as either]
+    [contrib.data :refer [update-existing]]
     [contrib.do :refer [do-result from-result]]
     [clojure.string :as string]
     [contrib.datomic.common.query :as query]
@@ -172,14 +173,17 @@
                      (:eval/env scope)))
                  () (merge val
                            (-> (get-fiddle-def (:fiddle/ident val))
-                               (select-keys [:db/id :fiddle/type :fiddle/query :fiddle/pull]))))]
+                               (select-keys [:db/id :fiddle/type :fiddle/query :fiddle/pull])
+                               (update-existing :fiddle/query str)
+                               (update-existing :fiddle/pull str)
+                               (update-existing :fiddle/eval str))))]
 
           () [scope val])
 
     [scope
      (cond-> val
        ((-> key name keyword) #{:code :cljs-ns :renderer :markdown :css
-                                :query :pull :formula :path}) str)]))
+                                :query :pull :eval :formula :path}) str)]))
 
 (defn eval-fiddle+ [fiddle {:keys [domain route ctx] :as env}]
   (scope (into [`eval-fiddle+ (:fiddle/ident fiddle)] (seq (:fiddle/apply fiddle)))
@@ -323,11 +327,13 @@
                        (return (->QueryRequest q query-args {:limit browser-query-limit})))))
 
     :eval                                                   ; '(datomic.api/pull $ [:db/ident '*] :db/ident)
-    (let [form (-> #_(memoized-read-edn-string+ (:fiddle/eval fiddle))
+    (let [#_#_form (-> #_(memoized-read-edn-string+ (:fiddle/eval fiddle))
                  (reader/memoized-read-string+ (:fiddle/eval fiddle))
                  (either/branch (constantly nil) identity))]
       ; todo, this path needs abstraction assistance for paging/offset
-      (either/right (->EvalRequest form
+      ;(timbre/debug :eval "fiddle" (:fiddle/eval fiddle))
+      ;(timbre/debug :eval "form" form)
+      (either/right (->EvalRequest (:fiddle/eval fiddle)
                                    pid                      ; dbval is reconstructed from the pid on the backend
                                    ; ::route/where ::route/datomic-args
                                    route)))                 ; Other request types are able to abstract over the route; but the eval path needs full control
