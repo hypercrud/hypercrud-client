@@ -107,6 +107,9 @@
 (defmethod hf/render #{:fiddle/eval} [ctx props] [hyperfiddle.ui.controls/code (hf/data ctx) ctx props])
 (defmethod hf/render #{:fiddle/pull} [ctx props] [hyperfiddle.ui.controls/code (hf/data ctx) ctx props])
 (defmethod hf/render #{:fiddle/query} [ctx props] [hyperfiddle.ui.controls/code (hf/data ctx) ctx props])
+(defmethod hf/render #{:fiddle/css} [ctx props] [hyperfiddle.ui.controls/css (hf/data ctx) ctx props])
+(defmethod hf/render #{:fiddle/renderer} [ctx props] [hyperfiddle.ui.controls/code (hf/data ctx) ctx props])
+(defmethod hf/render #{:fiddle/cljs-ns} [ctx props] [hyperfiddle.ui.controls/code (hf/data ctx) ctx props])
 
 (def tabs
   {:hf/query

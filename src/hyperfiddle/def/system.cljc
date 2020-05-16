@@ -149,41 +149,4 @@
 
   {:attribute/renderer              {:renderer hyperfiddle.ui.controls/code}
    :database.custom-security/client {:renderer hyperfiddle.ui.controls/code}
-   :database.custom-security/server {:renderer hyperfiddle.ui.controls/code}}
-
-  #:fiddle
-      {:type     {:renderer
-                  (fn [value ctx props]
-                    (let [props (assoc props
-                                  :class "qe"
-                                  :options [{:value :query :label "query"}
-                                            {:value :entity :label "pull"}
-                                            {:value :blank :label "static"}])]
-                      [hyperfiddle.ui.controls/radio-group value ctx props]))}
-
-       :pull     {:renderer
-                  (fn [value ctx props]
-                    (let [props (assoc props :debounce/interval contrib.ui/default-debounce-ms)]
-                      [hyperfiddle.ui.controls/code value ctx props]))}
-
-       :query    {:renderer
-                  (fn [value ctx props]
-                    (let [props (assoc props :debounce/interval contrib.ui/default-debounce-ms)]
-                      [hyperfiddle.ui.controls/code value ctx props]))}
-
-       :cljs-ns  {:renderer
-                  (fn [value ctx props]
-                    (let [props (assoc props :debounce/interval contrib.ui/default-debounce-ms)]
-                      [hyperfiddle.ui.controls/code value ctx props]))}
-
-       :css      {:renderer hyperfiddle.ui.controls/css}
-
-       :markdown {:renderer
-                  (fn [value ctx props]
-                    (let [props (assoc props :debounce/interval contrib.ui/default-debounce-ms)]
-                      [hyperfiddle.ui.controls/markdown-editor value ctx props]))}
-
-       :renderer {:renderer
-                  (fn [value ctx props]
-                    (let [props (assoc props :debounce/interval contrib.ui/default-debounce-ms)]
-                      [hyperfiddle.ui.controls/code value ctx props]))}})
+   :database.custom-security/server {:renderer hyperfiddle.ui.controls/code}})
