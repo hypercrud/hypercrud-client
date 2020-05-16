@@ -49,15 +49,25 @@
    ::datomic-args [s (ex-message e) (pprint-str (ex-data e))]})
 
 (def uri-query-encoders
-  {::where [(ednish/encode-uri ::where)
-            (comp base-64-url-safe/encode pr-str)
-            (comp reader/read-edn-string! base-64-url-safe/decode)]})
+  {})
+
+(defn default-query-encoder
+  [key]
+  [(ednish/encode-uri key)
+   (comp base-64-url-safe/encode pr-str)
+   (comp reader/read-edn-string! base-64-url-safe/decode)])
 
 (def uri-query-decoders
   (->> uri-query-encoders
        ; flip k and sk
        (map (fn [[k [sk encoder decoder]]] [sk [k encoder decoder]]))
        (into {})))
+
+(defn default-query-decoder
+  [key]
+  [(ednish/decode-uri key)
+   (comp base-64-url-safe/encode pr-str)
+   (comp reader/read-edn-string! base-64-url-safe/decode)])
 
 (defn url-encode [route home-route]
   {:pre [(s/valid? :hyperfiddle/route route) (s/valid? :hyperfiddle/route home-route)]}
@@ -70,10 +80,10 @@
              (ednish/encode-uri fiddle)
              "/"
              (string/join "/" (map ednish/encode-uri datomic-args))
-             (some->> (select-keys route (keys uri-query-encoders))
+             (some->> (dissoc route ::fiddle ::datomic-args ::fragment)
                       seq
                       (map (fn [[k v]]
-                             (let [[sk encoder decoder] (get uri-query-encoders k)]
+                             (let [[sk encoder decoder] (or (get uri-query-encoders k) (default-query-encoder k))]
                                (str sk "=" (encoder v)))))
                       (string/join "&")
                       (str "?"))
@@ -100,10 +110,8 @@
             (-> (->> (some-> s-query (string/split #"&|;"))
                      (map (fn [s] (string/split s #"=" 2)))
                      (reduce (fn [acc [sk sv]]
-                               (if-let [[k encoder decoder] (get uri-query-decoders sk)]
-                                 (assoc acc k (decoder (or sv "")))
-                                 ; ignore any other query param
-                                 acc))
+                               (let [[k encoder decoder] (or (get uri-query-decoders sk) (default-query-decoder sk))]
+                                 (assoc acc k (decoder (or sv "")))))
                              (if is-home
                                ; conj the url's query params onto the home-route's
                                (select-keys home-route (keys uri-query-encoders))

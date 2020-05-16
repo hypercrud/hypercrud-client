@@ -423,22 +423,37 @@ User renderers should not be exposed to the reaction."
                                    (comp path #(get % idx) vec)))))
     (= v form) identity))
 
-(defn needle-input [unfilled-where {:keys [:hypercrud.browser/route] :as ctx} & [input-props]]
-  [contrib.ui/debounced
+(defn route-input
+  [{:keys [:hypercrud.browser/route] :as ctx} & [{:keys [as valmap on-change]
+                                                  :or {valmap identity
+                                                       on-change (fn [_ nv] nv)}
+                                                  :as props}]]
+  {:pre [as]}
+  (let [val (valmap (get @route as))
+        handler (fn [val]
+                  (if val
+                    (hf/swap-route! ctx assoc as val)
+                    (hf/swap-route! ctx dissoc as)))
+        props (assoc props :value val
+                           :on-change (comp handler on-change))]
+    [contrib.ui/debounced props contrib.ui/text]))
+
+(defn needle-input [unfilled-where ctx & [input-props]]
+  [route-input ctx
    (assoc input-props
-     :value (when-let [f (path-fn '% unfilled-where)]
-              (let [filled-where (::route/where @route)]
-                (when-let [needle (f filled-where)]
-                  (when (= (route/fill-where unfilled-where needle) filled-where)
-                    needle))))
+     :as ::route/where
      :on-change (fn [_ needle]
-                  (->> (if (empty? needle)
-                         (dissoc @route ::route/where)
-                         (assoc @route ::route/where (route/fill-where unfilled-where (if-let [spec (:hf/where-spec input-props)]
-                                                                                        (spec-coerce.alpha/coerce spec needle)
-                                                                                        needle))))
-                       (hf/set-route (:runtime ctx) (:partition-id ctx)))))
-   contrib.ui/text])
+                  (when-not (empty? needle)
+                    (route/fill-where unfilled-where (if-let [spec (:hf/where-spec input-props)]
+                                                       (spec-coerce.alpha/coerce spec needle)
+                                                       needle))))
+
+     :valmap (fn [where]
+               (when-let [f (path-fn '% unfilled-where)]
+                 (let [filled-where where]
+                   (when-let [needle (f filled-where)]
+                     (when (= (route/fill-where unfilled-where needle) filled-where)
+                       needle))))))])
 
 (defn needle-input2 [ctx props]
   {:pre [(s/assert :hf/where props)]}

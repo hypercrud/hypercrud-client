@@ -71,6 +71,10 @@
   (request [rt pid request])
   (set-route [rt pid route] [rt pid route force-hydrate] "Set the route of the given branch. This may or may not trigger IO. Returns a promise"))
 
+(defn swap-route!
+  [{:keys [:hypercrud.browser/route runtime partition-id]} f & args]
+  (set-route runtime partition-id (apply f @route args)))
+
 ;(def def-validation-message hypercrud.browser.context/def-validation-message)
 ; Circular dependencies and :require order problems. This is a static operation, no ctx dependency.
 ; But hyperfiddle.api can only have protocols, no concrete impls for the require order to work.
