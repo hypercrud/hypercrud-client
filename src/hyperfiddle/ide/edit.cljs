@@ -98,8 +98,7 @@
                (fn [user-domain]
                  ; todo build the preview-rt here
                  (let [preview-ctx (map->Context
-                                     {:ident nil
-                                      :runtime preview-rt
+                                     {:runtime preview-rt
                                       :partition-id preview-rt/preview-pid
                                       :hyperfiddle.ui/debug-tooltips true
                                       :hyperfiddle.ui/display-mode (r/cursor preview-state [:display-mode])
