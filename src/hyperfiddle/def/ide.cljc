@@ -214,7 +214,7 @@
          :fiddle/renderer
          :fiddle/type
          :fiddle/hydrate-result-as-fiddle
-         *                                                  ; For hyperblog, so we can access :hyperblog.post/title etc from the fiddle renderer
+         #_*                                                ; For hyperblog, so we can access :hyperblog.post/title etc from the fiddle renderer
          ]
 
   :links
