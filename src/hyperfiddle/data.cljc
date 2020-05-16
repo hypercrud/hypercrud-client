@@ -96,8 +96,8 @@
 
 (defn spread-links-here [ctx & [?corcs]]
   (->> (select-many-here ctx ?corcs)
-       (r/unsequence :db/id)))
+       (r/unsequence #_:db/id hash)))                       ; hf-def fiddles don't have db/id
 
 ;(defn spread-links-in-dimension [ctx & [?corcs]]            ; rename: layer
 ;  (->> (r/track select-many ctx ?corcs)
-;       (r/unsequence :db/id)))
+;       (r/unsequence #_:db/id hash)))
