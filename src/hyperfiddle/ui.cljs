@@ -388,22 +388,30 @@ User renderers should not be exposed to the reaction."
       (let [props (update props :class (fnil css "hyperfiddle") "unp") ; fnil case is iframe root (not a field :many)
             ctx (assoc ctx ::sort/sort-col sort-col
                            :hypercrud.browser/head-sentinel true ; hacks - this is coordination with the context, how to fix?
-                           ::layout :hyperfiddle.ui.layout/table)]
+                           ::layout :hyperfiddle.ui.layout/table)
+            cols  (columns ctx)]
         [:<>
          [:table (select-keys props [:class :style])
-          [:thead (into [:tr] (columns ctx))]
-          ; filter? Group-by? You can't. This is data driven. Shape your data in the peer.
-          (into [:tbody] (for [[ix [?k ctx]] (->> (hypercrud.browser.context/spread-rows
-                                                    ctx
-                                                    #(sort/sort-fn % sort-col)
-                                                    #(->> % (drop (* @page page-size)) (take page-size)))
-                                                  ; Duplicate rows https://github.com/hyperfiddle/hyperfiddle/issues/298
-                                                  (map-indexed vector))]
-                           ; columns keys should work out, field sets it on inside
-                           #_[:tr {:key (str ?k)} (columns ctx)]
-                           (let [k (or ?k ix)
-                                 cs (columns ctx)]
-                             (into [:tr {:key (str k)}] cs))))]
+          [:thead (into [:tr] cols)]
+                                        ; filter? Group-by? You can't. This is data driven. Shape your data in the peer.
+          (let [rows (for [[ix [?k ctx]] (->> (hypercrud.browser.context/spread-rows
+                                               ctx
+                                               #(sort/sort-fn % sort-col)
+                                               #(->> % (drop (* @page page-size)) (take page-size)))
+                                        ; Duplicate rows https://github.com/hyperfiddle/hyperfiddle/issues/298
+                                              (map-indexed vector))]
+                                        ; columns keys should work out, field sets it on inside
+                       #_[:tr {:key (str ?k)} (columns ctx)]
+                       (let [k (or ?k ix)
+                             cs (columns ctx)]
+                         (into [:tr {:key (str k)}] cs)))]
+            (if (empty? rows)
+              [:tbody
+               [:tr
+                [:td {:colSpan (count cols)
+                      :class   "info-box_notice"}
+                 "No match found"]]]
+              (into [:tbody] rows)))]
          (let [n (count @(:hypercrud.browser/result ctx))]
            (cond
              (> n page-size)
