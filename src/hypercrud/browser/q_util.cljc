@@ -1,6 +1,5 @@
 (ns hypercrud.browser.q-util
   (:require
-    [cats.core :refer [mlet]]
     [clojure.string]
     [contrib.ct :refer [unwrap]]
     [contrib.data :refer [parse-query-element]]

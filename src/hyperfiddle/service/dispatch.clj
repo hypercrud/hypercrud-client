@@ -3,11 +3,9 @@
     [taoensso.timbre :as timbre]
     [hiccup.core :as hiccup]
     [promesa.core :as p]
-    [clojure.core.async :refer [chan put!]]
     [contrib.performance :as perf]
     [contrib.ednish :as ednish]
     [contrib.base-64-url-safe :as base-64-url-safe]
-    [contrib.ednish :as ednish]
     [contrib.reader :refer [read-edn-string!]]
 
     [contrib.do :refer :all]

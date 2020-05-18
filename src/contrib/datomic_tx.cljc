@@ -1,7 +1,7 @@
 (ns contrib.datomic-tx
   (:require
     [clojure.set :as set]
-    [contrib.datomic :refer [tempid? cardinality? ref?
+    [contrib.datomic :refer [tempid?
                              ref-one? ref-many? scalar-one? scalar-many?
                              isComponent unique]]))
 

@@ -3,7 +3,7 @@
     [clojure.test :refer [deftest is testing]]
     [contrib.string :refer [blank->nil]]
     [contrib.data :refer [xorxs
-                          cond-let map-pad pad rtrim-coll fix-arity fvor take-to ungroup dissoc-nils
+                          cond-let map-pad rtrim-coll fix-arity fvor take-to ungroup dissoc-nils
                           compare-by-index ancestry-common ancestry-divergence merge-by collect orp
                           assoc-if keywordize
                           qualify unqualify]]))

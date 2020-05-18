@@ -1,6 +1,5 @@
 (ns contrib.loader
   (:require
-    [cats.core :refer [mlet return]]
     [contrib.cljs-platform :refer [code-for-browser]]
     [contrib.string :refer [blank->nil]]
     [goog.object]

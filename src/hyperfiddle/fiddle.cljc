@@ -5,18 +5,16 @@
   (:require
     #?(:clj [backtick :refer [template]])
     [cats.context]
-    [cats.core :as cats :refer [>>=]]
+    [cats.core :as cats]
     [cats.monad.either :as either :refer [right]]
     [clojure.spec.alpha :as s]
     [contrib.ct :refer [unwrap]]
     [contrib.data :refer [update-existing]]
-    [contrib.datomic.client.pull :as client-pull]
     [contrib.reader]
     [contrib.string :refer [or-str]]
     [contrib.template :refer [load-resource]]
     [contrib.try$ :refer [try-either]]
     [contrib.do :refer [do-result from-result]]
-    [contrib.expr :as expr]
     [cuerdas.core :as str]
     [datascript.parser]
     #_[hyperfiddle.api] ; tempid formulas

@@ -1,7 +1,7 @@
 (ns contrib.string
   (:require
-    [clojure.string :as string :refer [join split]]
-    [contrib.data :refer [orp pad]]
+    [clojure.string :as string]
+    [contrib.data :refer [orp]]
     [cuerdas.core :as str]))
 
 

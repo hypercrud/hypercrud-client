@@ -2,7 +2,7 @@
   (:gen-class)
   (:require
     [clojure.spec.alpha :as s]
-    [taoensso.timbre :refer [warn error info]]))
+    [taoensso.timbre :refer [error info]]))
 
 
 (defmacro check!

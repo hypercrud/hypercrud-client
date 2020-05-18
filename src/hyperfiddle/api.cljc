@@ -1,7 +1,7 @@
 (ns hyperfiddle.api                                         ; cljs can always import this
   (:refer-clojure :exclude [memoize])
   (:require
-    [cats.monad.either :refer [left right]]
+    [cats.monad.either :refer [right]]
     [clojure.spec.alpha :as s]
     [taoensso.timbre :as timbre]))
 
