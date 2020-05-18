@@ -1,5 +1,6 @@
 (ns hyperfiddle.ui.select$                                  ; Namespace clashes with var hyperfiddle.ui/select
   (:require
+    ["react-bootstrap-typeahead" :refer [Typeahead AsyncTypeahead]]
     [cats.core :as cats :refer [mlet return]]
     [cats.monad.either :as either :refer [left right]]
     [contrib.ct :refer [unwrap]]
@@ -143,12 +144,13 @@
   #_(when (= base/browser-query-limit n)
       [:div.alert.alert-warning (str/format "Warning: Options resultset has been truncated to %s records. Please add additional filters" base/browser-query-limit)]))
 
-(def react-bootstrap-typeahead
-  (cond
-    (exists? js/ReactBootstrapTypeahead) js/ReactBootstrapTypeahead
-    (exists? js/require) (set! js/ReactBootstrapTypeahead (or (js/require "react-bootstrap-typeahead")
-                                                              (throw (js/Error. "require('react-bootstrap-typeahead') failed"))))
-    :else (throw (js/Error. "js/react-bootstrap-typeahead is missing"))))
+(defn label-key
+  "Given a `select-props` and a `record`, will generate a label key suitable for
+  react bootstrap typeahead component. The result is also suitable as an `:id`
+  stub. Must return string otherwise \"invariant undefined\"; you can pr-str
+  from userland."
+  [select-props record]
+  (str (get record (:option-label select-props))))
 
 (defn typeahead-html [_ options-ctx props]                  ; element, etc
   (either/branch
@@ -179,35 +181,28 @@
             #_#__ (js/console.log option-records-untupled option-records-untupled')]
         [:<>
          [truncated-options (count option-records-untupled)]
-         (reagent.core/create-element
-           (.-Typeahead react-bootstrap-typeahead)
-           #js {"labelKey" (fn [record]
-                             ; Must return string otherwise "invariant undefined"; you can pr-str from userland
-                             (str ((:option-label select-props) record)))
-                "placeholder" (:placeholder select-props)
-                ; widget requires the option records, not ids
-                "options" (->> option-records-untupled (sort-by (:option-label select-props)) to-array)
-                "onChange" (fn [jrecord]
-                             ; foreign lib state is js array, single select is lifted into List like multi-select
-                             ; unselected is []
-                             (let [[?record] (array-seq jrecord)
-                                   ?v (hf/id options-ctx ?record)]
-                               ((:on-change select-props) ?v)))
-                ; V might not be in options - widget accounts for this by taking a selected record rather than identity
-                ; V might have different keys than options - as long as :option-label works, it doesn't matter
-                "selected" (if ?v #js [?v] #js [])
+         [:> Typeahead {:id          (r/partial label-key select-props)
+                        :labelKey    (r/partial label-key select-props)
+                        :placeholder (:placeholder select-props)
+                        ;; widget requires the option records, not ids
+                        :options     (->> option-records-untupled (sort-by (:option-label select-props)) to-array)
+                        :onChange    (fn [jrecord]
+                                       ;; foreign lib state is js array, single select is lifted into List like multi-select
+                                       ;; unselected is []
+                                       (let [[?record] (array-seq jrecord)
+                                             ?v        (hf/id options-ctx ?record)]
+                                         ((:on-change select-props) ?v)))
+                        ;; V might not be in options - widget accounts for this by taking a selected record rather than identity
+                        ;; V might have different keys than options - as long as :option-label works, it doesn't matter
+                        :selected    (if ?v #js [?v] #js [])
 
-                "highlightOnlyResult" true                  ; this helps avoid
+                        :highlightOnlyResult true ; this helps avoid
 
-                ; Rendering strategy that works in tables
-                ; http://hyperfiddle.hyperfiddle.site/:hyperfiddle.ide!edit/(:fiddle!ident,:hyperfiddle!ide)
-                "bodyContainer" true
-                "align" "left"
-                "disabled" disabled})]))))
-
-(defn- props->async-typeahead [props]
-  (let [j-props (apply js-obj (apply concat props))]
-    (reagent.core/create-element (.-AsyncTypeahead react-bootstrap-typeahead) j-props)))
+                        ;; Rendering strategy that works in tables
+                        ;; http://hyperfiddle.hyperfiddle.site/:hyperfiddle.ide!edit/(:fiddle!ident,:hyperfiddle!ide)
+                        :bodyContainer true
+                        :align         "left"
+                        :disabled      disabled}]]))))
 
 (defn- adapt-options [select-props options]
   (to-array (sort-by (:option-label select-props) options)))
@@ -218,7 +213,7 @@
    [select-error-cmp (or (ex-message e) (str e))]           ; should use error-comp, wrong ctx in scope though
    [truncated-options 0]
    ^{:key :async-typeahead}
-   [props->async-typeahead
+   [:> AsyncTypeahead
     (assoc common-props
       "options" (adapt-options select-props [])
       "onChange" (fn [jrecord]
@@ -234,7 +229,7 @@
   [:<>
    [truncated-options @(r/fmap count (:hypercrud.browser/result ctx))]
    ^{:key :async-typeahead}
-   [props->async-typeahead
+   [:> AsyncTypeahead
     (assoc common-props
       ; widget requires the option records, not ids
       "options" (->> (condp some [(unqualify (contrib.datomic/parser-type (hf/qfind ctx)))]
