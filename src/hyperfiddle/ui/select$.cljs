@@ -143,6 +143,10 @@
   #_(when (= base/browser-query-limit n)
       [:div.alert.alert-warning (str/format "Warning: Options resultset has been truncated to %s records. Please add additional filters" base/browser-query-limit)]))
 
+;; TODO ShadowCLJS should take care of commonjs requires. Calling js/require
+;; this way is summoning ~the devil~ tech debt. If lazy-require of unpackaged JS
+;; libraries (CDN, static asset, worker) is mendatory, please contact @ggeoffrey
+;; so we can work on an DOM-based abstraction.
 (def react-bootstrap-typeahead
   (cond
     (exists? js/ReactBootstrapTypeahead) js/ReactBootstrapTypeahead
