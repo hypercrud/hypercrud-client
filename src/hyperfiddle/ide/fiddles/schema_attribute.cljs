@@ -2,7 +2,6 @@
   (:require
     [clojure.set :as set]
     [contrib.datomic-tx :as tx]
-    [contrib.pprint :refer [pprint-datoms-str]]
     [contrib.reactive :as r]
     [contrib.ui :refer [debounced]]
     [hypercrud.browser.context :as context]

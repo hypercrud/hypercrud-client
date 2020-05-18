@@ -1,7 +1,7 @@
 (ns hyperfiddle.project
   (:require
     #?(:cljs [contrib.eval-cljs :as eval-cljs])
-    [contrib.try$ :refer [try-either]]
+    #?(:cljs [contrib.try$ :refer [try-either]])
     [hyperfiddle.runtime :as runtime]
     [hypercrud.types.EntityRequest :refer [->EntityRequest]]
     [hypercrud.types.QueryRequest :refer [->QueryRequest]]

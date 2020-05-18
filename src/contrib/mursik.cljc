@@ -1,6 +1,6 @@
 (ns contrib.mursik
   (:require
-    [clojure.core.async :refer [go go-loop chan >!! <!! put!]])
+    [clojure.core.async :refer [go-loop]])
   (:refer-clojure :exclude [map filter constantly repeatedly
                             reduce empty foreach drop take into
                             take-while drop-while]))
