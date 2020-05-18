@@ -1,14 +1,14 @@
 (ns contrib.data
   #?(:cljs (:require-macros [contrib.data])))
 
+(defn for-kv [kv init f]
+  (reduce-kv f init kv))
 
 (defn map-values [f m]
-  (->> (map (juxt key (comp f val)) m)
-       (into {})))
+  (for-kv m m (fn [acc k v] (assoc acc k (f v)))))
 
 (defn map-keys [f m]
-  (->> (map (juxt (comp f key) val) m)
-       (into {})))
+  (for-kv m m (fn [acc k v] (assoc acc (f k) v))))
 
 (defn group-by-assume-unique [f xs]
   (->> xs
@@ -247,6 +247,3 @@
   (if-let [indent (some-> (re-find #"(\n +)\S" s) second)]
     (clojure.string/trim (clojure.string/replace s indent "\n"))
     (clojure.string/trim s)))
-
-(defn for-kv [kv init f]
-  (reduce-kv f init kv))
