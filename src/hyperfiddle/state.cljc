@@ -1,7 +1,6 @@
 (ns hyperfiddle.state
   (:require
     [clojure.spec.alpha :as s]
-    [contrib.data :refer [map-values]]
     [contrib.datomic-tx :as tx]
     [contrib.reducers :as reducers]
     [contrib.pprint :refer [pprint-str]]
@@ -183,7 +182,12 @@
 (def root-reducer (reducers/combine-reducers reducer-map))
 
 (defn dispatch! [rt action]
-  (timbre/debug "dispatch!" action)
+  ;; Using js/console.debug with Chrome DevTools uses ~5ms instead of ~200ms for
+  ;; big dispatch events. An optimized logging strategy should be discussed.
+  ;; - JS/JVM specific optimizations
+  ;; - unified runtime-specific logging configuration / flags
+  #?(:clj (timbre/debug "dispatch!" action)
+     :cljs (js/console.debug "dispatch!" action))
   (reducers/dispatch! (state rt) root-reducer action))
 
 (defn initialize [v] (root-reducer v nil))
