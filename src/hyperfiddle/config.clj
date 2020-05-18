@@ -1,13 +1,12 @@
 (ns hyperfiddle.config
   (:require
     [clojure.spec.alpha :as s]
-    [contrib.data :refer [to-keys tag]]
     [contrib.io :refer [get-edn get-resource]]
-    [hyperfiddle.scope :refer :all]
+    [hyperfiddle.api :as hf]
     [hyperfiddle.domain :refer [map->EdnishDomain]]
     [hyperfiddle.io.datomic.core]
-    [taoensso.timbre :refer [warn debug info]]
-    [hyperfiddle.api :as hf]))
+    [hyperfiddle.scope :refer :all]
+    [taoensso.timbre :refer [warn info]]))
 
 
 (declare get-config)                                        ; convert config files to server config and user domain values
@@ -61,7 +60,7 @@
                  (dissoc :client-config)
                  (assoc :memoize-cache (atom nil))
                  (assoc :config config)
-                 hyperfiddle.domain/map->EdnishDomain)]
+                 map->EdnishDomain)]
     (s/assert (or spec-selection hyperfiddle.domain/spec-ednish-domain) domain)
     domain))
 

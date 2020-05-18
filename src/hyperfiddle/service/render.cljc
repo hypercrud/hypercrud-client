@@ -3,7 +3,6 @@
     [cats.core :refer [fmap]]
     [contrib.data :as data]
     [contrib.reactive :as r]
-    [contrib.template :refer [load-resource]]
     [clojure.spec.alpha :as s]
     [hypercrud.transit :as hc-t]
     [hypercrud.browser.context :refer [map->Context]]
@@ -17,7 +16,6 @@
     [hyperfiddle.ui.loading :as loading]
     [promesa.core :as p]
     #?(:cljs [reagent.dom.server :as reagent-server])
-    [hyperfiddle.service.resolve :as R]
     [taoensso.timbre :as timbre]))
 
 

@@ -1,7 +1,7 @@
 (ns hypercrud.browser.context-test
   (:require
-    [cats.core :refer [mlet return fmap extract]]
-    [cats.monad.either :as either :refer [left right left? right?]]
+    [cats.core :refer [mlet return extract]]
+    [cats.monad.either :as either :refer [left right]]
     [clojure.spec.alpha :as s]
     [contrib.ct :refer [unwrap]]
     [contrib.reactive :as r]

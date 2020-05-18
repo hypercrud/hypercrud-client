@@ -3,7 +3,7 @@
   (:require
     [contrib.data :as data]
     [contrib.datomic :refer [indexed-schema]]
-    [contrib.datomic-tx :refer [edit-entity into-tx
+    [contrib.datomic-tx :refer [edit-entity
                                 filter-tx flatten-tx flatten-map-stmt]]
     [clojure.set :as set]
     [clojure.test :refer [deftest is testing]]))
