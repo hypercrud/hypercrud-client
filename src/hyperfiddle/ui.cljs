@@ -408,7 +408,7 @@ User renderers should not be exposed to the reaction."
             (if (empty? rows)
               [:tbody
                [:tr
-                [:td {:colspan (count cols)
+                [:td {:colSpan (count cols)
                       :class   "info-box_notice"}
                  "No match found"]]]
               (into [:tbody] rows)))]
