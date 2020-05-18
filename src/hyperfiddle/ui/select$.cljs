@@ -144,6 +144,14 @@
   #_(when (= base/browser-query-limit n)
       [:div.alert.alert-warning (str/format "Warning: Options resultset has been truncated to %s records. Please add additional filters" base/browser-query-limit)]))
 
+(defn label-key
+  "Given a `select-props` and a `record`, will generate a label key suitable for
+  react bootstrap typeahead component. The result is also suitable as an `:id`
+  stub. Must return string otherwise \"invariant undefined\"; you can pr-str
+  from userland."
+  [select-props record]
+  (str (get record (:option-label select-props))))
+
 (defn typeahead-html [_ options-ctx props]                  ; element, etc
   (either/branch
     (options-value-bridge+ (::value-ctx props) props)
@@ -173,9 +181,8 @@
             #_#__ (js/console.log option-records-untupled option-records-untupled')]
         [:<>
          [truncated-options (count option-records-untupled)]
-         [:> Typeahead {:labelKey    (fn [record]
-                                       ;; Must return string otherwise "invariant undefined"; you can pr-str from userland
-                                       (str ((:option-label select-props) record)))
+         [:> Typeahead {:id          (r/partial label-key select-props)
+                        :labelKey    (r/partial label-key select-props)
                         :placeholder (:placeholder select-props)
                         ;; widget requires the option records, not ids
                         :options     (->> option-records-untupled (sort-by (:option-label select-props)) to-array)
