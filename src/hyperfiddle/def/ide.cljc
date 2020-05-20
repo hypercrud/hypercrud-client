@@ -191,6 +191,7 @@
      [hyperfiddle.ui/field [:project/code] ctx hyperfiddle.ui/hyper-control]
      [hyperfiddle.ui/field [:project/css] ctx hyperfiddle.ui/hyper-control]]))
 
+;; TODO: GG: Check this one, it should be the root
 (hf-def/fiddle :hyperfiddle/ide
   :pull [:db/id
          :fiddle/css
@@ -531,6 +532,7 @@
      [hyperfiddle.ui/result val ctx {}]]
     ))
 
+;; TODO: GG: This is even higher level than :hyperfiddle/ide
 (hf-def/fiddle :hyperfiddle.ide/edit
   :links {":hyperfiddle.ide/edit" [[:hf/iframe ~:hyperfiddle/topnav]
                                    [:hf/iframe ~:hyperfiddle/ide

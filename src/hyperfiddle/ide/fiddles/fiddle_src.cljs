@@ -206,6 +206,7 @@
     :on-change (r/partial reset! tab-state)]
    "·"])
 
+;; TODO: GG: this is the RHS
 (defn ^:export fiddle-src-renderer [_ ctx props]
   (let [ctx (hypercrud.browser.context/browse-element ctx 0)
         val (hypercrud.browser.context/data ctx)

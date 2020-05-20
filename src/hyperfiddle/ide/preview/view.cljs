@@ -124,6 +124,12 @@
 (defn- ctx->ls [ctx]
   (atom (map->LocalStorageSync {:rt (:runtime ctx) :pid (:partition-id ctx) :ls-key :USER-STATE})))
 
+;; GG: From the perspective of the user domain this is the entry point
+;; emited HTTP requests can compose.
+;; There is an initialization call called sync
+;; called effect because it's not a pure view
+;; preview is the name of the user domain
+;; preview is not a verb
 (def preview-effects
   (reagent/create-class
     {:reagent-render

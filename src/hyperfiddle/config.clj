@@ -48,6 +48,7 @@
     (s/assert (or spec-selection :hyperfiddle.config/config) config)
     config))
 
+;; TODO: GG: This is a constructor
 (defn get-domain [config & [_ spec-selection]]
   ; should this validate the spec before returning it or is that the call-site job?
   (let [m (:domain config)
@@ -60,7 +61,7 @@
                  (dissoc :client-config)
                  (assoc :memoize-cache (atom nil))
                  (assoc :config config)
-                 map->EdnishDomain)]
+                 map->EdnishDomain)] ;; TODO: GG: Check this one
     (s/assert (or spec-selection hyperfiddle.domain/spec-ednish-domain) domain)
     domain))
 

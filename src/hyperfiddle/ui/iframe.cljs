@@ -2,6 +2,7 @@
   (:require
     [cats.monad.either :as either]
     [clojure.spec.alpha :as s]
+    [clojure.string :as str]
     [contrib.css :refer [css css-slugify]]
     [contrib.eval-cljs :as eval-cljs]
     [contrib.pprint :refer [pprint-str]]
@@ -12,10 +13,10 @@
     [contrib.ui.safe-render :refer [user-portal]]
     [hypercrud.browser.base :as base]
     [hypercrud.browser.context :as context]
+    [hyperfiddle.api :as hf]
     [hyperfiddle.runtime :as runtime]
     [hyperfiddle.ui.error :as ui-error]
     [hyperfiddle.ui.stale :as stale]
-    [hyperfiddle.api :as hf]
     [taoensso.timbre :as timbre]))
 
 
@@ -26,42 +27,68 @@
           (css-slugify ident)]
          (apply css))))
 
+
+(defn- flatten-symbol
+  "Given a symbol `sym` (potentially namespaced), return a non-namespaced
+  single-segment symbol where each original segment is separated by `-`. Useful
+  when generating code on the fly, to generate names tracing their own origin
+  without clashing with the current evaluating namespace.
+  E.g: foo.bar/baz => foo-bar-baz"
+  [sym]
+  (let [base (if-let [ns (namespace sym)]
+               (str ns "." (name sym))
+               (name sym))]
+    (->> (str/split base ".")
+         (str/join "-")
+         (symbol))))
+
 (defn- fiddle-css-renderer [s] [:style {:dangerouslySetInnerHTML {:__html @s}}])
 
+;; TODO: TECH DEBT: Holy cow what is this thing!?
+;; Its result is passed to context/eval-expr-str!+
 (defn- build-wrapped-render-expr-str [user-str]
-  (str "(fn [val ctx props]\n" (cond-> user-str (not (string? user-str)) (clojure.string/join "\n")) ")"))
+  (str "(fn "
+       (flatten-symbol `build-wrapped-render-expr-str-eval)
+       " [val ctx props]\n"
+       (cond-> user-str (not (string? user-str)) (clojure.string/join "\n"))
+       ")"))
 
 (defn- fiddle-renderer-cmp [value ctx props & bust-component-did-update]
   (let [last-cljs-ns (atom nil)]                            ; don't spam the compiler - memoize buffer of 1
     (fn [value ctx props & bust-component-did-update]
       (let [cljs-ns @(r/fmap-> (:hypercrud.browser/fiddle ctx) :fiddle/cljs-ns blank->nil)] ; always do this
+        ;; ¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡¡
         (when (and (some? cljs-ns)
                    (not= @last-cljs-ns cljs-ns))
           (eval-cljs/eval-statement-str! 'user cljs-ns))    ; Exceptions caught at user-portal error-comp
         (reset! last-cljs-ns cljs-ns)
+        ;; TODO: TECH DEBT: This behaviour (memoization) should be implemented
+        ;; as a side effect of :component-did-update. It also seems this
+        ;; component should be a (lazy) singleton.
+        ;; !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
         (let [display-mode (or (some-> (:hyperfiddle.ui/display-mode ctx) deref)
                                :hypercrud.browser.browser-ui/user)
-              props props #_(select-keys props [:class :initial-tab :on-click #_:disabled])]
+              props        props #_ (select-keys props [:class :initial-tab :on-click #_:disabled])]
           (case display-mode
 
             :hypercrud.browser.browser-ui/user
             [:<>
              (if-let [user-renderer (:user-renderer props)] ; validate qfind and stuff?
-               [user-renderer value ctx props]
+               [user-renderer value ctx props] ;; TODO: TECH DEBT: user-renderer in props for overwrite
                (-> @(r/cursor (:hypercrud.browser/fiddle ctx) [:fiddle/renderer])
                    build-wrapped-render-expr-str
                    (->> (context/eval-expr-str!+ ctx))
                    (either/branch
-                     (fn [e] (throw e))
-                     (fn [f] [f value ctx props]))))
+                    (fn [e] (throw e))
+                    (fn [f] [f value ctx props]))))
              [fiddle-css-renderer (r/cursor (:hypercrud.browser/fiddle ctx) [:fiddle/css])]]
 
             :hypercrud.browser.browser-ui/xray
             [:<>
              (if-let [user-renderer (:user-renderer props)]
-               ; don't use r/partial with user-renderer, r/partial useful for args, not components
-               ; Select user-renderer is valid in xray mode now
+                                        ; don't use r/partial with user-renderer, r/partial useful for args, not components
+                                        ; Select user-renderer is valid in xray mode now
                [user-renderer value ctx props]
                [hyperfiddle.ui/fiddle-xray value ctx props])
              [fiddle-css-renderer (r/cursor (:hypercrud.browser/fiddle ctx) [:fiddle/css])]]
@@ -77,7 +104,8 @@
         display-mode (or (some-> (:hyperfiddle.ui/display-mode ctx) deref) :hypercrud.browser.browser-ui/user)
         error-props (-> (select-keys props [:class :on-click])
                         (update :class css "hyperfiddle-error"))]
-    ^{:key (str display-mode)}
+    ^{:key (str display-mode)} ;; TODO: TECH DEBT: Why is it necessary to blow
+                               ;; up this component on display-mode change?
     [user-portal (ui-error/error-comp ctx) error-props
      ; If userland crashes (fiddle/renderer OR cljs-ns), reactions don't take hold, we need to reset here.
      ; Cheaper to pass fiddle-value as a prop than to hash everything
@@ -122,6 +150,7 @@
                    (cond->
                      ; @route here is a broken reaction, see routing/route+ returns a severed reaciton
                      ; use the ctx's route, otherwise alt clicking while loading could take you to the new route, which is jarring
+                     ; TODO: TECH DEBT: Shouldn't this be handled by the router itself?
                      (::on-click ctx) (assoc :on-click (r/partial (::on-click ctx) @(:hypercrud.browser/route ctx)))))])
 
 (defn iframe-cmp [ctx & [props]]

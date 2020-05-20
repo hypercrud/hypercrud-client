@@ -49,6 +49,8 @@
   (when (find-ns 'hyperfiddle.def)
     (@(resolve 'hyperfiddle.def/get-fiddle) fiddle-ident)))
 
+
+;; TODO: GG: This domain is going to allow routing to :hyperfiddle.ide/edit
 (defrecord IdeDomain [config basis fiddle-dbname databases environment home-route build ?datomic-client
                       html-root-id memoize-cache]
   hf/Domain
@@ -59,10 +61,10 @@
   (environment [domain] environment)
 
   (url-decode [domain s]
-    (let [{:keys [::route/fiddle] :as route} (route/url-decode s home-route)]
-      (cond (in-ns? 'hyperfiddle.ide fiddle) route
-            (in-ns? 'hyperfiddle.ide.schema fiddle) route
-            :or (ide-routing/preview-route->ide-route route))))
+    (let [{:keys [::route/fiddle] :as route} (route/url-decode s home-route)] ;; get route
+      (cond (in-ns? 'hyperfiddle.ide fiddle) route ;; check for corner case
+            (in-ns? 'hyperfiddle.ide.schema fiddle) route ;; check for other corner case
+            :or (ide-routing/preview-route->ide-route route)))) ;; wrap route in ide route
 
   (url-encode [domain route]
     (route/url-encode

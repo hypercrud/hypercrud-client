@@ -12,5 +12,5 @@
 
 (defn preview-route->ide-route [{:keys [::route/fiddle ::route/datomic-args] :as preview-route}]
   (assoc preview-route
-    ::route/fiddle :hyperfiddle.ide/edit
+    ::route/fiddle :hyperfiddle.ide/edit ;; TODO: GG: unnest
     ::route/datomic-args (into [(base/legacy-fiddle-ident->lookup-ref fiddle)] datomic-args)))
