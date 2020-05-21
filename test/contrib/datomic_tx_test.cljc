@@ -4,7 +4,7 @@
     [contrib.data :as data]
     [contrib.datomic :refer [indexed-schema]]
     [contrib.datomic-tx :refer [edit-entity into-tx
-                                filter-tx flatten-tx flatten-map-stmt]]
+                                filter-tx flatten-tx flatten-map-stmt expand-hf-tx]]
     [clojure.set :as set]
     [clojure.test :refer [deftest is testing]]))
 
@@ -537,3 +537,12 @@
          [[:db/cas 1 :person/age 41 42]
           [:user.fn/foo 'x 'y 'z 'q 'r]]))
   )
+
+(defn f
+  [x y z]
+  [[:db/add x y z]])
+
+(deftest test|expand-hf-tx
+  (is (= [[:db/add 1 2 3]] (expand-hf-tx '[[contrib.datomic-tx-test/f 1 2 3]])))
+  (is (= [[:db/add 1 2 3] [:db/add "asdf" "qwer" :zxcv]]
+         (expand-hf-tx '[[contrib.datomic-tx-test/f 1 2 3] [:db/add "asdf" "qwer" :zxcv]]))))

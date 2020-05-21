@@ -19,7 +19,8 @@
     [hyperfiddle.security]
     [hyperfiddle.scope :refer [scope]]
     [taoensso.timbre :as timbre]
-    [hyperfiddle.def :as hf-def])
+    [hyperfiddle.def :as hf-def]
+    [contrib.datomic-tx :refer [expand-hf-tx]])
   (:import
     (hypercrud.types.DbRef DbRef)
     (hypercrud.types.EntityRequest EntityRequest)
@@ -117,7 +118,7 @@
                                             ; - the domain's relevant hf-db with security metadata e.g. database owners
                                             ; - maybe: the dbval with basis right before this tx, to allow for additional queries (slow in non-local datomic config)
                                             tx (binding [hf/*subject* ?subject]
-                                                 (try-on (hf/process-tx db-with domain dbname ?subject tx)))
+                                                 (try-on (expand-hf-tx (hf/process-tx db-with domain dbname ?subject tx))))
                                             ;_ (assert schema "needed for d/with") ; not available for hydrate-schemas in request bootstrapping
                                             {:keys [db-after tempids]} (exception/try-on (hf/with db-with {:tx-data tx
                                                                                                           #_(if-not schema

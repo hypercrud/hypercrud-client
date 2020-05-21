@@ -186,6 +186,21 @@
 (defn remove-tx [schema f? tx]
   (filter-tx schema (complement f?) tx))
 
+(defn expand-hf-tx
+  [forms]
+  (reduce
+    (fn [acc [tag & args :as form]]
+      (if (symbol? tag)
+        (let [var (resolve tag)
+              _ (assert var (str "Transaction symbol not found" tag))
+              f @var
+              _ (assert ifn? (str "Transaction symbol resolved to not function value"))]
+          ; f returns a vector of datoms
+          (into acc (apply f args)))
+        (conj acc form)))
+    []
+    forms))
+
 (comment
   [[:db/add "a" :person/name "Alice"]
    {:person/name "Bob"

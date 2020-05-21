@@ -1,6 +1,7 @@
 (ns hyperfiddle.io.datomic.transact
   (:require
-    [hyperfiddle.api :as hf]))
+    [hyperfiddle.api :as hf]
+    [contrib.datomic-tx :refer [expand-hf-tx]]))
 
 
 (defn transact! [domain subject tx-groups]                  ; this is hf/transact
@@ -12,7 +13,7 @@
                                                hf/*$* $]
                                        ; Security can query the database e.g. for attribute whitelist
                                        ; no basis on transacts nor staging areas
-                                       [dbname (hf/process-tx $ domain dbname subject tx)]))))
+                                       [dbname (expand-hf-tx (hf/process-tx $ domain dbname subject tx))]))))
                             (doall)                         ; allow any exceptions to fire before transacting anythng
                             (map (fn [[dbname dtx]]
                                    (let [conn (hf/connect domain dbname)
