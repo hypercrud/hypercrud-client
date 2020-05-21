@@ -62,16 +62,12 @@
 
   (url-decode [domain s]
     (let [{:keys [::route/fiddle] :as route} (route/url-decode s home-route)] ;; get route
-      (cond (in-ns? 'hyperfiddle.ide fiddle) route ;; check for corner case
+      (cond (in-ns? 'hyperfiddle.ide fiddle)        route ;; check for corner case
             (in-ns? 'hyperfiddle.ide.schema fiddle) route ;; check for other corner case
-            :or (ide-routing/preview-route->ide-route route)))) ;; wrap route in ide route
+            :or                                     route))) ;; wrap route in ide route
 
   (url-encode [domain route]
-    (route/url-encode
-      (case (::route/fiddle route)
-        :hyperfiddle.ide/edit (ide-routing/ide-route->preview-route route)
-        route)
-      home-route))
+    (route/url-encode route home-route))
 
   (api-routes [domain] R/ide-routes)
 
@@ -148,26 +144,8 @@
      :html-root-id      "ide-root"
      :memoize-cache     (atom nil)}))
 
-(defn build-from-user-domain                                ; todo delete
-  ([user-domain {:keys [config src-uri ide-environment ide-databases] :as opts}]
-   {:pre [(s/valid? domain/spec-ednish-domain user-domain)
-          (s/valid? (s/nilable :hyperfiddle.domain/databases) ide-databases)]}
-   (build
-     :config config
-     :?datomic-client    (:?datomic-client user-domain)
-     :basis              (hf/basis user-domain)
-     :user-databases     (hf/databases user-domain)
-     :user-fiddle-dbname (hf/fiddle-dbname user-domain)
-     :user-domain+       (-> user-domain map->IdeEdnishDomain either/right)
-     :ide-databases      (into {"$src" (if (is-uri? src-uri)
-                                         {:database/uri src-uri}
-                                         {:database/db-name src-uri})}
-                           ide-databases)
-     :ide-fiddle-dbname  "$src"
-     :ide-environment    ide-environment
-     :ide-home-route     (case (:default-route config)
-                           :fiddle-index {::route/fiddle :hyperfiddle.ide/home}
-                           nil (:home-route user-domain)))))
+(defn build-from-user-domain [user-domain & _]
+  (assoc user-domain ::user-domain+ (either/right user-domain)))
 
 (hypercrud.transit/register-handlers
   IdeDomain
