@@ -89,7 +89,8 @@
 
        [:div (select-keys props [:class])
         [:div {:class "-hyperfiddle-ide-preview"}
-         (-> (hf/domain (:runtime ctx)) ::ide-domain/user-domain+
+         (-> (hf/domain (:runtime ctx))
+             hf/->either-domain
              (either/branch
                (fn [e]
                  [:<>
@@ -108,7 +109,7 @@
                     [preview/preview-effects preview-ctx (:partition-id ctx) preview-state]
                     [staging/inline-stage preview-ctx]]))))]
 
-        (if @(r/cursor preview-state [::editor-open])
+        #_(if @(r/cursor preview-state [::editor-open])
           [:div.fiddle-editor-col
            [hyperfiddle.ui/link
             :hyperfiddle/ide ctx nil
