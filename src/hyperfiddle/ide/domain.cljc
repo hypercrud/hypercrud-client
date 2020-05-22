@@ -144,6 +144,7 @@
      :html-root-id      "ide-root"
      :memoize-cache     (atom nil)}))
 
+;; TODO: TECH DEBT: GG: this should be an identity
 (defn build-from-user-domain [user-domain & _]
   (assoc user-domain ::user-domain+ (either/right user-domain)))
 

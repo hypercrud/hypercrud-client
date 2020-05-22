@@ -89,7 +89,9 @@
 
        [:div (select-keys props [:class])
         [:div {:class "-hyperfiddle-ide-preview"}
-         (-> (hf/domain (:runtime ctx)) ::ide-domain/user-domain+
+         (-> (hf/domain (:runtime ctx))
+             ;; ::ide-domain/user-domain+
+             hf/->either-domain
              (either/branch
                (fn [e]
                  [:<>
