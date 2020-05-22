@@ -69,7 +69,7 @@
                             :hf/query))]
     (fn [_ ctx props]
       [:<>
-       [ui/browse :hyperfiddle/topnav ctx nil
+       #_[ui/browse :hyperfiddle/topnav ctx nil
         {::topnav/left-child
          [:<>
           [:span (topnav/route->fiddle-label (runtime/get-route preview-rt preview-rt/preview-pid))]
