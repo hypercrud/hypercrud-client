@@ -67,15 +67,7 @@
   (-> domain
     (update-in [:config] dissoc :auth0)
     (update-in [:config :domain :databases] restrict-inner-map-vals db-allowed-keys)
-    (update-in [:databases] restrict-inner-map-vals db-allowed-keys)
-    (update-in [:hyperfiddle.ide.domain/user-domain+]
-      (fn [v+]
-        (fmap (fn [v]
-                (-> v
-                  (update-in [:config] dissoc :auth0)
-                  (update-in [:config :domain :databases] restrict-inner-map-vals db-allowed-keys)
-                  (update-in [:databases] restrict-inner-map-vals db-allowed-keys)))
-          v+)))))
+    (update-in [:databases] restrict-inner-map-vals db-allowed-keys)))
 ; Test this with a deep-def in main-html
 
 (defn- main-html [config rt]

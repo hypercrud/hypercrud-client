@@ -70,7 +70,7 @@
               (= "user" (namespace (:handler route)))
               (dispatch/endpoint
                 (update context :request #(-> (dissoc % :jwt) ; this is brittle
-                                              (assoc :domain (from-result (::ide-domain/user-domain+ domain))
+                                              (assoc :domain (from-result domain)
                                                      :handler (keyword (name (:handler route)))
                                                      :route-params (:route-params route)))))
 

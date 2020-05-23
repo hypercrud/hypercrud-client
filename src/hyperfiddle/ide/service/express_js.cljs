@@ -4,6 +4,7 @@
     [clojure.string :as string]
     [contrib.base-64-url-safe :as base64-url-safe]
     [goog.object :as object]
+    [hyperfiddle.api :as hf]
     [hyperfiddle.domain :as domain]
     [hyperfiddle.ide.authenticate]
     [hyperfiddle.ide.directory :as ide-directory]           ; immoral
@@ -13,12 +14,11 @@
     [hyperfiddle.io.http-client :as http-client]
     [hyperfiddle.route :as route]
     [hyperfiddle.service.cookie :as cookie]
+    [hyperfiddle.service.domain :as service-domain]
     [hyperfiddle.service.express-js.middleware :as middleware]
     [hyperfiddle.service.http :refer [handle-route]]
-    [hyperfiddle.service.domain :as service-domain]
     [promesa.core :as p]
-    [taoensso.timbre :as timbre]
-    [hyperfiddle.api :as hf]))
+    [taoensso.timbre :as timbre]))
 
 
 (defmethod handle-route :hyperfiddle.ide/auth0-redirect [handler config req res]
@@ -57,7 +57,7 @@
     (cond
       (= (some-> handler namespace) "user")
       (either/branch
-        (::ide-domain/user-domain+ (object/get req "domain"))
+       (hf/->either-domain (object/get req "domain"))
         (fn [e]
           (timbre/error e)
           (throw e))

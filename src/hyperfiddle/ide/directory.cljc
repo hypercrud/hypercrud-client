@@ -45,7 +45,6 @@
                           (map (juxt :domain.database/name :domain.database/record))
                           (into {}))
         :user-fiddle-dbname user-fiddle-dbname
-        :user-domain+ (build-user+ config domains-basis user-datomic-record ?datomic-client)
         :ide-databases (->> (:domain/databases ide-datomic-record)
                          (map (juxt :domain.database/name :domain.database/record))
                          (into {}))

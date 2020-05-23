@@ -305,7 +305,7 @@
          ; $domains exists only with directory service
          [hyperfiddle.ui/link :hyperfiddle.ide/domain ctx {}]
          (-> (hyperfiddle.api/domain (:runtime ctx))
-             :hyperfiddle.ide.domain/user-domain+
+             (hyperfiddle.api/->either-domain)
              (cats.monad.either/branch
                (fn [e] [:pre (js/pprint-str e)])
                (fn [domain]

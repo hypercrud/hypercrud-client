@@ -44,7 +44,8 @@
     [route-editor/form-editor rt branch]))
 
 (defn view [_ ctx props]
-  (let [preview-rt (-> (hf/domain (:runtime ctx)) ::ide-domain/user-domain+
+  (let [preview-rt (-> (hf/domain (:runtime ctx))
+                       hf/->either-domain
                        (either/branch
                          (constantly nil)
                          (fn [user-domain]
@@ -74,7 +75,8 @@
          [:<>
           [:span (topnav/route->fiddle-label (runtime/get-route preview-rt preview-rt/preview-pid))]
           #_[route-editor-button preview-rt preview-branch preview-state]
-          (-> (hf/domain (:runtime ctx)) ::ide-domain/user-domain+
+          (-> (hf/domain (:runtime ctx))
+              (hf/->either-domain)
               (either/branch
                 (fn [e]
                   ; todo why does an error hide the toolbar

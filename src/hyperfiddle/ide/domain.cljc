@@ -23,11 +23,6 @@
 
 (def user-dbname-prefix "$user.")
 
-(defn either-of-domain? [v]
-  (and (either? v)
-    (s/valid? domain/spec-ednish-domain (unwrap (constantly nil) v))))
-
-(s/def ::user-domain+ either-of-domain?)
 (s/def ::?datomic-client any?)
 (s/def ::html-root-id string?)
 (s/def ::memoize-cache any?)
@@ -40,7 +35,6 @@
              ::domain/databases
              ::domain/environment
              ::domain/home-route]
-    :req [::user-domain+]
     :opt-un [::?datomic-client
              ::html-root-id
              ::memoize-cache]))
@@ -103,7 +97,7 @@
 
 (defn build
   [& {:keys [config ?datomic-client basis
-             user-databases user-fiddle-dbname user-domain+
+             user-databases user-fiddle-dbname
              ide-databases ide-fiddle-dbname
              ide-environment ide-home-route]}]
   (map->IdeDomain
@@ -137,14 +131,13 @@
                                     "$"
                                     (str user-dbname-prefix dbname))]))
                           (into {}))
-     ::user-domain+     user-domain+
      :?datomic-client   ?datomic-client
      :html-root-id      "ide-root"
      :memoize-cache     (atom nil)}))
 
 ;; TODO: TECH DEBT: GG: this should be an identity
 (defn build-from-user-domain [user-domain & _]
-  (assoc user-domain ::user-domain+ (either/right user-domain)))
+  user-domain)
 
 (hypercrud.transit/register-handlers
   IdeDomain
