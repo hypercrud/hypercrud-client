@@ -65,6 +65,9 @@
   #?(:clj (connect [domain dbname] [domain dbname on-created!]))
   (memoize [domain f]))
 
+(defprotocol State
+  (state [rt]))
+
 (defprotocol HF-Runtime
   (domain [rt])
   (io [rt])

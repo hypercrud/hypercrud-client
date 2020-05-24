@@ -75,11 +75,11 @@
                  different-basis (conj [:set-global-basis global-basis])
                  different-stage (conj [:reset-stage-branch pid stage])
                  different-autotx (conj [:set-auto-transact auto-transact]))]
-    (remove-watch (state/state rt) (watch-key pid))
+    (remove-watch (hf/state rt) (watch-key pid))
     ; this dispatch! is syncronous, so we can safely, temporarily stop the localstorage sync
     ; this is desired so an inactive tab does NOT
     (state/dispatch! rt action)
-    (add-watch (state/state rt) (watch-key pid) (partial local-storage-state-watcher pid ls-key))
+    (add-watch (hf/state rt) (watch-key pid) (partial local-storage-state-watcher pid ls-key))
     (try
       (let [changing-route (when-not (runtime/parent-pid rt pid)
                              (let [existing-route (runtime/get-route rt pid)
@@ -97,7 +97,7 @@
       (let [error "Hyperfiddle has been updated, please refresh!"]
         (when (not= (runtime/get-error rt pid) error)
           ; turn off localstorage sync, this tab is dead
-          (remove-watch (state/state rt) (watch-key pid))
+          (remove-watch (hf/state rt) (watch-key pid))
           (runtime/set-error rt pid error)))
       (let [action (fn [different-basis] (update-state rt pid ls-key new-value different-basis))
             init-gb (runtime/get-global-basis rt)]
@@ -110,7 +110,7 @@
                        (do
                          ; compared to this tab, the event was fired from a tab using a domain in the future, force a hard refresh
                          ; todo this branch needs improvement. Currently there is no facility to reload the domain record, but there could be
-                         (remove-watch (state/state rt) (watch-key pid))
+                         (remove-watch (hf/state rt) (watch-key pid))
                          (runtime/set-error rt pid (ex-info "Stale domain. Please reload this page to continue."
                                                             {:current (:domain init-gb) :local-storage-event (:domain global-basis)})))
                        (case (basis/compare-uri-maps (:user init-gb) (:user global-basis))
@@ -121,7 +121,7 @@
                   0 (if (not= (get-in init-gb [:domain :hash]) (get-in global-basis [:domain :hash]))
                       (do
                         ; stop the show; there is nothing that can be done
-                        (remove-watch (state/state rt) (watch-key pid))
+                        (remove-watch (hf/state rt) (watch-key pid))
                         (runtime/set-error rt pid (ex-info "Domain bases not comparable. t cannot be the same when hash is different"
                                                            {:current (:domain init-gb) :local-storage-event (:domain global-basis)})))
                       (case (basis/compare-uri-maps (:user init-gb) (:user global-basis))
@@ -156,7 +156,7 @@
 (defrecord LocalStorageSync [rt pid ls-key event-listener]
   component/Lifecycle
   (start [component]
-    (let [initial-state @(state/state rt)
+    (let [initial-state @(hf/state rt)
           ls-state (try (local-storage/get-item ls-key) (catch :default e {}))
           new-ls-state (loop [ls-state ls-state]
                          (if (= running-ls-schema-version (:version ls-state))
@@ -190,7 +190,7 @@
       (when-not (= ls-state new-ls-state)
         (local-storage/set-item! ls-key new-ls-state))
       ; todo, we should be dispatching
-      (reset! (state/state rt)
+      (reset! (hf/state rt)
               (-> (merge initial-state (dissoc new-ls-state :stage :version :last-modified))
                   (assoc-in [::runtime/partitions pid :stage] (:stage new-ls-state)))))
 
@@ -198,10 +198,10 @@
                            (when (local-storage/same-key? ls-key e)
                              (local-storage-event-action rt pid ls-key (local-storage/event-new-value e))))]
       (.addEventListener js/window "storage" event-listener)
-      (add-watch (state/state rt) (watch-key pid) (partial local-storage-state-watcher pid ls-key))
+      (add-watch (hf/state rt) (watch-key pid) (partial local-storage-state-watcher pid ls-key))
       (assoc component :event-listener event-listener)))
 
   (stop [component]
     (.removeEventListener js/window "storage" event-listener)
-    (remove-watch (state/state rt) (watch-key pid))
+    (remove-watch (hf/state rt) (watch-key pid))
     component))

@@ -20,12 +20,12 @@
 (defn ^:deprecated state
   ([rt]
    (timbre/warn "runtime/state is no longer supported")
-   (state/state rt))
+   (hf/state rt))
   ([rt path]
    (timbre/warn "runtime/state is no longer supported")
-   (r/cursor (state/state rt) path)))
+   (r/cursor (hf/state rt) path)))
 
-(defn- state-ref [rt path] (r/cursor (state/state rt) path))
+(defn- state-ref [rt path] (r/cursor (hf/state rt) path))
 
 (defn get-user-id [rt] @(state-ref rt [::user-id]))
 
@@ -172,7 +172,7 @@
                  (throw e)))))
 
 (defn- refresh-partition-basis [rt pid]
-  (let [{:keys [::global-basis ::partitions]} @(state/state rt)
+  (let [{:keys [::global-basis ::partitions]} @(hf/state rt)
         route (or (get-in partitions [pid :pending-route])
                   (get-in partitions [pid :route]))]
     (-> (io/local-basis (hf/io rt) global-basis route)

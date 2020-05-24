@@ -123,7 +123,7 @@
 (defn ^:export popover-button [rt pid dbname-labels & {:keys [show-auto-tx]}]
   (let [show-tooltip (r/atom false)
         show-stage (r/atom false)
-        selected-dbname (r/cursor (state/state rt) [:staging/selected-uri])]
+        selected-dbname (r/cursor (hf/state rt) [:staging/selected-uri])]
     (fn [rt pid dbname-labels & {:keys [show-auto-tx]}]
       (let [maybe-tooltip-wrapper (fn [button-cmp]
                                     (if show-auto-tx
@@ -167,7 +167,7 @@
                                            :class (when (contains? (dirty-dbs rt pid) id) "stage-dirty")}
                                           s-label]})
                                dbname-labels)
-         selected-dbname (r/cursor (state/state rt) [:staging/selected-uri])
+         selected-dbname (r/cursor (hf/state rt) [:staging/selected-uri])
          selected-dbname' (r/fmap-> selected-dbname (default-tab-model (mapv :id dbname-labels)))
          label (->> dbname-labels (some #(when (= (:id %) @selected-dbname') (:label %))))]
      [:div.hyperfiddle-staging-editor-cmp

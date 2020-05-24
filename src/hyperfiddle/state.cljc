@@ -6,12 +6,10 @@
     [contrib.reducers :as reducers]
     [contrib.pprint :refer [pprint-str]]
     [hypercrud.types.Err :refer [->Err]]
+    [hyperfiddle.api :as hf]
     [hyperfiddle.route]                                     ; spec validation
     [taoensso.timbre :as timbre]))
 
-
-(defprotocol State
-  (state [rt]))
 
 (defn- serializable-error [e]
   ; need errors to be serializable, so crapily pr-str
@@ -184,6 +182,6 @@
 
 (defn dispatch! [rt action]
   (timbre/debug "dispatch!" action)
-  (reducers/dispatch! (state rt) root-reducer action))
+  (reducers/dispatch! (hf/state rt) root-reducer action))
 
 (defn initialize [v] (root-reducer v nil))

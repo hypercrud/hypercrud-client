@@ -39,12 +39,12 @@
         (js/window.open (hf/url-encode (hf/domain rt) route) "_blank")))))
 
 (defn ide-partition-reference [rt ide-pid]
-  @(r/fmap-> (r/cursor (state/state rt) [::runtime/partitions ide-pid])
+  @(r/fmap-> (r/cursor (hf/state rt) [::runtime/partitions ide-pid])
              (select-keys [:stage :local-basis])))
 
 (defn stale-global-basis? [rt]
   (= -1 (basis/compare-uri-maps (:user (runtime/get-global-basis rt))
-                                @(r/cursor (state/state rt) [::ide-user-global-basis]))))
+                                @(r/cursor (hf/state rt) [::ide-user-global-basis]))))
 
 (defn stale-local-basis? [rt preview-pid ide-pid]
   (= -1 (basis/compare-uri-maps
@@ -154,7 +154,7 @@
                           (swap! preview-state assoc
                                  :initial-render false
                                  :is-refreshing false))))
-         (add-watch (state/state rt) this
+         (add-watch (hf/state rt) this
                     (fn [k r o n]
                       (let [old-route (get-in o [::runtime/partitions preview-pid :pending-route])
                             new-route (get-in n [::runtime/partitions preview-pid :pending-route])]
@@ -170,7 +170,7 @@
        (let [[_ ctx ide-pid preview-state] (reagent/argv this)]
          (when local-storage/is-supported
            (component/stop @(ctx->ls ctx)))
-         (remove-watch (state/state (:runtime ctx)) this))
+         (remove-watch (hf/state (:runtime ctx)) this))
        (.reset keypress))
      }))
 

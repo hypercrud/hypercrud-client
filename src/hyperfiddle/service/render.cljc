@@ -22,7 +22,7 @@
 
 
 (deftype RT [domain io state-atom]
-  state/State
+  hf/State
   (state [rt] state-atom)
 
   hf/HF-Runtime
@@ -99,7 +99,7 @@
         (map (fn [[id val]] (inner-html :script {:id id :type "application/transit-json"} val))
           {#_#_"params" (hc-t/encode (:CLIENT_PARAMS env))
            "domain" (-> (hf/domain rt) omit-secure-keys hc-t/encode)
-           "state"  (hc-t/encode @(state/state rt))})
+           "state"  (hc-t/encode @(hf/state rt))})
         [[:script {:id "preamble" :src (domain/api-path-for (hf/domain rt) :static-resource :build (:git/describe config) :resource-name "browser.js")}]
          [:script {:id "main" :src (domain/api-path-for (hf/domain rt) :static-resource :build (:git/describe config) :resource-name "main.js")}]]))]])
 

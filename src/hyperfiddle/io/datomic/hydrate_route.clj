@@ -23,7 +23,7 @@
     [taoensso.timbre :as timbre]))
 
 (deftype RT [domain db-with-lookup get-secure-db-with+ state-atom ?subject]
-  state/State
+  hf/State
   (state [rt] state-atom)
 
   hf/HF-Runtime
@@ -110,7 +110,7 @@
                 (fn [e] (timbre/warn e))                    ; write to server log, exception has been written to partition map for transmission to client
                 browser-request/requests)))
 
-        (-> @(state/state rt)
+        (-> @(hf/state rt)
             ::runtime/partitions
             (select-keys (runtime/descendant-pids rt pid))
             (->> (filter (fn [[pid p]] (some? (:route p))))

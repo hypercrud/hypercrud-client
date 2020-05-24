@@ -3,14 +3,13 @@
     [hyperfiddle.api :as hf]
     [hyperfiddle.ide.routing :as ide-routing]
     [hyperfiddle.runtime :as runtime]
-    [hyperfiddle.runtime-impl :as runtime-impl]
-    [hyperfiddle.state :as state]))
+    [hyperfiddle.runtime-impl :as runtime-impl]))
 
 
 (def preview-pid "user")
 
 (deftype Runtime [ide-rt preview-pid domain io state-atom]
-  state/State
+  hf/State
   (state [rt] state-atom)
 
   hf/HF-Runtime

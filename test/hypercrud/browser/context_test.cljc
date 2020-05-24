@@ -33,7 +33,7 @@
     (reify
       hf/HF-Runtime
       (domain [rt] domain)
-      state/State
+      hf/State
       (state [rt] state-atom))))
 
 (defn mock-fiddle! "This has some subtle differences around tempid handling - this mock

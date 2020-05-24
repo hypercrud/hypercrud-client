@@ -48,7 +48,7 @@
                        (either/branch
                          (constantly nil)
                          (fn [user-domain]
-                           (let [preview-state (->FAtom (state/state (:runtime ctx)) preview/to (r/partial preview/from (hf/domain (:runtime ctx)) (:partition-id ctx)))
+                           (let [preview-state (->FAtom (hf/state (:runtime ctx)) preview/to (r/partial preview/from (hf/domain (:runtime ctx)) (:partition-id ctx)))
                                  user-io (->IOImpl user-domain)]
                              (->Runtime (:runtime ctx) preview-rt/preview-pid user-domain user-io preview-state)))))
         preview-state (r/atom {:initial-render true
