@@ -20,7 +20,8 @@
            (fn [e] [:div [:h2 {:style {:margin-top "10%" :text-align "center"}} "Misconfigured domain"]])
            (fn [_] [:main {:style {:display         :flex
                                   :flex-direction  :column
-                                  :justify-content :space-between}}
-                   [iframe/iframe-cmp ctx]
+                                  :height          "100%"}}
+                   [:div {:style {:flex 1}}
+                    [iframe/iframe-cmp ctx]]
                    ;; [preview/preview-effects ctx (:partition-id ctx) preview-state]
                    [staging/inline-stage ctx]])))]))
