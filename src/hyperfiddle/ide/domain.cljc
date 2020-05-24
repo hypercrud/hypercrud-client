@@ -135,10 +135,6 @@
      :html-root-id      "ide-root"
      :memoize-cache     (atom nil)}))
 
-;; TODO: TECH DEBT: GG: this should be an identity
-(defn build-from-user-domain [user-domain & _]
-  user-domain)
-
 (hypercrud.transit/register-handlers
   IdeDomain
   (str 'hyperfiddle.ide.domain/IdeDomain)
