@@ -16,7 +16,7 @@
                   :checked   checked?
                   :disabled  disabled?
                   :on-change (reagent/partial on-change* props)
-                  :style     {:margin-right "1rem"}}]]
+                  :style     {:margin-right "0.25rem"}}]]
         children))
 
 (defn Checkbox [props & children]

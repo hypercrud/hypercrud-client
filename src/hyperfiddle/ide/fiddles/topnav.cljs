@@ -71,8 +71,9 @@
      ctx nil {:hyperfiddle.ui/error-render-custom ui-error/error-inline
               :user-renderer topnav-new-wrapper-render}]
     [tooltip {:label "Environment administration"} (ui/link :hyperfiddle.ide/env ctx "env")]
+    ;; TODO: GG: auth0 link connected/unconnected
     (when (-> (hf/domain (:runtime ctx)) (hf/database "$users"))
-      (if (hf/subject ctx)
+      (if (hf/subject ctx) ;; get current user
         [ui/link :hyperfiddle.ide/account ctx]
         [:a {:href (hyperfiddle.ide/stateless-login-url ctx)} "login"]))]])
 
