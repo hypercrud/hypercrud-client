@@ -1,9 +1,10 @@
 (ns hyperfiddle.foundation
   (:require
+    #?(:cljs [hyperfiddle.ui.iframe :as iframe])
     [cats.monad.either :as either]
     [hyperfiddle.project :as project]
     [hyperfiddle.runtime]
-    #?(:cljs [hyperfiddle.ui.iframe :as iframe])))
+    [hyperfiddle.ui.staging :as staging]))
 
 
 (def root-pid "root")
@@ -16,5 +17,10 @@
           :project/code
           project/eval-domain-code!+
           (either/branch
-            (fn [e] [:div [:h2 {:style {:margin-top "10%" :text-align "center"}} "Misconfigured domain"]])
-            (fn [_] [iframe/iframe-cmp ctx])))]))
+           (fn [e] [:div [:h2 {:style {:margin-top "10%" :text-align "center"}} "Misconfigured domain"]])
+           (fn [_] [:main {:style {:display         :flex
+                                  :flex-direction  :column
+                                  :justify-content :space-between}}
+                   [iframe/iframe-cmp ctx]
+                   ;; [preview/preview-effects ctx (:partition-id ctx) preview-state]
+                   [staging/inline-stage ctx]])))]))
