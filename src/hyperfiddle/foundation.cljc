@@ -1,10 +1,10 @@
 (ns hyperfiddle.foundation
   (:require
+    #?(:cljs [cats.monad.either :as either])
+    #?(:cljs [hyperfiddle.project :as project])
     #?(:cljs [hyperfiddle.ui.iframe :as iframe])
-    [cats.monad.either :as either]
-    [hyperfiddle.project :as project]
-    [hyperfiddle.runtime]
-    [hyperfiddle.ui.staging :as staging]))
+    #?(:cljs [hyperfiddle.ui.staging :as staging])
+    [hyperfiddle.runtime]))
 
 
 (def root-pid "root")
