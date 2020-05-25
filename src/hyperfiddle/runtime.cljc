@@ -90,8 +90,9 @@
   Returns nil if there is no parent with a branch"
   [rt pid]
   {:pre [pid]}
-  (let [branch-pid (get-branch-pid rt pid)]
-    (when-let [parent (parent-pid rt branch-pid)]
+  (let [branch-pid (get-branch-pid rt pid)
+        parent (parent-pid rt branch-pid)]
+    (when parent
       (get-branch-pid rt parent))))
 
 (defn child-pids
@@ -189,12 +190,13 @@
               (cond
                 (and (new-children child-pid)
                      (local-children child-pid))
-                (if (= (get-in new-partitions [child-pid :route]) (get-route rt child-pid))
+                (if (= (get-in new-partitions [child-pid :route])
+                      (get-route rt child-pid))             ; This is sometimes nil, and that's a problem
                   (merge-with                               ; stuff in ptm and recurse for child-pid's children
                     into
                     (update acc :actions conj [:hydrate!-route-success child-pid (get new-partitions child-pid)])
                     (process-children rt child-pid new-partitions))
-                  (update acc :rehydrate-pids conj child-pid))
+                  (update acc :rehydrate-pids conj child-pid)) ; the route has changed
 
                 (new-children child-pid)
                 (merge-with                                 ; stuff in ptm and recurse for child-pid's children
@@ -246,14 +248,16 @@
         (p/then (fn [new-partitions]
                   (if (= hydrate-id @(state-ref rt [::partitions pid :hydrate-id]))
                     (let [{:keys [actions rehydrate-pids]} (process-children rt pid new-partitions)
-                          actions (into [:batch
+                          ; if rehydrated-pids is not already locally seen, then the state is already corrupted
+                          actions (into [:batch             ; Order does not matter; the final state change is atomic
                                          [:hydrate!-route-success pid (get new-partitions pid)]]
                                         (concat actions
                                                 (map (fn [pid] [:hydrate!-start pid]) rehydrate-pids)
                                                 (when-not (parent-pid rt pid)
                                                   [[:set-global-user-basis (get-in new-partitions [pid :local-basis])]])))]
+                      #_(println "rehydrate-pids " rehydrate-pids)
                       (state/dispatch! rt actions)
-                      (-> (map #(hydrate-partition rt %) rehydrate-pids)
+                      (-> (map #(hydrate-partition rt %) rehydrate-pids) ; recursion
                           (p/all)
                           (p/then (constantly nil))))
                     (timbre/info (str "Ignoring response for " hydrate-id))))))))

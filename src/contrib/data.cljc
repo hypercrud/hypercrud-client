@@ -248,5 +248,6 @@
     (clojure.string/trim (clojure.string/replace s indent "\n"))
     (clojure.string/trim s)))
 
-(defn for-kv [kv init f]
-  (reduce-kv f init kv))
+(defn for-kv "f :: m k v -> m"
+  [kvs init f]
+  (reduce-kv f init kvs))

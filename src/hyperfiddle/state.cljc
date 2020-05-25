@@ -1,14 +1,15 @@
 (ns hyperfiddle.state
   (:require
     [clojure.spec.alpha :as s]
-    [contrib.data :refer [map-values]]
+    [contrib.data :refer [map-values update-existing for-kv]]
     [contrib.datomic-tx :as tx]
     [contrib.reducers :as reducers]
     [contrib.pprint :refer [pprint-str]]
+    [clojure.set :refer [superset? difference intersection]]
     [hypercrud.types.Err :refer [->Err]]
     [hyperfiddle.api :as hf]
     [hyperfiddle.route]                                     ; spec validation
-    [taoensso.timbre :as timbre]))
+    [taoensso.timbre]))
 
 
 (defn- serializable-error [e]
@@ -38,128 +39,184 @@
     (update-in partitions [pid :stage dbname] (partial tx/into-tx @schema+) tx)
     (throw (ex-info "Missing schema" {:pid pid :dbname dbname}))))
 
-(defn- build-hydrate-id [partition] (hash (select-keys partition [:route :pending-route :stage :local-basis])))
+(defn- build-hydrate-id [?partition]
+  ;{:pre [partition]} ; can be nil lol
+  (hash (select-keys ?partition [:route :pending-route :stage :local-basis])))
 
-(let [delete-partition (fn delete-partition [partitions pid]
-                         (let [{:keys [parent-pid partition-children]} (get partitions pid)]
-                           (-> (reduce delete-partition partitions partition-children) ; recursively drop all children
-                               (dissoc pid)
-                               (update-in [parent-pid :partition-children] disj pid))))]
-  (defn partitions-reducer [partitions action & args]
-    (->> (case action
-           :transact!-success (let [[pid transacted-dbnames] args]
-                                (-> partitions
-                                    (assoc-in [pid :hydrate-id] "hack; dont flicker while page rebuilds")
-                                    (update-in [pid :stage] #(apply dissoc % (vec transacted-dbnames)))))
+(declare partition-apply-defaults)
 
-           :create-partition (let [[parent-pid child-pid is-branched] args]
-                               (-> partitions
-                                   (update-in [parent-pid :partition-children] conj child-pid)
-                                   (assoc child-pid {:is-branched is-branched
-                                                     :parent-pid parent-pid})))
+(defn delete-partition [partitions pid]
+  (let [{:keys [parent-pid partition-children]} (get partitions pid)]
+    ; https://github.com/hyperfiddle/hyperfiddle/issues/1022
+    ; For partition children who have no other partitions pointing to it
+    ; foreach children in partition-children
+    ; if the child is unused by any other partitions' partition-children, delete it
 
-           :new-hydrated-partition (let [[parent-pid child-pid partition] args]
-                                     (-> partitions
-                                         (update-in [parent-pid :partition-children] conj child-pid)
-                                         (assoc child-pid (dissoc partition [:partition-children]))))
+    ;(map :partition-children (dissoc partitions pid))       ; other people's children, not mine
+    ;
+    ;(for-kv partition-children partitions
+    ;  (fn [m cpid cp]
+    ;    (if-not (get partitions cpid)                       ; people other than me
+    ;      (delete-partition m cpid))))
 
-           :delete-partition (let [[pid] args]
-                               (delete-partition partitions pid))
+    ; Leaving the broken impl, worked around by making hf-def PIDs unique:
+    (-> (reduce delete-partition partitions partition-children) ; recursively drop all children
+      (dissoc pid)                                          ; drop this one
+      (update-in [parent-pid :partition-children] disj pid)))) ; remove ref to me
 
-           :partition-basis (let [[pid local-basis] args]
-                              (assoc-in partitions [pid :local-basis] local-basis))
+(defn partitions-interp [partitions ?action args]
+  (case ?action
+    :transact!-success (let [[pid transacted-dbnames] args]
+                         (assert (some? (get partitions pid)))
+                         (-> partitions
+                           (assoc-in [pid :hydrate-id] "hack; dont flicker while page rebuilds")
+                           (update-in [pid :stage] #(apply dissoc % (vec transacted-dbnames)))))
 
-           :partition-route (let [[pid route] args]
-                              (assert (some? (get partitions pid)) "Must create-partition before setting route") ; todo move this assertion to runtime boundaries
-                              (assoc-in partitions [pid :route] route))
+    :create-partition (let [[parent-pid child-pid is-branched] args]
+                        (assert (some? (get partitions parent-pid)))
+                        (-> partitions
+                          (update-in [parent-pid :partition-children] conj child-pid)
+                          (assoc child-pid {:is-branched is-branched
+                                            :parent-pid parent-pid})))
 
-           :stage-route (let [[pid route] args]
-                          (assert (some? (get partitions pid)) "Must create-partition before setting route") ; todo move this assertion to runtime boundaries
-                          (assoc-in partitions [pid :pending-route] route))
+    :new-hydrated-partition (let [[parent-pid child-pid partition] args]
+                              (assert (some? (get partitions parent-pid)))
+                              (-> partitions
+                                (update-in [parent-pid :partition-children] conj child-pid)
+                                (assoc child-pid (dissoc partition [:partition-children]))))
 
-           :with (let [[pid dbname tx] args]
-                   (with partitions pid dbname tx))
+    :delete-partition (let [[pid] args]
+                        (assert (some? (get partitions pid)))
+                        (delete-partition partitions pid))
 
-           :merge (let [[parent-pid pid] args]
-                    (-> (reduce-kv (fn [partitions dbname tx]
-                                     (with partitions parent-pid dbname tx))
-                                   partitions
-                                   (get-in partitions [pid :stage]))
-                        (delete-partition pid)))
+    :partition-basis (let [[pid local-basis] args]
+                       (assert (some? (get partitions pid)))
+                       (assoc-in partitions [pid :local-basis] local-basis))
 
-           :hydrate!-start (let [[pid] args]
-                             (update partitions pid
-                                     (fn [partition]
-                                       (assoc partition :hydrate-id (build-hydrate-id partition)))))
+    :partition-route (let [[pid route] args]
+                       (assert (some? (get partitions pid)) "Must create-partition before setting route") ; todo move this assertion to runtime boundaries
+                       (assoc-in partitions [pid :route] route))
 
-           :hydrate!-success (let [[pid ptm tempid-lookups] args]
-                               (update partitions pid
-                                       (fn [partition]
-                                         (-> partition
-                                             (dissoc :error :hydrate-id)
-                                             (assoc :ptm ptm
-                                                    :tempid-lookups tempid-lookups)))))
+    :stage-route (let [[pid route] args]
+                   (assert (some? (get partitions pid)) "Must create-partition before setting route") ; todo move this assertion to runtime boundaries
+                   (assoc-in partitions [pid :pending-route] route))
 
-           :hydrate!-route-success (let [[pid new-partition] args]
-                                     (update partitions pid
-                                             (fn [partition]
-                                               (-> (into {} partition)
-                                                   (dissoc :error :hydrate-id)
-                                                   (into (dissoc new-partition [:partition-children]))))))
+    :with (let [[pid dbname tx] args]
+            (assert (some? (get partitions pid)))
+            (with partitions pid dbname tx))
 
-           :partition-error (let [[pid error] args]
+    :merge (let [[parent-pid pid] args]
+             (assert (some? (get partitions pid)))
+             (assert (some? (get partitions parent-pid)))
+             (-> (reduce-kv (fn [partitions dbname tx]
+                              (with partitions parent-pid dbname tx))
+                   partitions
+                   (get-in partitions [pid :stage]))
+               (delete-partition pid)))
+
+    :hydrate!-start (let [[pid] args]
+                      ;(assert (some? (get partitions pid))) ; this pid is not yet loaded? I think this assert is good
+                      ; how can you hydrate!-start if the partition was not created? That's the bug
+                      (assoc-in partitions [pid :hydrate-id] (build-hydrate-id nil))
+                      #_(update partitions pid
+                          (fn [partition]
+                            (assert partition)
+                            (assoc partition :hydrate-id (build-hydrate-id partition)))))
+
+    :hydrate!-success (let [[pid ptm tempid-lookups] args]
+                        (assert (some? (get partitions pid)))
+                        (update partitions pid
+                          (fn [partition]
+                            (-> partition
+                              (dissoc :error :hydrate-id)
+                              (assoc :ptm ptm
+                                     :tempid-lookups tempid-lookups)))))
+
+    :hydrate!-route-success (let [[pid new-partition] args]
+                              (assert (some? (get partitions pid)))
                               (update partitions pid
-                                      (fn [partition]
-                                        (-> partition
-                                            (dissoc :hydrate-id)
-                                            (assoc :error (serializable-error error))))))
+                                (fn [partition]
+                                  (-> (into {} partition)
+                                    (dissoc :error :hydrate-id)
+                                    (into (dissoc new-partition [:partition-children]))))))
 
-           :open-popover (let [[pid popover-id] args]
-                           (update-in partitions [pid :popovers] conj popover-id))
+    :partition-error (let [[pid error] args]
+                       (assert (some? (get partitions pid)))
+                       (update partitions pid
+                         (fn [partition]
+                           (-> partition
+                             (dissoc :hydrate-id)
+                             (assoc :error (serializable-error error))))))
 
-           :close-popover (let [[pid popover-id] args]
-                            (update-in partitions [pid :popovers] disj popover-id))
+    :open-popover (let [[pid popover-id] args]
+                    (assert (some? (get partitions pid)))
+                    (update-in partitions [pid :popovers] conj popover-id))
+
+    :close-popover (let [[pid popover-id] args]
+                     (assert (some? (get partitions pid)))
+                     (update-in partitions [pid :popovers] disj popover-id))
 
 
-           :reset-stage-branch (let [[pid v] args]
-                                 (assoc-in partitions [pid :stage] v))
+    :reset-stage-branch (let [[pid v] args]
+                          (assert (some? (get partitions pid)))
+                          (assoc-in partitions [pid :stage] v))
 
-           :reset-stage-db (let [[pid dbname tx] args]
-                             (assoc-in partitions [pid :stage dbname] tx))
+    :reset-stage-db (let [[pid dbname tx] args]
+                      (assert (some? (get partitions pid)))
+                      (assoc-in partitions [pid :stage dbname] tx))
 
-           (or partitions {}))
-         (map (fn [[pid p]]
-                ; apply defaults
-                (let [updated-p (->> {:hydrate-id identity
-                                      :popovers #(or % #{})
+    (or partitions {})))
 
-                                      :is-branched boolean
-                                      :partition-children #(or % #{})
-                                      :parent-pid identity
+(declare partition-validate)
 
-                                      ; data needed to hydrate a partition
-                                      :route #(some->> % (s/assert :hyperfiddle/route))
-                                      :pending-route identity
-                                      :stage (fn [multi-color-tx]
-                                               (->> multi-color-tx
-                                                    (remove (fn [[dbname tx]] (empty? tx)))
-                                                    (into {})))
-                                      :local-basis identity
+(defn partitions-reducer [partitions ?action & args]
+  ;(if ?action (println "partitions-reducer: " ?action (first args)))
+  (let [partitions2 (partitions-interp partitions ?action args)]
+    (->> partitions2
+      (map (fn [[pid p]]
+             (let [p' (partition-apply-defaults p)]
+               [pid (partition-validate ?action pid p')])))
+      (into {}))))
 
-                                      ; response data of hydrating a partition
-                                      :attr-renderers identity
-                                      :error identity
-                                      :project identity
-                                      :ptm identity
-                                      :schemas identity
-                                      :tempid-lookups identity}
-                                     (reduce-kv update p))]
-                  (when-not (or (:parent-pid updated-p) (:is-branched updated-p))
-                    (throw (ex-info "Every partition must have a parent or be branched" {:pid pid :action action})))
-                  (when (and (not (:is-branched updated-p)) (seq (:stage updated-p)))
-                    (throw (ex-info "Cannot stage to unbranched partition" {:pid pid :action action})))
-                  [pid updated-p])))
-         (into {}))))
+(defn partition-validate [?action pid updated-p]
+  #_(println "pid: " pid " :partition-children: " (:partition-children updated-p) " partitions: " (keys partitions2))
+  #_(let [p (set (keys partitions2))
+          c (set (:partition-children updated-p))]
+      (if-not (superset? p c)
+        (println "partition children not in parent: " (difference c p))
+        #_(println "partition children are in parent." #_(difference p c))))
+  (when-not (or (:parent-pid updated-p) (:is-branched updated-p))
+    (throw (ex-info "Every partition must have a parent or be branched" {:pid pid :action ?action})))
+  (when (and (not (:is-branched updated-p)) (seq (:stage updated-p)))
+    (throw (ex-info "Cannot stage to unbranched partition" {:pid pid :action ?action})))
+  updated-p)
+
+(defn partition-apply-defaults [p]
+  ; This doesn't even work right
+  (reduce-kv update p
+    {:hydrate-id identity
+     :popovers #(or % #{})
+
+     :is-branched boolean
+     :partition-children #(or % #{})
+     :parent-pid identity
+
+     ; data needed to hydrate a partition
+     :route #(some->> % (s/assert :hyperfiddle/route))
+     :pending-route identity
+     :stage (fn [multi-color-tx]
+              (->> multi-color-tx
+                (remove (fn [[dbname tx]] (empty? tx)))
+                (into {})))
+     :local-basis identity
+
+     ; response data of hydrating a partition
+     :attr-renderers identity
+     :error identity
+     :project identity
+     :ptm identity
+     :schemas identity
+     :tempid-lookups identity}))
 
 (defn auto-transact-reducer [auto-tx action & args]
   (case action
@@ -180,8 +237,8 @@
 
 (def root-reducer (reducers/combine-reducers reducer-map))
 
-(defn dispatch! [rt action]
-  (timbre/debug "dispatch!" action)
+(defn dispatch! [rt [tag :as action]]
+  ; Log this deeper to deconstruct batch actions
   (reducers/dispatch! (hf/state rt) root-reducer action))
 
 (defn initialize [v] (root-reducer v nil))
