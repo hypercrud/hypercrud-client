@@ -211,3 +211,10 @@
 
 (s/def :hf/where any?)
 (s/def :hf/where-spec any?)
+
+(defn arg "Silly extractor for a HF deftype with poor ergonomics. Todo cleanup.
+  Used by Rosie"
+  ;([] (hf-arg hf/*route*))
+  ([hf-route]
+   (let [[hf-entity & _] (:hyperfiddle.route/datomic-args hf-route)]
+     (.-id hf-entity))))
