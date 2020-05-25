@@ -4,7 +4,8 @@
     [clojure.spec.alpha :as s]
     [contrib.expr :refer :all]
     [contrib.do :refer [do-result]]
-    [contrib.data :refer [qualify trim-str]]))
+    [contrib.data :refer [qualify trim-str]]
+    [hyperfiddle.fiddle]))
 
 
 (declare def!) ; main definitions
