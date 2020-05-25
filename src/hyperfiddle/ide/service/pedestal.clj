@@ -8,7 +8,6 @@
     [hyperfiddle.domain :as domain]
     [hyperfiddle.ide.authenticate]
     [hyperfiddle.ide.directory :as ide-directory]           ; immoral
-    [hyperfiddle.ide.domain :as ide-domain]
     [hyperfiddle.ide.service.core :as ide-service]
     [hyperfiddle.io.core :as io]
     [hyperfiddle.io.datomic.hydrate-requests :refer [hydrate-requests]]
@@ -22,10 +21,10 @@
     [taoensso.timbre :as timbre]
     [contrib.base-64-url-safe :as base64-url-safe])
   (:import
-    [hyperfiddle.ide.domain IdeDomain]))
+    [hyperfiddle.domain EdnishDomain]))
 
 
-(defmethod dispatch/via-domain IdeDomain [context]
+(defmethod dispatch/via-domain EdnishDomain [context]
   (let [domain (:domain (R/from context))
         cookie-domain (::ide-directory/ide-domain domain)
         {:keys [auth0]} (:config (R/from context))
