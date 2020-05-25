@@ -1226,3 +1226,30 @@ a speculative db/id."
 
 (defmethod hf/subject Context [ctx] (hyperfiddle.runtime/get-user-id (:runtime ctx)))
 (defmethod hf/db-record Context [ctx] (hf/database (hf/domain (:runtime ctx)) (hf/dbname ctx)))
+
+(defn- update-v [id->tempid schema a v]
+  (if (contrib.datomic/ref? schema a)
+    (get id->tempid v v)
+    v))
+
+(defmethod hf/stmt-id->tempid :db/add [id->tempid schema [op e a v]]
+  (let [e (get id->tempid e e)
+        v (update-v id->tempid schema a v)]
+    [op e a v]))
+
+(defmethod hf/stmt-id->tempid :db/retract [id->tempid schema [op e a v]]
+  ; same as :db/add
+  (let [e (get id->tempid e e)
+        v (update-v id->tempid schema a v)]
+    [op e a v]))
+
+(defmethod hf/stmt-id->tempid :db/retractEntity [id->tempid schema [op e]]
+  [op (get id->tempid e e)])
+
+(defmethod hf/stmt-id->tempid :db/cas [id->tempid schema [op e a ov nv]]
+  [op (get id->tempid e e) a
+   (update-v id->tempid schema a ov)
+   (update-v id->tempid schema a nv)])
+
+(defmethod hf/stmt-id->tempid :default [id->tempid schema stmt]
+  stmt)

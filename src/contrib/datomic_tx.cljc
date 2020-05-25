@@ -89,33 +89,6 @@
   us to re-assert datoms needlessly in datomic"
   (reduce (partial simplify schema) tx more-statements))
 
-(letfn [(update-v [id->tempid schema a v]
-          (if (= :db.type/ref (get-in schema [a :db/valueType :db/ident]))
-            (get id->tempid v v)
-            v))
-        (add-ret [id->tempid schema [op e a v]]
-          (let [e (get id->tempid e e)
-                v (update-v id->tempid schema a v)]
-            [op e a v]))
-        (retractEntity [id->tempid schema [op e]]
-          [op (get id->tempid e e)])
-        (cas [id->tempid schema [op e a ov nv]]
-          [op
-           (get id->tempid e e)
-           a
-           (update-v id->tempid schema a ov)
-           (update-v id->tempid schema a nv)])]
-  (defn stmt-id->tempid "Deep introspection of args to transaction fns in order to reverse tempids"
-    [id->tempid schema [op :as stmt]]
-    (let [f (case op
-              :db/add add-ret
-              :db/retract add-ret
-              :db/retractEntity retractEntity
-              :db.fn/retractEntity retractEntity
-              :db/cas cas
-              :db.fn/cas cas)]
-      (f id->tempid schema stmt))))
-
 (defn ^:export find-datom "not a good abstraction" [tx e-needle a-needle]
   (let [[[_ _ _ v]] (->> tx (filter (fn [[op e a v]]
                                       (= [op e a] [:db/add e-needle a-needle]))))]

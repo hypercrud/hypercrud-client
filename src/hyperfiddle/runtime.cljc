@@ -348,10 +348,10 @@
        (transact-impl rt pid {dbname (get-stage rt pid dbname)}))
      (p/rejected (ex-info "Unable to transact to an invalid db" {:dbname dbname})))))
 
-(defn- update-to-tempids! [rt pid dbname tx]
+(defn- update-to-tempids! [rt pid dbname tx]                ; cljs!
   (let [schema @(get-schema+ rt pid dbname)
         id->tempid (get-tempid-lookup! rt pid dbname)]
-    (map (partial tx/stmt-id->tempid id->tempid schema) tx)))
+    (map (partial hf/stmt-id->tempid id->tempid schema) tx)))
 
 (defn with-tx
   "Stage tx to the given dbname (appends to existing tx).  This will rehydrate the given branch.  This may or may not immediately transact.

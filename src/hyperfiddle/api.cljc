@@ -84,7 +84,8 @@
 ; Protocols and methods need a dispatch parameter, and static fns don't have one.
 (defmulti def-validation-message (fn [pred & [s]] :default)) ; describe-invalid-reason
 
-(defmulti tx (fn [ctx eav props]
+;#?(:cljs)
+(defmulti tx (fn [ctx eav props]                            ; you can get the eav from the ctx, but they always need it
                (let [dispatch-v (link-tx ctx)]
                  ; UX - users actually want to see this in console
                  (timbre/info "hf/tx: " dispatch-v " eav: " (pr-str eav))
@@ -105,9 +106,18 @@
      (defmethod process-tx ::allow-anonymous-edits [$ domain dbname subject tx] tx)
 
      (def ^:dynamic *$* nil)
+     (def ^:dynamic *domain* nil)
      (def ^:dynamic *subject*)                              ; FK into $hyperfiddle-users, e.g. #uuid "b7a4780c-8106-4219-ac63-8f8df5ea11e3"
      (def ^:dynamic *route* nil)
      ))
+
+; cljs!
+(defmulti stmt-id->tempid "Deep introspection of args to transaction fns in order to reverse tempids"
+  (fn [id->tempid schema [op e a v :as stmt]]
+    (case op                                                ; backwards compat with old Datomic
+      :db.fn/cas :db/cas
+      :db.fn/retractEntity :db/retractEntity
+      op)))
 
 ; #?(:cljs)
 (defn domain-security
