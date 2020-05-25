@@ -4,6 +4,7 @@
     [cats.core :as cats :refer [mlet return]]
     [contrib.css :refer [css]]
     [contrib.ct :refer [unwrap]]
+    [contrib.do :refer [do-async]]
     [contrib.keypress :refer [with-keychord]]
     [contrib.reactive :as r]
     [contrib.pprint :refer [pprint-str]]
@@ -11,34 +12,21 @@
     [contrib.ui.tooltip :refer [tooltip tooltip-props]]
     [hypercrud.browser.base :as base]
     [hypercrud.browser.context :as context]
-    [hyperfiddle.api]
+    [hyperfiddle.api :as hf]
     [hyperfiddle.runtime :as runtime]
     [hyperfiddle.ui.iframe :as iframe]
     [promesa.core :as p]
     [re-com.core :as re-com]
-    [taoensso.timbre :as timbre]
-    [hyperfiddle.api :as hf]))
+    [taoensso.timbre :as timbre]))
 
-
-(defn- run-txfn! [ctx props]
-  (-> (p/resolved (context/link-tx ctx))
-      (p/then
-        (fn [user-txfn]
-          (try
-            (let [result (if (contains? (methods hyperfiddle.api/txfn) user-txfn) ; legacy
-                           (let [[e a v] (context/eav ctx)]
-                             (hyperfiddle.api/txfn user-txfn e a v ctx))
-                           (hyperfiddle.api/tx ctx (context/eav ctx) props))]
-              ; txfn may be sync or async
-              (if (p/promise? result)
-                result
-                (p/resolved result)))
-            (catch js/Error e (p/rejected e)))))))
+(defn run-txfn! [ctx props]
+  ; Userland implements this multimethod, can userland throw? Do we need to catch?
+  (do-async (hf/tx ctx (hf/eav ctx) props)))
 
 (defn- stage! [child-pid {rt :runtime parent-pid :partition-id :as ctx} r-popover-data props]
   (-> (run-txfn! ctx props)
       (p/then (fn [tx]
-                (let [tx-groups {(or (hypercrud.browser.context/dbname ctx) "$") ; https://github.com/hyperfiddle/hyperfiddle/issues/816
+                (let [tx-groups {(or (hf/dbname ctx) "$") ; https://github.com/hyperfiddle/hyperfiddle/issues/816
                                  tx}
                       popover-data @r-popover-data]
                   (runtime/close-popover rt parent-pid child-pid)
@@ -77,7 +65,7 @@
   (-> (run-txfn! ctx props)
       (p/then
         (fn [tx]
-          (cond-> (runtime/with-tx (:runtime ctx) (:partition-id ctx) (context/dbname ctx) tx)
+          (cond-> (runtime/with-tx (:runtime ctx) (:partition-id ctx) (hf/dbname ctx) tx)
             (::redirect props) (p/then (fn [_] (hf/set-route (:runtime ctx) (:partition-id ctx) ((::redirect props) nil)))))))
       (p/catch (fn [e]
                  ; todo something better with these exceptions (could be user error)
@@ -97,7 +85,7 @@
                   (update :class css "hyperfiddle"
                           ; use twbs btn coloring but not "btn" itself
                           (if-not (contains? (methods hyperfiddle.api/tx)
-                                             (context/link-tx link-ctx))
+                                             (hf/link-tx link-ctx))
                             "btn-outline-danger"
                             "btn-warning"))
                   (update :disabled #(or % (disabled? link-ref link-ctx))))]

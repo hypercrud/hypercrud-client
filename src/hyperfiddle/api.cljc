@@ -177,28 +177,6 @@
   {:pre [v]}
   [[:db/retractEntity v]])
 
-; Compat
-
-(defmulti txfn (fn [user-txfn e a v ctx] user-txfn))
-
-(defmethod txfn :default [_ e a v ctx]
-  nil)
-
-(defmethod txfn :zero [_ e a v ctx]
-  [])                                                       ; hack to draw as popover
-
-(defmethod txfn :db/add [_ e a v ctx]
-  {:pre [e a v]}
-  [[:db/add e a v]])
-
-(defmethod txfn :db/retract [_ e a v ctx]
-  {:pre [e a v]}
-  [[:db/retract e a v]])
-
-(defmethod txfn :db/retractEntity [_ _ _ v ctx]
-  {:pre [v]}
-  [[:db/retractEntity v]])
-
 ; All hyperfiddle specs should be here in this namespace.
 ; Namespaces other than "hyperfiddle" are henceforth forbidden and all legacy namespaces should be migrated.
 ; If you feel the need to organize attributes that "traverse together" use a comment in this file
