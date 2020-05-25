@@ -172,7 +172,8 @@
          label (->> dbname-labels (some #(when (= (:id %) @selected-dbname') (:label %))))]
      [:div.hyperfiddle-staging-editor-cmp
       [tab-content rt pid selected-dbname'
-       [:div.hyperfiddle-stage-actions {:style {:display "flex"}}
+       [:div.hyperfiddle-stage-actions {:style {:display    "flex"
+                                                :box-shadow "0 0 0.5rem lightgray"}}
         [:div {:style {:margin-left "auto"}} "stage: "
          [anchor-tabs
           :model selected-dbname'
