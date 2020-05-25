@@ -151,7 +151,9 @@
                   (let [[scope v] (normalize scope k v)]
                     [scope (assoc kv k v)]))
                 [scope {}] link)]
-          [scope (conj acc link)]))
+          [scope (conj acc (assoc link :db/id
+                                       ; hack for https://github.com/hyperfiddle/hyperfiddle/issues/1022
+                                       (-> scope :eval/env :route :hyperfiddle.route/fiddle hash (->> (str ::hack)))))]))
       [scope []]
       val)
 
