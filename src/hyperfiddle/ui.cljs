@@ -7,9 +7,9 @@
     [clojure.string :as string]
     [contrib.css :refer [css css-slugify]]
     [contrib.data :refer [unqualify]]
+    [contrib.hfrecom]
     [contrib.pprint :refer [pprint-str]]
     [contrib.reactive :as r]
-    [contrib.hfrecom]
     [contrib.string :refer [blank->nil]]
     [contrib.ui]
     [contrib.ui.safe-render :refer [user-portal]]
@@ -19,6 +19,7 @@
     [hypercrud.browser.base :as base]
     [hypercrud.browser.context :as context]
     [hyperfiddle.api :as hf]
+    [hyperfiddle.blocks.view-mode-selector :refer [ViewModeSelector]]
     [hyperfiddle.data :as data]
     [hyperfiddle.domain :as domain]
     [hyperfiddle.route :as route]
@@ -578,6 +579,8 @@ nil. call site must wrap with a Reagent component"          ; is this just hyper
 (defn ^:export fiddle-xray [val ctx & [props]]
   [:<>
    [:div (select-keys props [:class :on-click])
+    [ViewModeSelector] ;; TODO: GG: dirty patch, please factorize out
+    [hyperfiddle.ui/browse :hyperfiddle.blocks.topnav/topnav ctx]
     [result val ctx {}]]
    [entity-links-iframe ctx props]])
 
@@ -586,6 +589,7 @@ nil. call site must wrap with a Reagent component"          ; is this just hyper
             [contrib.ui/code {:value edn-str :read-only true}]))]
   (defn ^:export fiddle-api [_ {rt :runtime :as ctx} & [props]]
     [:div.hyperfiddle.display-mode-api (select-keys props [:class])
+     [ViewModeSelector] ;; TODO: GG: dirty patch, factorize out
      (render-edn (some-> (:hypercrud.browser/result ctx) deref))
      (when-let [iframes (->> (disj (set (runtime/descendant-pids rt (:partition-id ctx))) (:partition-id ctx))
                              (map (fn [pid]
@@ -607,7 +611,6 @@ nil. call site must wrap with a Reagent component"          ; is this just hyper
 (extend-type context/Context
   hf/UI
   (display-mode [ctx]
-    (or (some-> (:hyperfiddle.ui/display-mode ctx) deref)
-        :hypercrud.browser.browser-ui/user))
+    (:hyperfiddle.ui/display-mode ctx))
   (display-mode? [ctx k]
     (= k (unqualify (hf/display-mode ctx)))))

@@ -177,7 +177,7 @@
 (defn- to [parent-state user-state]
   (let [user-state (-> (update user-state ::runtime/partitions dissoc foundation/root-pid) ; root branch is readonly to users
                        (dissoc ::ide-user-global-basis ::runtime/user-id)
-                       state/initialize)]
+                       state/initialize)] ;; TODO: TECH DEBT: GG: massive perf issue
     (assoc parent-state ::runtime/user-state user-state)))
 
 (defn- from [ide-domain ide-pid parent-state]

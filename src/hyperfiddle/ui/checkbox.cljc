@@ -1,8 +1,8 @@
 (ns hyperfiddle.ui.checkbox
   "@nossr"
-  (:require [reagent.core :as reagent]))
+  (:require [contrib.reactive :as r]))
 
-(defn- on-change* [{:keys [on-change]} ^js e]
+(defn- on-change* [{:keys [on-change]}, e]
   (on-change (.. e -target -checked)))
 
 (defn- Checkbox* [{:keys [type name checked? disabled? children]
@@ -15,7 +15,7 @@
                   :name      name
                   :checked   checked?
                   :disabled  disabled?
-                  :on-change (reagent/partial on-change* props)
+                  :on-change (r/partial on-change* props)
                   :style     {:margin-right "0.25rem"}}]]
         children))
 
@@ -38,7 +38,7 @@
   [:div props
    (for [{:keys [key text props]} options]
      [Radio (merge {:name      name
-                    :on-change (reagent/partial on-change key)
+                    :on-change (r/partial on-change key)
                     :checked?  (= key value)}
                    props)
       text])])

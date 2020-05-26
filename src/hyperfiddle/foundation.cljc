@@ -1,16 +1,24 @@
 (ns hyperfiddle.foundation
   (:require
     #?(:cljs [cats.monad.either :as either])
-    #?(:cljs [hyperfiddle.project :as project])
-    #?(:cljs [hyperfiddle.ui.iframe :as iframe])
-    #?(:cljs [hyperfiddle.ui :as ui])
-    #?(:cljs [hyperfiddle.api :as hf])
-    #?(:cljs [hyperfiddle.ui.staging :as staging])
-    #?(:cljs [hyperfiddle.ui.checkbox :refer [Checkbox Radio RadioGroup]])
     #?(:cljs [contrib.reactive :as r])
-    [hyperfiddle.runtime]))
+    #?(:cljs [hyperfiddle.api :as hf])
+    #?(:cljs [hyperfiddle.project :as project])
+    #?(:cljs [hyperfiddle.ui :as ui])
+    #?(:cljs [hyperfiddle.ui.checkbox :refer [Checkbox Radio RadioGroup]])
+    #?(:cljs [hyperfiddle.ui.iframe :as iframe])
+    #?(:cljs [hyperfiddle.ui.staging :as staging])
+    [hyperfiddle.runtime]
+    [hyperfiddle.view.controller :as view]))
 
 (def root-pid "root")
+
+(defn augment [ctx]
+  (assoc ctx :hyperfiddle.ui/display-mode (view/view-mode (deref view/state))))
+
+(defn IframeRenderer [ctx]
+  [:div {:style {:flex 1}}
+   [iframe/iframe-cmp (augment ctx)]])
 
 #?(:cljs
    (defn view [ctx]
@@ -25,7 +33,6 @@
              [:main {:style {:display        :flex
                              :flex-direction :column
                              :height         "100%"}}
-              [:div {:style {:flex 1}}
-               [iframe/iframe-cmp ctx]]
+              [IframeRenderer ctx]
               ;; [preview/preview-effects ctx (:partition-id ctx) preview-state]
               [staging/inline-stage ctx]])))]))
