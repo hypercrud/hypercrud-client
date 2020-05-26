@@ -1,15 +1,18 @@
 (ns hyperfiddle.view.controller
   (:require [contrib.reactive :as r]))
 
-(def initial-state {:view-mode :hypercrud.browser.browser-ui/user})
+(def initial-state {:mode :hypercrud.browser.browser-ui/user})
 
 (def state (r/atom initial-state))
 
-(defn set-view-mode [view-mode state]
-  (assoc state :view-mode view-mode))
+(defn set-mode [mode state]
+  (assoc state :mode mode))
 
-(defn set-view-mode! [view-mode]
-  (swap! state (partial set-view-mode view-mode)))
+(defn set-mode! [mode]
+  (swap! state (partial set-mode mode)))
 
-(defn view-mode [state]
-  (get state :view-mode))
+(defn mode [state]
+  (get state :mode))
+
+(defn mode= [m state]
+  (= m (mode state)))

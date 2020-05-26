@@ -579,8 +579,6 @@ nil. call site must wrap with a Reagent component"          ; is this just hyper
 (defn ^:export fiddle-xray [val ctx & [props]]
   [:<>
    [:div (select-keys props [:class :on-click])
-    [ViewModeSelector] ;; TODO: GG: dirty patch, please factorize out
-    [hyperfiddle.ui/browse :hyperfiddle.blocks.topnav/topnav ctx]
     [result val ctx {}]]
    [entity-links-iframe ctx props]])
 
@@ -589,7 +587,6 @@ nil. call site must wrap with a Reagent component"          ; is this just hyper
             [contrib.ui/code {:value edn-str :read-only true}]))]
   (defn ^:export fiddle-api [_ {rt :runtime :as ctx} & [props]]
     [:div.hyperfiddle.display-mode-api (select-keys props [:class])
-     [ViewModeSelector] ;; TODO: GG: dirty patch, factorize out
      (render-edn (some-> (:hypercrud.browser/result ctx) deref))
      (when-let [iframes (->> (disj (set (runtime/descendant-pids rt (:partition-id ctx))) (:partition-id ctx))
                              (map (fn [pid]

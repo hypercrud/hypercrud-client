@@ -8,13 +8,14 @@
     #?(:cljs [hyperfiddle.ui.checkbox :refer [Checkbox Radio RadioGroup]])
     #?(:cljs [hyperfiddle.ui.iframe :as iframe])
     #?(:cljs [hyperfiddle.ui.staging :as staging])
+    [hyperfiddle.blocks.view-mode-selector :refer [ViewModeSelector]]
     [hyperfiddle.runtime]
     [hyperfiddle.view.controller :as view]))
 
 (def root-pid "root")
 
 (defn augment [ctx]
-  (assoc ctx :hyperfiddle.ui/display-mode (view/view-mode (deref view/state))))
+  (assoc ctx :hyperfiddle.ui/display-mode (view/mode @view/state)))
 
 (defn IframeRenderer [ctx]
   [:div {:style {:flex 1}}
@@ -33,6 +34,8 @@
              [:main {:style {:display        :flex
                              :flex-direction :column
                              :height         "100%"}}
+              (when-not (view/mode= :hypercrud.browser.browser-ui/user @view/state)
+                [ViewModeSelector])
               [IframeRenderer ctx]
               ;; [preview/preview-effects ctx (:partition-id ctx) preview-state]
               [staging/inline-stage ctx]])))]))

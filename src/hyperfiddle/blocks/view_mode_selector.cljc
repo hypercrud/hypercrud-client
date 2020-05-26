@@ -4,14 +4,14 @@
             [hyperfiddle.view.controller :as view]))
 
 (defn set-view-mode! [mode _]
-  (view/set-view-mode! mode))
+  (view/set-mode! mode))
 
 (defn ViewModeSelector []
   [RadioGroup {:name      "view"
                :options   [{:key :hypercrud.browser.browser-ui/api, :text "edn"}
                            {:key :hypercrud.browser.browser-ui/xray, :text "data"}
                            {:key :hypercrud.browser.browser-ui/user, :text "view"}]
-               :value     (view/view-mode @view/state)
+               :value     (view/mode @view/state)
                :on-change (r/partial set-view-mode!)
                :props     {:style {:display        :inline-grid
                                    :grid-auto-flow :column
