@@ -11,6 +11,12 @@
 (defn map-keys [f m]
   (for-kv m m (fn [acc k v] (assoc acc (f k) v))))
 
+(defn filter-keys [f? m]
+  (for-kv m m (fn [acc k _] (if (f? k) acc (dissoc acc k)))))
+
+(defn filter-vals [f? m]
+  (for-kv m m (fn [acc k v] (if (f? v) acc (dissoc acc k)))))
+
 (defn group-by-assume-unique [f xs]
   (->> xs
        (map (juxt f identity))
@@ -150,9 +156,6 @@
   (->> m
        (mapcat (fn [[path links]]
                  (map vector links (repeat path))))))
-
-(defn filter-keys [f? m]
-  (->> m (filter (fn [[k v]] (f? k))) (into {})))
 
 #?(:clj
    (defmacro orp
