@@ -11,6 +11,11 @@
 (defn set-mode! [mode]
   (swap! state (partial set-mode mode)))
 
+(defn toggle-mode! []
+  (swap! state update :mode #(if (= % :hypercrud.browser.browser-ui/user)
+                               :hypercrud.browser.browser-ui/xray
+                               :hypercrud.browser.browser-ui/user)))
+
 (defn mode [state]
   (get state :mode))
 

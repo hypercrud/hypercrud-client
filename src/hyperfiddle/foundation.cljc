@@ -8,22 +8,51 @@
     #?(:cljs [hyperfiddle.ui.checkbox :refer [Checkbox Radio RadioGroup]])
     #?(:cljs [hyperfiddle.ui.iframe :as iframe])
     #?(:cljs [hyperfiddle.ui.staging :as staging])
+    #?(:cljs [hyperfiddle.view.keyboard :as k])
+    #?(:cljs [hyperfiddle.view.keyboard.combos :as combos])
     [hyperfiddle.blocks.view-mode-selector :refer [ViewModeSelector]]
     [hyperfiddle.runtime]
     [hyperfiddle.view.controller :as view]))
 
 (def root-pid "root")
 
+(defn TopNav [{:keys [ctx]}]
+  [:nav {:role  :navigation
+         :style {:display     :flex
+                 :align-items :center
+                 :padding     "0.5rem 1rem"}}
+   [ViewModeSelector]
+   [:div {:style {:flex 1}}]
+   #?(:cljs (if (hf/subject ctx)
+              [:a {:href  "/:hyperfiddle.blocks.account!account"
+                   :style {:text-transform :capitalize}}
+               (str "👤Account")]
+              [:a {:href (hyperfiddle.ide/stateless-login-url ctx)} "👤 Sign in"]))])
+
 (defn augment [ctx]
   (assoc ctx :hyperfiddle.ui/display-mode (view/mode @view/state)))
 
+(defn on-key-down [e]
+  #?(:cljs
+     (let [key  (k/keyboard-key e)
+           this `on-key-down]
+       (condp k/combo? key
+         combos/alt-backtick (view/toggle-mode!)
+         [:alt :escape]      (prn (str this " TODO: set :hyperfiddle.ide.edit/editor-open true|false in view state"))
+         [:alt :enter]       (prn (str this " DEPRECATED: should refresh view content"))
+         [:alt]              (prn (str this " TODO: set :alt-key-pressed in view state"))
+         nil))))
+
 (defn IframeRenderer [ctx]
-  [:div {:style {:flex 1}}
-   [iframe/iframe-cmp (augment ctx)]])
+  [:div {:style       {:flex 1}
+         :tabIndex    "-1"
+         :on-key-down (r/partial on-key-down)}
+   [TopNav {:ctx ctx}]
+   #?(:cljs [iframe/iframe-cmp (augment ctx)])])
 
 #?(:cljs
    (defn view [ctx]
-     [:<>
+     [:div {:style {:height "100%"}}
       [:style {:dangerouslySetInnerHTML {:__html (:project/css (hyperfiddle.runtime/get-project (:runtime ctx) (:partition-id ctx)))}}]
       (-> (hyperfiddle.runtime/get-project (:runtime ctx) (:partition-id ctx))
           :project/code
@@ -34,8 +63,5 @@
              [:main {:style {:display        :flex
                              :flex-direction :column
                              :height         "100%"}}
-              (when-not (view/mode= :hypercrud.browser.browser-ui/user @view/state)
-                [ViewModeSelector])
               [IframeRenderer ctx]
-              ;; [preview/preview-effects ctx (:partition-id ctx) preview-state]
               [staging/inline-stage ctx]])))]))
