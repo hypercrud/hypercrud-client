@@ -1,5 +1,5 @@
 (ns hyperfiddle.blocks.view-mode-selector
-  (:require #?(:cljs [contrib.reactive :as r])
+  (:require [contrib.reactive :as r]
             [hyperfiddle.ui.checkbox :refer [RadioGroup]]
             [hyperfiddle.view.controller :as view]))
 

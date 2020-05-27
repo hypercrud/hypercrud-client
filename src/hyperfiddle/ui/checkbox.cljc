@@ -37,6 +37,7 @@
                    :or   {name (gensym)}}]
   [:div props
    (for [{:keys [key text props]} options]
+     ^{:key key}
      [Radio (merge {:name      name
                     :on-change (r/partial on-change key)
                     :checked?  (= key value)}
