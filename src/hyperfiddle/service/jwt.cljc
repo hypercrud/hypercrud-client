@@ -1,7 +1,7 @@
 (ns hyperfiddle.service.jwt
   (:require
     #?(:clj [clojure.walk :as walk])
-    #?(:clj [contrib.data :refer [map-values]])
+    #?(:clj [contrib.data :as data :refer [map-values]])
     #?(:cljs [jsonwebtoken :as jwt])                        ; nodejs only
     [taoensso.timbre :as timbre])
   #?(:clj
@@ -19,8 +19,9 @@
              (fn [token]
                (-> (.verify jwt-verifier token)
                    (.getClaims)
-                   (->> (map-values #(.as % Object)))
-                   (walk/keywordize-keys))))
+                   (->> (into {})
+                        (map-values #(.as % Object))
+                        (data/keywordize-keys)))))
      :cljs (fn [token]
              (some-> (.verify jwt token secret)
                      (js->clj :keywordize-keys true)))))

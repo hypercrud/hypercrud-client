@@ -17,6 +17,9 @@
 (defn filter-vals [f? m]
   (for-kv m m (fn [acc k v] (if (f? v) acc (dissoc acc k)))))
 
+(defn keywordize-keys [m]
+  (map-keys keyword m))
+
 (defn group-by-assume-unique [f xs]
   (->> xs
        (map (juxt f identity))
