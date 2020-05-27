@@ -4,6 +4,7 @@
   #?(:cljs (:require-macros [contrib.expr])))
 
 (defn read-spec [spec input]
+  ; Convenience for (do (s/assert spec x) (s/conform spec x))
   (let [result (s/conform spec input)]
     (when (s/invalid? result)
       (throw (ex-info (s/explain-str spec input)

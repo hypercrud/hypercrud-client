@@ -4,7 +4,7 @@
     [clojure.spec.alpha :as s]
     [contrib.expr :refer :all]
     [contrib.do :refer [do-result]]
-    [contrib.data :refer [qualify trim-str]]
+    [contrib.data :refer [qualify trim-str for-kv]]
     [hyperfiddle.fiddle]))
 
 
@@ -29,8 +29,16 @@
 
 (defn get-def [& ks] (get-in @*defs ks))
 
-(defn get-schemas []
-  (@*defs :schema))
+(defn get-schemas
+  ([]
+   (@*defs :schema))
+  ([ns]
+   (let [ns (str (name ns))]
+     (for-kv (get-schemas) {}
+       (fn [m k v]
+         (if (= ns (namespace k))
+           (assoc m k v)
+           m))))))
 
 (defn get-attrs []
   (into {} (map (fn [[k v]] {k (:renderer v)}) (@*defs :attribute))))
@@ -67,7 +75,7 @@
 (s/def ::schema
   (s/cat
     :type (s/? keyword?)
-    :mod (s/* #{:unique :many})
+    :mod (s/* #{:identity :many :index :isComponent})
     :doc (s/? string?)
     :& (s/* any?)))
 
@@ -101,7 +109,7 @@
 (defn read-schema [attrs]
   (reduce-kv
     (fn [schema attr desc]
-      (assert (qualified-keyword? attr))
+      (assert (qualified-keyword? attr) attr)
       (assoc
         schema attr
         (let [desc (read-spec ::schema desc)]
@@ -110,14 +118,31 @@
              :db/cardinality :db.cardinality/one}
             (when (:type desc)
               (let [[_ type mod] (re-matches #"(.+?)(\*?)" (name (:type desc)))]
-                (merge {:db/valueType (qualify 'db.type type)}
+                (merge
+                  {:db/valueType (qualify 'db.type type)}
                   (when (= mod "*") {:db/cardinality :db.cardinality/many}))))
-            (when (-> desc :mod #{:many}) {:db/cardinality :db.cardinality/many})
-            (when (-> desc :mod #{:unique}) {:db/unique :db.unique/identity})
-            (select-keys desc [:doc])
+            (when (some #{:many} (:mod desc)) {:db/cardinality :db.cardinality/many})
+            (when (some #{:identity} (:mod desc)) {:db/unique :db.unique/identity})
+            (when (some #{:index} (:mod desc)) {:db/index true})
+            (when (some #{:isComponent} (:mod desc)) {:db/isComponent true})
+            (when (:doc desc) {:db/doc (:doc desc)})
             (when-let [[& {:as rest}] (:& desc)] rest)))))
     {}
     attrs))
+
+(comment
+  (read-spec ::schema [:string :identity])
+  => {:type :string, :mod [:identity]}
+  (read-spec ::schema [:string :index :many :isComponent :foo :bar])
+  => {:type :string, :mod [:index :many :isComponent], :& [:foo :bar]}
+
+  (read-schema {::a [:string "docstring"]})
+  (read-schema {::b [:string "docstring" :foo true]})
+  (read-schema {::c [:string :isComponent]})
+  (read-schema {::d [:string "docstring" :identity :many]})
+  (read-schema {::d [:string :identity :many "docstring"]})
+  (read-schema {::e [:string* :identity :many :index]})
+  )
 
 (defn read-attrs [body]
   (->> (read-spec (s/* (s/cat :k keyword? :v (s/+ (comp not keyword?)))) body)

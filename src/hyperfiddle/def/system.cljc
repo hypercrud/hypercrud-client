@@ -13,7 +13,7 @@
       {:code [:string "a ClojureScript form for storing view functions, evaluated on page load"]
        :css [:string]}
   #:attribute
-      {:ident    [:keyword :unique]
+      {:ident    [:keyword :identity]
        :renderer [:string "Default attribute renderer, a CLJS var like `hyperfiddle.ui.controls/code`."]}
   #:fiddle
       {:ident         [:keyword :unique "Fiddle identifier used in URLs. Warning: changing this breaks fiddle URLs."]
@@ -24,8 +24,7 @@
                         Warning: no support yet for rules, d/history, d/log or other datomic API access."]
        :pull          [:string "Datomic pull expression for the entity addressed by the URL"]
        :pull-database [:string "Argument to `datomic.api/pull`, defaults to $"]
-       :links         [:ref* "Links to other fiddles that are available from this fiddle"
-                       :isComponent true]
+       :links         [:ref* :isComponent "Links to other fiddles that are available from this fiddle"]
        :renderer      [:string "Reagent expression for the fiddle view"]
        :cljs-ns       [:string "ClojureScript `user` namespace, available in :fiddle/renderer."]
        :css           [:string
@@ -35,7 +34,7 @@
        :markdown      [:string "Markdown expression for fiddle view, optional"]
        :hydrate-result-as-fiddle
                       [:boolean "Experimental. When set, data-sync will interpret this fiddle's result as a fiddle - like a higher order fiddle - this is a recursion mechanic."]
-       :uuid          [:uuid :unique "For naming anonymous fiddles"]
+       :uuid          [:uuid :identity "For naming anonymous fiddles"]
        ;:query-needle [:string]
        }
   #:link
@@ -48,7 +47,7 @@
   #:user
       {:user-id      [:uuid]
        :name         [:string]
-       :email        [:string :unique :index true]
+       :email        [:string :identity :index]
        :picture      [:string]
        :sub          [:string]
        :created-date [:instant]
