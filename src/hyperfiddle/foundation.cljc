@@ -40,13 +40,19 @@
          combos/alt-backtick (view/toggle-mode!)
          [:alt :escape]      (prn (str this " TODO: set :hyperfiddle.ide.edit/editor-open true|false in view state"))
          [:alt :enter]       (prn (str this " DEPRECATED: should refresh view content"))
-         [:alt]              (prn (str this " TODO: set :alt-key-pressed in view state"))
+         [:alt]              (view/set-alt-key-pressed! true)
          nil))))
+
+(defn on-key-up [e]
+  #?(:cljs
+     (when (k/combo? [:alt] (k/keyboard-key e))
+       (view/set-alt-key-pressed! false))))
 
 (defn IframeRenderer [ctx]
   [:div {:style       {:flex 1}
          :tabIndex    "-1"
-         :on-key-down (r/partial on-key-down)}
+         :on-key-down (r/partial on-key-down)
+         :on-key-up (r/partial on-key-up)}
    [TopNav {:ctx ctx}]
    #?(:cljs [iframe/iframe-cmp (augment ctx)])])
 

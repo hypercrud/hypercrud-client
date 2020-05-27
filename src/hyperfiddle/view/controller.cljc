@@ -1,7 +1,8 @@
 (ns hyperfiddle.view.controller
   (:require [contrib.reactive :as r]))
 
-(def initial-state {:mode :hypercrud.browser.browser-ui/user})
+(def initial-state {:mode            :hypercrud.browser.browser-ui/user
+                    :alt-key-pressed false})
 
 (def state (r/atom initial-state))
 
@@ -15,6 +16,12 @@
   (swap! state update :mode #(if (= % :hypercrud.browser.browser-ui/user)
                                :hypercrud.browser.browser-ui/xray
                                :hypercrud.browser.browser-ui/user)))
+
+(defn set-alt-key-pressed [pressed? state]
+  (assoc state :alt-key-pressed pressed?))
+
+(defn set-alt-key-pressed! [pressed?]
+  (swap! state (partial set-alt-key-pressed pressed?)))
 
 (defn mode [state]
   (get state :mode))
