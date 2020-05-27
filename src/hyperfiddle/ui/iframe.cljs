@@ -127,13 +127,3 @@
    (when-not (= :hypercrud.browser.browser-ui/user (:hyperfiddle.ui/display-mode ctx))
      [route-editor ctx])
    [stale-browse ctx browse-error browse-success props]])
-
-(defn ^:deprecated result-as-fiddle [ctx & [props]]
-  ^{:key (str (:partition-id ctx) "-result-as-fiddle")}
-  [stale/loading
-   (r/track runtime/loading? (:runtime ctx) (:partition-id ctx))
-   (base/browse-result-as-fiddle+ ctx)
-   (fn [e] (timbre/error "error in render" (.-stack e))
-           [browse-error ctx e props])
-   (fn [ctx] [browse-success ctx props])
-   (fn [ctx] [browse-success ctx props])])

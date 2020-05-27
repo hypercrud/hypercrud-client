@@ -1,7 +1,6 @@
 (ns hyperfiddle.foundation
   (:require
     #?(:cljs [cats.monad.either :as either])
-    #?(:cljs [contrib.reactive :as r])
     #?(:cljs [hyperfiddle.api :as hf])
     #?(:cljs [hyperfiddle.project :as project])
     #?(:cljs [hyperfiddle.ui :as ui])
@@ -10,6 +9,8 @@
     #?(:cljs [hyperfiddle.ui.staging :as staging])
     #?(:cljs [hyperfiddle.view.keyboard :as k])
     #?(:cljs [hyperfiddle.view.keyboard.combos :as combos])
+    #?(:cljs [hyperfiddle.ide :as ide])
+    [contrib.reactive :as r]
     [hyperfiddle.blocks.view-mode-selector :refer [ViewModeSelector]]
     [hyperfiddle.runtime]
     [hyperfiddle.view.controller :as view]))
@@ -27,7 +28,7 @@
               [:a {:href  "/:hyperfiddle.blocks.account!account"
                    :style {:text-transform :capitalize}}
                (str "👤Account")]
-              [:a {:href (hyperfiddle.ide/stateless-login-url ctx)} "👤 Sign in"]))])
+              [:a {:href (ide/stateless-login-url ctx)} "👤 Sign in"]))])
 
 (defn augment [ctx]
   (assoc ctx :hyperfiddle.ui/display-mode (view/mode @view/state)))
