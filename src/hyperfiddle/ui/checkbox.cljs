@@ -10,7 +10,7 @@
                    :or   {type :checkbox}}]
   (into [:label (merge {:style {:display     :flex
                                 :align-items :center}}
-                       (dissoc props :type :name))
+                       (dissoc props :type :name :checked? disabled? children))
          [:input {:type      type
                   :name      name
                   :checked   checked?
