@@ -17,16 +17,18 @@
 (defn tx-validation-failure [& {:as data-map}]
   (ex-info "user tx failed validation" (into {:hyperfiddle.io/http-status-code 403} data-map)))
 
-(defmethod hf/process-tx :hyperfiddle.security/authenticated-users-only [$ domain dbname subject tx]
-  (if (nil? subject)
-    (throw (tx-validation-failure))
-    tx))
+#?(:clj
+   (defmethod hf/process-tx :hyperfiddle.security/authenticated-users-only [$ domain dbname subject tx]
+     (if (nil? subject)
+       (throw (tx-validation-failure))
+       tx)))
 
-(defmethod hf/process-tx :hyperfiddle.security/owner-only [$ domain dbname subject tx]
-  (if (-> (into #{root} (:hyperfiddle/owners (hf/database domain dbname)))
-          (contains? subject))
-    tx
-    (throw (tx-validation-failure))))
+#?(:clj
+   (defmethod hf/process-tx :hyperfiddle.security/owner-only [$ domain dbname subject tx]
+     (if (-> (into #{root} (:hyperfiddle/owners (hf/database domain dbname)))
+           (contains? subject))
+       tx
+       (throw (tx-validation-failure)))))
 
 (defn tx-forbidden-stmts [schema whitelist tx]
   {:pre [(set? whitelist)]}
