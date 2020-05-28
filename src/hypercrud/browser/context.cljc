@@ -81,7 +81,7 @@
     :hypercrud.browser/schema
     :hypercrud.browser/pull-enclosure
     :hypercrud.browser/pull-path
-    :hypercrud.browser/parent
+    :hypercrud.browser/parent                               ; Considered removing this for popovers to have access to parent
     :hypercrud.browser/route
     :hypercrud.browser/validation-hints))
 
@@ -1176,7 +1176,11 @@ a speculative db/id."
     pid))
 
 (defn set-partition [ctx partition-id]
-  (clean (assoc ctx :partition-id partition-id)))
+  (-> ctx
+    ; Dustin considered saving parent-ctx so popover can get parent route, but txfn is already in parent ctx so didn't need it
+    #_(set-parent)
+    (assoc :partition-id partition-id)
+    clean))
 
 (defrecord Context []
   hf/Browser
