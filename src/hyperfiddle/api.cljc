@@ -205,7 +205,7 @@
   ;([] (hf-arg hf/*route*))
   ([hf-route] (arg hf-route 0))
   ([hf-route ix]
-   (let [e (get (:hyperfiddle.route/datomic-args hf-route) 0)]
+   (let [e (get (:hyperfiddle.route/datomic-args hf-route) ix)]
      (if (number? e)
        e
        ; hypercrud.types.ThinEntity/thinentity?
