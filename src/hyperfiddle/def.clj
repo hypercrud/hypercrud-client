@@ -220,6 +220,9 @@
        {:fiddle/type :eval
         :fiddle/eval (-> v one map-expr)}
 
+       :fiddle/shape
+       {:fiddle/shape (-> v one map-expr)}
+
        :fiddle/code :fiddle/cljs-ns
 
        :fiddle/links
@@ -252,6 +255,16 @@
     (if (not (map? kv))
       {kv v} kv)))
 
+(defn adjust-type
+  "When a fiddle is of type :fiddle/eval we want to be able to infer the resultset
+  schema from a static definition. Passing a :query parameter to a fiddle
+  provides a way to infer a schema, but this doesn't make this fiddle a :query
+  fiddle, so it should stay of type :eval."
+  [fiddle]
+  (if (contains? fiddle :fiddle/eval)
+    (assoc fiddle :fiddle/type :eval)
+    fiddle))
+
 (defn map-attrs [type & attrs]
   (->>
     (apply merge attrs)
@@ -267,7 +280,8 @@
                (-> k name keyword #{:query :pull :formula}) (map-expr v)
                (-> k name keyword #{:code :cljs-ns :renderer :markdown :css}) (repr-val v)
                () v)}))
-      {})))
+      {})
+    (adjust-type)))
 
 ; ---
 

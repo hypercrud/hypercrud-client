@@ -207,11 +207,13 @@
   (cond (string? val) (contrib.reader/memoized-read-edn-string+ val)
         () (either/right val)))
 
-(defn parse-fiddle-query+ [{:keys [fiddle/type fiddle/query fiddle/pull fiddle/pull-database]}]
+(defn parse-fiddle-query+ [{:keys [fiddle/type fiddle/query fiddle/shape fiddle/pull fiddle/pull-database]}]
   (case type
     :blank (right nil)
     :eval (do-result
-            (datascript.parser/parse-query (template [:find [(pull $ ?e [*]) ...] :in $ :where [$ ?e]])))
+           (datascript.parser/parse-query (if shape
+                                            (from-result (as-expr shape))
+                                            (template [:find [(pull $ ?e [*]) ...] :in $ :where [$ ?e]]))))
     :entity (do-result
               (let [pull (from-result (as-expr pull))]
                 (let [source (symbol pull-database)
