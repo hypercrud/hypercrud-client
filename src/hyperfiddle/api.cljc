@@ -203,6 +203,10 @@
 (defn arg "Silly extractor for a HF deftype with poor ergonomics. Todo cleanup.
   Used by Rosie"
   ;([] (hf-arg hf/*route*))
-  ([hf-route]
-   (let [[hf-entity & _] (:hyperfiddle.route/datomic-args hf-route)]
-     (.-id hf-entity))))
+  ([hf-route] (arg hf-route 0))
+  ([hf-route ix]
+   (let [e (get (:hyperfiddle.route/datomic-args hf-route) 0)]
+     (if (number? e)
+       e
+       ; hypercrud.types.ThinEntity/thinentity?
+       (.-id e)))))
