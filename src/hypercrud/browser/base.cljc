@@ -153,7 +153,8 @@
                 [scope {}] link)]
           [scope (conj acc (assoc link :db/id
                                        ; hack for https://github.com/hyperfiddle/hyperfiddle/issues/1022
-                                       (-> scope :eval/env :route :hyperfiddle.route/fiddle hash (->> (str ::hack)))))]))
+                                       ; :db/id must be `long? if Datomic specs are in the spec registry
+                                       (-> scope :eval/env :route :hyperfiddle.route/fiddle hash)))]))
       [scope []]
       val)
 
