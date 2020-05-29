@@ -137,7 +137,9 @@
   ; todo this needs work
   [rt pid dbname]
   {:pre [pid]}
-  @(state-ref rt [::partitions (get-branch-pid rt pid) :schemas dbname]))
+  (or
+    @(state-ref rt [::partitions pid :schemas dbname])      ; hack, see below
+    @(state-ref rt [::partitions (get-branch-pid rt pid) :schemas dbname])))
 
 (defn get-schemas
   "Returns a map[k,v]
@@ -145,8 +147,12 @@
   v :: nil or cats.monad.exception[contrib.datomic.Schema]"
   ; todo this needs work
   [rt pid]
-  {:pre [pid]}
-  @(state-ref rt [::partitions (get-branch-pid rt pid) :schemas]))
+  {:pre [pid]
+   :post [(some? %)]}
+  (or
+    ; When hydrating a popover directly, this partition has the schemas, not the parent. Todo untangle this
+    @(state-ref rt [::partitions pid :schemas])             ; hack
+    @(state-ref rt [::partitions (get-branch-pid rt pid) :schemas]))) ; code path as designed
 
 (defn get-attr-renderer
   [rt pid ident]
