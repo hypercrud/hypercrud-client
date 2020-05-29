@@ -91,25 +91,24 @@
                  (timbre/info "hf/tx: " dispatch-v " eav: " (pr-str eav))
                  dispatch-v)))
 
-#?(:clj
-   (do
-     (defmulti process-tx                                   ; todo tighten params
-       (fn [$                                               ; security can query the database e.g. for attribute whitelist
-            domain                                          ; spaghetti dependency, todo fix
-            dbname
-            #_hf-db                                         ; security can inspect domain/database configuration, e.g. for database-level user whitelist
-            ; Removed to reduce parameter noise downstack - the one use case is able to reconstruct hf-db from [domain, dbname]
-            subject                                         ; security can know the user submitting this tx
-            tx]
-         (get-in (databases domain) [dbname :database/write-security :db/ident] ::allow-anonymous-edits)))
+(defmulti process-tx                                   ; todo tighten params
+  "clj only"
+  (fn [$                                               ; security can query the database e.g. for attribute whitelist
+       domain                                          ; spaghetti dependency, todo fix
+       dbname
+       #_hf-db                                         ; security can inspect domain/database configuration, e.g. for database-level user whitelist
+       ; Removed to reduce parameter noise downstack - the one use case is able to reconstruct hf-db from [domain, dbname]
+       subject                                         ; security can know the user submitting this tx
+       tx]
+    (get-in (databases domain) [dbname :database/write-security :db/ident] ::allow-anonymous-edits)))
 
-     (defmethod process-tx ::allow-anonymous-edits [$ domain dbname subject tx] tx)
+(defmethod process-tx ::allow-anonymous-edits [$ domain dbname subject tx] tx)
 
-     (def ^:dynamic *$* nil)
-     (def ^:dynamic *domain* nil)
-     (def ^:dynamic *subject*)                              ; FK into $hyperfiddle-users, e.g. #uuid "b7a4780c-8106-4219-ac63-8f8df5ea11e3"
-     (def ^:dynamic *route* nil)
-     ))
+; clj only
+(def ^:dynamic *$* nil)
+(def ^:dynamic *domain* nil)
+(def ^:dynamic *subject*)                              ; FK into $hyperfiddle-users, e.g. #uuid "b7a4780c-8106-4219-ac63-8f8df5ea11e3"
+(def ^:dynamic *route* nil)
 
 ; cljs!
 (defmulti stmt-id->tempid "Deep introspection of args to transaction fns in order to reverse tempids"
