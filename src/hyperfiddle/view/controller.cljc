@@ -17,14 +17,18 @@
                                :hypercrud.browser.browser-ui/xray
                                :hypercrud.browser.browser-ui/user)))
 
+(defn mode [state]
+  (get state :mode))
+
+(defn mode= [m state]
+  (= m (mode state)))
+
+
 (defn set-alt-key-pressed [pressed? state]
   (assoc state :alt-key-pressed pressed?))
 
 (defn set-alt-key-pressed! [pressed?]
   (swap! state (partial set-alt-key-pressed pressed?)))
 
-(defn mode [state]
-  (get state :mode))
-
-(defn mode= [m state]
-  (= m (mode state)))
+(defn alt-key [state]
+  (get state :alt-key-pressed))

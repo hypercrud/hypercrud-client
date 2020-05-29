@@ -2,14 +2,15 @@
   (:require
     #?(:cljs [cats.monad.either :as either])
     #?(:cljs [hyperfiddle.api :as hf])
+    #?(:cljs [hyperfiddle.ide :as ide])
     #?(:cljs [hyperfiddle.project :as project])
     #?(:cljs [hyperfiddle.ui :as ui])
     #?(:cljs [hyperfiddle.ui.checkbox :refer [Checkbox Radio RadioGroup]])
     #?(:cljs [hyperfiddle.ui.iframe :as iframe])
     #?(:cljs [hyperfiddle.ui.staging :as staging])
     #?(:cljs [hyperfiddle.view.keyboard :as k])
+    #?(:cljs [hyperfiddle.view.keyboard.actions :as actions])
     #?(:cljs [hyperfiddle.view.keyboard.combos :as combos])
-    #?(:cljs [hyperfiddle.ide :as ide])
     [contrib.reactive :as r]
     [hyperfiddle.blocks.view-mode-selector :refer [ViewModeSelector]]
     [hyperfiddle.runtime]
@@ -30,8 +31,10 @@
                (str "👤Account")]
               [:a {:href (ide/stateless-login-url ctx)} "👤 Sign in"]))])
 
-(defn augment [ctx]
-  (assoc ctx :hyperfiddle.ui/display-mode (view/mode @view/state)))
+(defn augment [ctx view-state]
+  (merge ctx {:hyperfiddle.ui/display-mode    (view/mode view-state)
+              :hyperfiddle.ui.iframe/on-click #?(:clj nil
+                                                 :cljs (r/partial actions/frame-on-click (:runtime ctx)))}))
 
 (defn on-key-down [e]
   #?(:cljs
@@ -50,12 +53,14 @@
        (view/set-alt-key-pressed! false))))
 
 (defn IframeRenderer [ctx]
-  [:div {:style       {:flex 1}
-         :tabIndex    "-1"
-         :on-key-down (r/partial on-key-down)
-         :on-key-up (r/partial on-key-up)}
-   [TopNav {:ctx ctx}]
-   #?(:cljs [iframe/iframe-cmp (augment ctx)])])
+  (let [view-state @view/state]
+    [:div {:style       {:flex   1
+                         :cursor (if (view/alt-key view-state) :pointer :inherit)}
+           :tabIndex    "-1"
+           :on-key-down (r/partial on-key-down)
+           :on-key-up   (r/partial on-key-up)}
+     [TopNav {:ctx ctx}]
+     #?(:cljs [iframe/iframe-cmp (augment ctx view-state)])]))
 
 #?(:cljs
    (defn view [ctx]
