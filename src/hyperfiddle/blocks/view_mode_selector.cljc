@@ -6,12 +6,12 @@
 (defn set-view-mode! [mode _]
   (view/set-mode! mode))
 
-(defn ViewModeSelector []
+(defn ViewModeSelector [{:keys [mode]}]
   [RadioGroup {:name      "view"
                :options   [{:key :hypercrud.browser.browser-ui/api, :text "edn"}
                            {:key :hypercrud.browser.browser-ui/xray, :text "data"}
                            {:key :hypercrud.browser.browser-ui/user, :text "view"}]
-               :value     (view/mode @view/state)
+               :value     mode
                :on-change (r/partial set-view-mode!)
                :props     {:style {:display        :inline-grid
                                    :grid-auto-flow :column

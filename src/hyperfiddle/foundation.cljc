@@ -23,7 +23,8 @@
          :style {:display     :flex
                  :align-items :center
                  :padding     "0.5rem 1rem"}}
-   [ViewModeSelector]
+
+   [ViewModeSelector {:mode (:hyperfiddle.ui/display-mode ctx)}]
    [:div {:style {:flex 1}}]
    #?(:cljs (if (hf/subject ctx)
               [:a {:href  "/:hyperfiddle.blocks.account!account"
@@ -52,15 +53,19 @@
      (when (k/combo? [:alt] (k/keyboard-key e))
        (view/set-alt-key-pressed! false))))
 
-(defn IframeRenderer [ctx]
-  (let [view-state @view/state]
-    [:div {:style       {:flex   1
-                         :cursor (if (view/alt-key view-state) :pointer :inherit)}
-           :tabIndex    "-1"
-           :on-key-down (r/partial on-key-down)
-           :on-key-up   (r/partial on-key-up)}
+(defn Main [ctx]
+  (let [view-state @view/state
+        ctx        (augment ctx view-state)]
+    [:main {:style       {:display        :flex
+                          :flex-direction :column
+                          :height         "100%"
+                          :cursor         (if (view/alt-key view-state) :pointer :inherit)}
+            :tabIndex    "-1"
+            :on-key-down (r/partial on-key-down)
+            :on-key-up   (r/partial on-key-up)}
      [TopNav {:ctx ctx}]
-     #?(:cljs [iframe/iframe-cmp (augment ctx view-state)])]))
+     #?(:cljs [iframe/iframe-cmp ctx])
+     [staging/inline-stage ctx]]))
 
 #?(:cljs
    (defn view [ctx]
@@ -72,8 +77,4 @@
           (either/branch
            (fn [e] [:div [:h2 {:style {:margin-top "10%" :text-align "center"}} "Misconfigured domain"]])
            (fn [_]
-             [:main {:style {:display        :flex
-                             :flex-direction :column
-                             :height         "100%"}}
-              [IframeRenderer ctx]
-              [staging/inline-stage ctx]])))]))
+             [Main ctx])))]))
