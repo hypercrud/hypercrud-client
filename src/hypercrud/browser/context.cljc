@@ -216,6 +216,13 @@ a speculative db/id."
   ; v becomes e
   [v a' nil])
 
+(defn component?
+  [ctx]
+  (let [[_ a _] @(:hypercrud.browser/eav ctx)]
+    (-> ctx
+        :hypercrud.browser/parent
+        (attr? a :db/isComponent))))
+
 ;(defprotocol EAV
 ;  (eav [this])
 ;  (e [this])

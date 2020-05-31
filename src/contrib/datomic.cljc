@@ -49,10 +49,11 @@
   (attr [this a]))
 
 (defn attr? [this a corcs]
-  (let [haystack (into #{} (vals (attr this a)))            ; component
+  (let [haystack (into #{} (map (fn [[k v]] (if (boolean? v) k v)) (attr this a)))            ; component
         needles (contrib.data/xorxs corcs #{})]
     ; haystack must have all the needles
     (clojure.set/superset? haystack needles)))
+
 (defn cardinality [this a]
   ; TODO needs to respect qfind types
   ; If datomic schema is added out of band, don't need specs here

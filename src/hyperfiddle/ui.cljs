@@ -196,9 +196,10 @@
 (defn- value-props [props ctx]
   (let [r-validation-hints (r/track context/validation-hints-here ctx)]
     (as-> props props
-          (update props :disabled #(or %
-                                       (not @(r/track writable-entity? ctx))
-                                       (not @(r/track hf/subject-may-edit-attr? ctx))))
+          (update props :disabled #(and @(r/track context/component? ctx)
+                                        (or %
+                                          (not @(r/track writable-entity? ctx))
+                                          (not @(r/track hf/subject-may-edit-attr? ctx)))))
           (assoc props ::hf/invalid-messages r-validation-hints) ; why would this be null
           (assoc props ::hf/is-invalid (boolean (seq @r-validation-hints)))
           (update props :class css (if (:disabled props) "disabled")))))
