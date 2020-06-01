@@ -72,43 +72,42 @@
 
 ; ----------------------------
 
+(defprotocol Do-via
+  (resolver-for [H]))
+
 (def ^:dynamic *stack [])
-(def ^:dynamic *handlers {})
+(def ^:dynamic *resolve {})
 (def ^:dynamic *state)
 
-;(defprotocol Do-Via
-;  (handlers [obj]))
-
-(defmacro via* [S fns & body]
-  `(let [S# ~S
-         fns# ~fns]
+(defmacro via* [R & body]
+  `(let [R# ~R
+         fns# (resolver-for R#)]
 
      (assert (every? typed-tag? (keys fns#)))
 
      (let [n# (count *stack)
-           handlers#
+           resolvers#
            (->> fns#
                 (group-by (comp tag-type key))
                 (reduce-kv (fn [m# k# v#]
-                             (assoc m# k# (into {:_nth n#} v#))) {}))]
+                             (assoc m# k# (into {::nth n#} v#))) {}))]
 
-       (binding [*stack (conj *stack S#)
-                 *handlers (merge *handlers handlers#)]
+       (binding [*stack (conj *stack R#)
+                 *resolve (merge *resolve resolvers#)]
 
          ~@body
          ))))
 
 (defn ! [& action]
   (let [action (vec action)]
+
     (assert (typed-action? action))
 
-    ;(println :?! *stack *handlers)
+    (let [R (get *resolve (action-type action))]
+      (binding [*state (nth *stack (::nth R))]
 
-    (let [handler (get *handlers (action-type action))]
-      (binding [*state (nth *stack (:_nth handler))]
-
-        (as-> ((get handler (action-tag action)) action) result
-          (do (set! *stack (assoc *stack (:_nth handler) *state))
+        (as-> ((get R (action-tag action)) action) result
+          (do (set! *stack (assoc *stack (::nth R) *state))
               result))
         ))))
 

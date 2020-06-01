@@ -101,7 +101,18 @@
 (declare interp-attr)
 (declare normalize)
 
-;(defrecord Eval [scope])
+(defrecord Eval [fiddle scope]
+  do/Do-via
+  (resolver-for [h]
+    {:Eval.fiddle
+     (fn [_] (:fiddle do/*state))
+     :Eval.scope
+     (fn [_] (:scope do/*state))
+     :Eval.get-var
+     (fn [[_ name]] (get (:scope do/*state) name))
+     :Eval.set-var!
+     (fn [[_ name val]]
+       (set! do/*state (update do/*state assoc name val)))}))
 
 (defn eval-fiddle+ [fiddle {:keys [domain route ctx] :as env}]
   (do/scope (into [`eval-fiddle+ (:fiddle/ident fiddle)] (seq (:fiddle/apply fiddle)))
@@ -110,25 +121,17 @@
         (let [fiddle (fiddle/apply-defaults fiddle)]
 
           (do/via*
-            {:fiddle fiddle
-             :scope  (merge
-                       {:eval/env  env
-                        :eval/mode (fiddle/kind fiddle)
-                        :route     route}
-                       (let [[_ system-fiddle db] (re-find #"([^\$]*)(\$.*)" (name (:fiddle/ident fiddle)))]
-                         (when system-fiddle
-                           {'domain       domain
-                            'db           db
-                            'user-db->ide (:hyperfiddle.ide.domain/user-dbname->ide domain)})))}
-            {:Eval.fiddle
-             (fn [_] (:fiddle do/*state))
-             :Eval.scope
-             (fn [_] (:scope do/*state))
-             :Eval.get-var
-             (fn [[_ name]] (get (:scope do/*state) name))
-             :Eval.set-var!
-             (fn [[_ name val]]
-               (set! do/*state (update do/*state assoc name val)))}
+            (->Eval
+              fiddle
+              (merge
+                {:eval/env  env
+                 :eval/mode (fiddle/kind fiddle)
+                 :route     route}
+                (let [[_ system-fiddle db] (re-find #"([^\$]*)(\$.*)" (name (:fiddle/ident fiddle)))]
+                  (when system-fiddle
+                    {'domain       domain
+                     'db           db
+                     'user-db->ide (:hyperfiddle.ide.domain/user-dbname->ide domain)}))))
 
             (doseq [[name x]
                     (merge
