@@ -11,7 +11,6 @@
     [contrib.reader :refer [read-edn-string!]]
 
     [contrib.do :refer :all]
-    [hyperfiddle.scope :refer :all]
     [hyperfiddle.service.resolve :as R]
     [hyperfiddle.service.render :as render]
     [hyperfiddle.service.pedestal :as hf-http]

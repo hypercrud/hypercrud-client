@@ -2,6 +2,7 @@
   (:require
     [cats.monad.either :as either]
     [contrib.data :refer [unqualify]]
+    [contrib.do :as do]
     [contrib.datomic]
     [contrib.reactive :as r]
     [hypercrud.browser.base :as base]
@@ -9,7 +10,6 @@
     [hyperfiddle.api :as hf]
     [hyperfiddle.data :as data]
     [hyperfiddle.runtime :as runtime]
-    [hyperfiddle.scope :refer [scope]]
     [taoensso.timbre :as timbre]))
 
 
@@ -71,12 +71,12 @@
 (defn requests [ctx]
   ; More efficient to drive from links. But to do this, we need to refocus
   ; from the top, multiplying out for all possible dependencies.
-  (scope [`requests {:pid    (:partition-id ctx)
+  (do/scope [`requests {:pid    (:partition-id ctx)
                      :fiddle (:fiddle/ident @(:hypercrud.browser/fiddle ctx))
                      :route  @(:hypercrud.browser/route ctx)}]
-    (scope 'requests-here
+    (do/scope 'requests-here
       (requests-here ctx))
-    (scope 'spread
+    (do/scope 'spread
       (doseq [[_ ctx] (context/spread-result ctx)]
         (requests-here ctx)                                 ; depend on result? Not sure if right
         (doseq [[_ ctx] (context/spread-rows ctx)]

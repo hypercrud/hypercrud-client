@@ -3,7 +3,6 @@
     [clojure.spec.alpha :as s]
     [contrib.data :refer [to-keys tag]]
     [contrib.io :refer [get-edn get-resource]]
-    [hyperfiddle.scope :refer :all]
     [hyperfiddle.domain :refer [map->EdnishDomain]]
     [hyperfiddle.io.datomic.core]
     [taoensso.timbre :refer [warn debug info]]

@@ -8,7 +8,6 @@
     [clojure.core.async :refer [chan put!]]
     [contrib.pprint]
     [contrib.do :refer :all]
-    [hyperfiddle.scope :refer :all]
     [hyperfiddle.core]
     [hyperfiddle.service.cookie :as cookie]
     [hyperfiddle.service.jwt :as jwt]

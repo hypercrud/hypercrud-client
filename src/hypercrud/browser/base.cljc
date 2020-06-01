@@ -22,7 +22,6 @@
     [hyperfiddle.fiddle :as fiddle]
     [hyperfiddle.route :as route]
     [hyperfiddle.runtime :as runtime]
-    [hyperfiddle.scope :refer [scope]]
     [taoensso.timbre :as timbre]
     [contrib.expr :as expr])
   #?(:clj
@@ -105,7 +104,7 @@
 ;(defrecord Eval [scope])
 
 (defn eval-fiddle+ [fiddle {:keys [domain route ctx] :as env}]
-  (scope (into [`eval-fiddle+ (:fiddle/ident fiddle)] (seq (:fiddle/apply fiddle)))
+  (do/scope (into [`eval-fiddle+ (:fiddle/ident fiddle)] (seq (:fiddle/apply fiddle)))
     (->
       (do-result
         (let [fiddle (fiddle/apply-defaults fiddle)]
