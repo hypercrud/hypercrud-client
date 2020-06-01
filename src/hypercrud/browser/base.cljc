@@ -246,13 +246,39 @@
              ::route/db db)
       route)))
 
+(def fiddle-pull [:db/id
+                  :fiddle/css
+                  :fiddle/ident
+                  {:fiddle/links [:db/id
+                                  :link/class
+                                  {:link/fiddle [:db/id
+                                                 :fiddle/ident       ; routing
+                                                 :fiddle/query       ; validation
+                                                 :fiddle/type        ; validation
+                                                 #_:fiddle/eval      ; todo validation ?
+                                                 ]}
+                                  :link/formula
+                                  :link/path
+                                  :link/rel
+                                  :link/tx-fn]}
+                  :fiddle/markdown
+                  :fiddle/pull
+                  :fiddle/pull-database
+                  :fiddle/query
+                  :fiddle/cljs-ns
+                  :fiddle/renderer
+                  :fiddle/type
+                  :fiddle/hydrate-result-as-fiddle
+                  #_*                                                ; For hyperblog, so we can access :hyperblog.post/title etc from the fiddle renderer
+                  ])
+
 (defn- resolve-fiddle+ [rt pid route ctx]
   (do-result
 
     (let [route (resolve-route route)
           fiddle-ident (::route/fiddle route)
           db (runtime/db rt pid (hf/fiddle-dbname (hf/domain rt)))
-          request (->EntityRequest (legacy-fiddle-ident->lookup-ref fiddle-ident) db :default)
+          request (->EntityRequest (legacy-fiddle-ident->lookup-ref fiddle-ident) db fiddle-pull)
           record (from-result @(hf/request rt pid request))]
 
       (when-not (or (:db/id record) (:fiddle/source record))

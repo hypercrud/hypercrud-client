@@ -36,12 +36,7 @@
 
             (get ptm request)                               ; cache
 
-            (let [result
-                  (hydrate-requests/hydrate-request domain get-secure-db-with+
-                    (case (:pull-exp request)
-                      :default (assoc request :pull-exp (-> :hyperfiddle/ide hyperfiddle.def/get-fiddle :fiddle/pull))
-                      request)
-                    ?subject)
+            (let [result (hydrate-requests/hydrate-request domain get-secure-db-with+ request ?subject)
 
                   ptm (assoc ptm request result)
 

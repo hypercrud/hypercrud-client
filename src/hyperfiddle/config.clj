@@ -54,7 +54,7 @@
         domain (-> m
                  (update :basis #(or % (System/currentTimeMillis)))
                  (update :environment #(or % {}))
-                 (update :home-route #(or % {:hyperfiddle.route/fiddle :index}))
+                 (update :home-route #(or % {:hyperfiddle.route/fiddle ::hf/index}))
                  (update :fiddle-dbname #(or % "$hyperfiddle")) ; but only if hyperfiddle is listed as a database, TODO
                  (cond-> (:client-config m) (assoc :?datomic-client (hyperfiddle.io.datomic.core/dyna-client (:client-config m))))
                  (dissoc :client-config)
