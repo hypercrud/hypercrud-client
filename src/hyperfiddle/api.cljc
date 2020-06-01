@@ -1,7 +1,7 @@
 (ns hyperfiddle.api                                         ; cljs can always import this
   (:refer-clojure :exclude [memoize])
   (:require
-    [cats.monad.either :refer [left right]]
+    [cats.monad.either :as either :refer [right]]
     [clojure.spec.alpha :as s]
     [taoensso.timbre :as timbre]))
 
@@ -209,3 +209,16 @@
        e
        ; hypercrud.types.ThinEntity/thinentity?
        (.-id e)))))
+
+(defn ^:temporary ->either-domain                           ; todo remove
+  "Wrap a domain `x` as `Right x`. Useful to make existing (either-branched) code
+  compatible with unested, reshaped domain values."
+  [x]
+  (cond
+    ;; identity
+    (either/either? x)    x
+    ;; pure
+    (satisfies? Domain x) (either/right x)
+    :else                 (either/left (ex-info "Not a domain"
+                                                {:value x
+                                                 :type  (type x)}))))

@@ -1,30 +1,30 @@
 (ns hyperfiddle.ui
   (:require
-    [cats.core :as cats :refer [>>= fmap mlet return]]
+    [cats.core :as cats :refer [>>= fmap]]
     [cats.monad.either :as either]
     [cljs.spec.alpha :as s]
-    [clojure.core.match :refer [match match*]]
+    [clojure.core.match :refer [match*]]
     [clojure.string :as string]
     [contrib.css :refer [css css-slugify]]
     [contrib.data :refer [unqualify]]
+    [contrib.hfrecom]
     [contrib.pprint :refer [pprint-str]]
     [contrib.reactive :as r]
-    [contrib.hfrecom]
     [contrib.string :refer [blank->nil]]
     [contrib.ui]
     [contrib.ui.safe-render :refer [user-portal]]
     [contrib.ui.tooltip :refer [tooltip tooltip-props]]
     [cuerdas.core :as str]
-    [datascript.parser :refer [FindRel FindColl FindTuple FindScalar Variable Aggregate Pull]]
+    [datascript.parser :refer [FindRel FindColl FindTuple FindScalar]]
     [hypercrud.browser.base :as base]
     [hypercrud.browser.context :as context]
     [hyperfiddle.api :as hf]
+    [hyperfiddle.blocks.view-mode-selector :refer [ViewModeSelector]]
     [hyperfiddle.data :as data]
     [hyperfiddle.domain :as domain]
     [hyperfiddle.route :as route]
     [hyperfiddle.runtime :as runtime]
-    [hyperfiddle.ui.controls :as controls :refer [label-with-docs identity-label ref-label element-label magic-new]]
-    [hyperfiddle.ui.docstring :refer [semantic-docstring]]
+    [hyperfiddle.ui.controls :as controls :refer [identity-label ref-label element-label]]
     [hyperfiddle.ui.error :as ui-error]
     [hyperfiddle.ui.iframe :as iframe]
     [hyperfiddle.ui.popover :refer [effect-cmp popover-cmp]]
@@ -608,7 +608,6 @@ nil. call site must wrap with a Reagent component"          ; is this just hyper
 (extend-type context/Context
   hf/UI
   (display-mode [ctx]
-    (or (some-> (:hyperfiddle.ui/display-mode ctx) deref)
-        :hypercrud.browser.browser-ui/user))
+    (:hyperfiddle.ui/display-mode ctx))
   (display-mode? [ctx k]
     (= k (unqualify (hf/display-mode ctx)))))

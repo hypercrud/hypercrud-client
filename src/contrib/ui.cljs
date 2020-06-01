@@ -2,8 +2,7 @@
   (:refer-clojure :exclude [keyword long])
   (:require
     [cats.core :as cats]
-    [contrib.css :refer [css]]
-    [contrib.data :refer [orp update-existing for-kv unqualify]]
+    [contrib.data :refer [update-existing for-kv unqualify]]
     [contrib.pprint :refer [pprint-str]]
     [contrib.reactive :as r]
     [contrib.reader]
@@ -12,9 +11,7 @@
     [contrib.ui.codemirror :refer [-codemirror]]
     [contrib.ui.tooltip :refer [tooltip]]
     [contrib.ui.remark :as remark]
-    [contrib.ui.tooltip :refer [tooltip-thick]]
     [goog.functions :as functions]
-    [re-com.core :as re-com]
     [reagent.core :as reagent]
     [taoensso.timbre :as timbre]
     [hyperfiddle.api :as hf]))

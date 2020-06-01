@@ -1,14 +1,24 @@
 (ns contrib.data
   #?(:cljs (:require-macros [contrib.data])))
 
+(defn for-kv "f :: m k v -> m"
+  [kvs init f]
+  (reduce-kv f init kvs))
 
 (defn map-values [f m]
-  (->> (map (juxt key (comp f val)) m)
-       (into {})))
+  (for-kv m m (fn [acc k v] (assoc acc k (f v)))))
 
 (defn map-keys [f m]
-  (->> (map (juxt (comp f key) val) m)
-       (into {})))
+  (for-kv m m (fn [acc k v] (assoc acc (f k) v))))
+
+(defn filter-keys [f? m]
+  (for-kv m m (fn [acc k _] (if (f? k) acc (dissoc acc k)))))
+
+(defn filter-vals [f? m]
+  (for-kv m m (fn [acc k v] (if (f? v) acc (dissoc acc k)))))
+
+(defn keywordize-keys [m]
+  (map-keys keyword m))
 
 (defn group-by-assume-unique [f xs]
   (->> xs
@@ -150,9 +160,6 @@
        (mapcat (fn [[path links]]
                  (map vector links (repeat path))))))
 
-(defn filter-keys [f? m]
-  (->> m (filter (fn [[k v]] (f? k))) (into {})))
-
 #?(:clj
    (defmacro orp
      ([pred] nil)
@@ -247,7 +254,3 @@
   (if-let [indent (some-> (re-find #"(\n +)\S" s) second)]
     (clojure.string/trim (clojure.string/replace s indent "\n"))
     (clojure.string/trim s)))
-
-(defn for-kv "f :: m k v -> m"
-  [kvs init f]
-  (reduce-kv f init kvs))

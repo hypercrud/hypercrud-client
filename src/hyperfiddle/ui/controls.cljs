@@ -11,7 +11,6 @@
     [contrib.ui.recom-date :refer [recom-date recom-time]]
     [contrib.ui.tooltip :refer [tooltip-thick]]
     [contrib.uri :refer [is-uri?]]
-    [datascript.parser :refer [FindRel FindColl FindTuple FindScalar Variable Aggregate Pull]]
     [hypercrud.browser.context :as context]
     [hyperfiddle.api :as hf]
     [hyperfiddle.data]
@@ -20,7 +19,7 @@
     [hyperfiddle.ui.docstring :refer [semantic-docstring]]
     [hyperfiddle.ui.select$ :refer [select]]
     [hyperfiddle.ui.util :refer [entity-change->tx with-entity-change!]]
-    [taoensso.timbre :refer [debug]]))
+    [taoensso.timbre :as timbre]))
 
 (defn label-with-docs [label help-md props]
   [tooltip-thick (if help-md [:div.hyperfiddle.docstring [contrib.ui/markdown help-md]])
@@ -247,7 +246,7 @@
       :db.type/uri is-uri?
       :db.type/uuid uuid?
       nil (do
-            (taoensso.timbre/warn "unknown valueType: " a)  ; :domain/_databases
+            (timbre/warn "unknown valueType: " a)  ; :domain/_databases
             (constantly true)))))
 
 (let [parse-string (fn [value-pred s]

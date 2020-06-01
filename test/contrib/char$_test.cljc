@@ -1,7 +1,7 @@
 (ns contrib.char$-test
   (:require
     [clojure.test :refer [deftest is]]
-    [contrib.char$ :refer [char-code dec->hex hex->dec char->hex-str hex-str->char]]))
+    [contrib.char$ :refer [char-code hex->dec char->hex-str hex-str->char]]))
 
 
 (deftest char-code-1
