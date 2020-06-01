@@ -1,9 +1,11 @@
 (ns hyperfiddle.api                                         ; cljs can always import this
   (:refer-clojure :exclude [memoize])
   (:require
+    ; No hyperfiddle requires allowed due to cycles; hyperfiddle internals require us
     [cats.monad.either :as either :refer [right]]
     [clojure.spec.alpha :as s]
-    [taoensso.timbre :as timbre]))
+    [taoensso.timbre :as timbre]
+    [hypercrud.types.ThinEntity :refer [thinentity?]]))     ; Exceptional hf require, the deftype should lift up to here or be removed
 
 
 (defprotocol ConnectionFacade
@@ -205,10 +207,11 @@
   ([hf-route] (arg hf-route 0))
   ([hf-route ix]
    (let [e (get (:hyperfiddle.route/datomic-args hf-route) ix)]
-     (if (number? e)
-       e
-       ; hypercrud.types.ThinEntity/thinentity?
-       (.-id e)))))
+     (cond
+       (thinentity? e) (.-id e)
+       (number? e) e                                        ; dbid
+       (string? e) e                                        ; tempid
+       () (throw (ex-info "unknown route param" {}))))))
 
 (defn ^:temporary ->either-domain                           ; todo remove
   "Wrap a domain `x` as `Right x`. Useful to make existing (either-branched) code
