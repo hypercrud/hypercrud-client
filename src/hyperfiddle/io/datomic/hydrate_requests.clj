@@ -6,6 +6,7 @@
     [clojure.set :as set]
     [clojure.string :as string]
     [contrib.data :refer [cond-let map-values parse-query-element]]
+    [contrib.do :as do]
     [contrib.datomic]
     [contrib.pprint :refer [pprint-str]]
     [contrib.try$ :refer [try-either]]
@@ -15,7 +16,6 @@
     [hyperfiddle.api :as hf]
     [hyperfiddle.io.datomic.core :as d]
     [hyperfiddle.security]
-    [hyperfiddle.scope :refer [scope]]
     [taoensso.timbre :as timbre]
     [hyperfiddle.def :as hf-def]
     [contrib.datomic-tx :refer [expand-hf-tx]])
@@ -209,7 +209,7 @@
          (every? #(or (instance? EntityRequest %)
                       (instance? QueryRequest %)
                       (instance? EvalRequest %)) requests)]}
-  (scope [`hydrate-requests requests]
+  (do/scope [`hydrate-requests requests]
     (let [db-with-lookup (atom {})
           local-basis (into {} local-basis)                 ; :: ([dbname 1234]), but there are some duck type shenanigans happening
           get-secure-db-with+ (build-get-secure-db-with+ domain (constantly partitions) db-with-lookup local-basis ?subject)

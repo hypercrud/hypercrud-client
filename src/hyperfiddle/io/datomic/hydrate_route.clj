@@ -19,7 +19,6 @@
     [hyperfiddle.def :as hf-def]
     [hyperfiddle.domain :as domain]
     [promesa.core :as p]
-    [hyperfiddle.scope :refer [scope]]
     [taoensso.timbre :as timbre]))
 
 (deftype RT [domain db-with-lookup get-secure-db-with+ state-atom ?subject]

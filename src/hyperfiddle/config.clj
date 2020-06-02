@@ -5,7 +5,7 @@
     [hyperfiddle.api :as hf]
     [hyperfiddle.domain :refer [map->EdnishDomain]]
     [hyperfiddle.io.datomic.core]
-    [hyperfiddle.scope :refer :all]
+    [contrib.do :as do]
     [taoensso.timbre :refer [warn info]]))
 
 
