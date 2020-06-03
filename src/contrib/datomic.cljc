@@ -6,8 +6,12 @@
     [clojure.set]
     [contrib.data :refer [group-by-pred]]
     [contrib.try$ :refer [try-either]]
-    [datascript.parser #?@(:cljs [:refer [FindRel FindColl FindTuple FindScalar Variable Aggregate Pull]])])
+    [datascript.parser #?@(:cljs [:refer [FindRel FindColl FindTuple FindScalar Variable Aggregate Pull]])]
+    #?(:cljs [hyperfiddle.spec :refer [Spec]])
+    [hyperfiddle.spec :as spec]
+    [hyperfiddle.spec.datomic :as spec-datomic])
   #?(:clj (:import
+            (hyperfiddle.spec Spec)
             (datascript.parser FindRel FindColl FindTuple FindScalar Variable Aggregate Pull)
             [clojure.lang IHashEq ILookup IPersistentSet IPersistentCollection])))
 
@@ -97,22 +101,36 @@
            :db/valueType :db.type/long
            #_#_:db/unique :db.unique/identity})
 
+(defn- attr* [this a]
+  (when a
+    (s/assert keyword? a)
+    (let [is-reverse-nav (-> (name a) (subs 0 1) (= "_"))]
+      (cond
+        (= a :db/id) dbid
+        is-reverse-nav (make-reverse-attr this a)
+        :else
+        (-> (a (.-schema-by-attr this))                   ; can be nil if UI asks for attribute that is missing from schema
+            (contrib.data/update-existing :db/valueType smart-lookup-ref-no-tempids)
+            (contrib.data/update-existing :db/cardinality smart-lookup-ref-no-tempids)
+            (contrib.data/update-existing :db/isComponent smart-lookup-ref-no-tempids)
+            (contrib.data/update-existing :db/unique smart-lookup-ref-no-tempids))))))
+
+(defn- attr-as-spec
+  "Parse the datomic schema as a spec tree, then get the attr like if it was a spec.
+  Useful to ensure (Schema -> Spec -> Schema) forms an identity and allows
+  smooth UI adaptation by providing a temporary fallback from spec to datomic
+  schema."
+  [this a]
+  (let [attributes (-> (.-schema-by-attr this)
+                       (spec-datomic/schema->spec))
+        spec       (spec/map->Spec {:attributes attributes})]
+    (attr spec a)))
+
 (deftype Schema [schema-by-attr]
   SchemaIndexedNormalized
   (-repr-portable-hack [this] (str "#schema " (pr-str (.-schema-by-attr this))))
   (attr [this a]
-    (when a
-      (s/assert keyword? a)
-      (let [is-reverse-nav (-> (name a) (subs 0 1) (= "_"))]
-        (cond
-          (= a :db/id) dbid
-          is-reverse-nav (make-reverse-attr this a)
-          :else
-          (-> (a (.-schema-by-attr this))                   ; can be nil if UI asks for attribute that is missing from schema
-              (contrib.data/update-existing :db/valueType smart-lookup-ref-no-tempids)
-              (contrib.data/update-existing :db/cardinality smart-lookup-ref-no-tempids)
-              (contrib.data/update-existing :db/isComponent smart-lookup-ref-no-tempids)
-              (contrib.data/update-existing :db/unique smart-lookup-ref-no-tempids))))))
+    (attr* this a))
 
   #?@(:clj
       [Object (equals [o other] (and (instance? Schema other) (= (.-schema-by-attr o) (.-schema-by-attr other))))
@@ -150,6 +168,9 @@
 
 ; this has to be a hack, when ever are we asking questions about a schema that does not exist
 (extend-protocol SchemaIndexedNormalized
+  Spec
+  (-repr-portable-hack [this] (str "#schema " (pr-str (:attributes this))))
+  (attr [this a] (spec-datomic/attr this a))
   nil
   (-repr-portable-hack [this] (str "#schema " (pr-str nil)))
   (attr [this a] nil))

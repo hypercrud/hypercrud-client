@@ -5,7 +5,8 @@
     [contrib.expr :refer :all]
     [contrib.do :refer [do-result]]
     [contrib.data :refer [qualify trim-str for-kv]]
-    [hyperfiddle.fiddle]))
+    [hyperfiddle.fiddle]
+    [hyperfiddle.spec :as hf-spec]))
 
 
 (declare def!) ; main definitions
@@ -218,7 +219,10 @@
 
        :fiddle/eval
        {:fiddle/type :eval
-        :fiddle/eval (-> v one map-expr)}
+        :fiddle/eval (-> v one map-expr)
+        :fiddle/spec (when-let [spec (s/get-spec (ffirst v))]
+                       (-> (hf-spec/parse spec)
+                           (hf-spec/fiddle-spec)))}
 
        :fiddle/shape
        {:fiddle/shape (-> v one map-expr)}

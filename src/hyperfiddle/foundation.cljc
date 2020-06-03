@@ -5,6 +5,7 @@
     #?(:cljs [hyperfiddle.ide :as ide])
     #?(:cljs [hyperfiddle.project :as project])
     #?(:cljs [hyperfiddle.ui :as ui])
+    #?(:cljs [hyperfiddle.spec.ui])
     #?(:cljs [hyperfiddle.ui.checkbox :refer [Checkbox Radio RadioGroup]])
     #?(:cljs [hyperfiddle.ui.iframe :as iframe])
     #?(:cljs [hyperfiddle.ui.staging :as staging])

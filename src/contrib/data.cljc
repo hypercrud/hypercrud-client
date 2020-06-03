@@ -20,6 +20,14 @@
 (defn keywordize-keys [m]
   (map-keys keyword m))
 
+(defn index-by
+  "Take a function `k`, a seq of maps `xs`, and produces a map of {(k x), x}.
+  eg. :id, [{:id 1} {:id 2}] => {1 {:id 1}, 2 {:id 2}}"
+  [k xs]
+  (into {} (comp (filter k)
+              (map (juxt k identity)))
+        xs))
+
 (defn group-by-assume-unique [f xs]
   (->> xs
        (map (juxt f identity))
