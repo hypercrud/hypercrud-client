@@ -1,5 +1,6 @@
 (ns contrib.datomic
   (:require
+    [clojure.set :as set]
     [cats.core :refer [>>=]]
     [cats.monad.either :as either]
     [clojure.spec.alpha :as s]

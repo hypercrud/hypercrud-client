@@ -72,6 +72,21 @@
     (apply update m k f args)
     m))
 
+(defn update-in-existing
+  [m ks f & args]
+  (if (empty? ks)
+    (apply f m args)
+    (let [[k & ks] ks]
+      (if (contains? m k)
+        (update m k update-in-existing f args)
+        m))))
+
+(defn deep-merge
+  [v0 v1]
+  (if (and (map? v0) (map? v1))
+    (merge-with deep-merge v0 v1)
+    v1))
+
 (defn take-to
   "Returns a lazy sequence of successive items from coll while (pred item) returns true.
   Unlike take-while, it includes the last item."

@@ -1,19 +1,21 @@
 (ns contrib.datomic-tx
   (:require
     [clojure.set :as set]
+    [contrib.data :refer [update-existing update-in-existing deep-merge]]
     [contrib.datomic :refer [tempid? cardinality? ref?
                              ref-one? ref-many? scalar-one? scalar-many?
-                             isComponent unique]]))
+                             isComponent unique attr?]]))
 
 
 (defn edit-entity "o/n are sets in the :many case"
   [id attribute o n]
-  (let [{a :db/ident {cardinality :db/ident} :db/cardinality} attribute]
+  (let [{a :db/ident {cardinality :db/ident} :db/cardinality component? :db/isCompnent} attribute]
     (case cardinality
       :db.cardinality/one
-      (cond-> []
-        (some? o) (conj [:db/retract id a o])
-        (some? n) (conj [:db/add id a n]))
+      (case
+        (cond-> []
+                (some? o) (conj [:db/retract id a o])
+                (some? n) (conj [:db/add id a n])))
 
       :db.cardinality/many
       (let [o (set o)
@@ -87,7 +89,7 @@
   retracting values before adding new value, even in cardinality one case. This is a very
   convenient feature and makes the local datoms cancel out properly always to not cause
   us to re-assert datoms needlessly in datomic"
-  (reduce (partial simplify schema) tx more-statements))
+  (deconstruct (construct schema (into tx more-statements))))
 
 (defn ^:export find-datom "not a good abstraction" [tx e-needle a-needle]
   (let [[[_ _ _ v]] (->> tx (filter (fn [[op e a v]]
@@ -131,8 +133,8 @@
                      (->> v                                 ; [:movies :ice-cream :clojure]
                           (mapv (fn [v]
                                   [:db/add e a v])))
-                     :else (throw (ex-info "Flatten Map Statement | Attribute not defined as ref in schema" {:schema schema :attribute a}))
-                     ))))))
+                     :else (throw (ex-info "Flatten Map Statement | Attribute not defined as ref in schema" {:schema schema :attribute a}))))))))
+
 
 
 
@@ -175,6 +177,134 @@
       []
       forms)))
 
+(defn identifier
+  [schema stmt]
+  (cond
+    (vector? stmt)
+    (let [[_ e a v] stmt]
+      (merge {}
+        (cond
+          (string? e)
+          {:tempid e}
+
+          (number? e)
+          {:db/id e}
+
+          (vector? e)
+          (conj {} e))
+
+        (when (= :db.unique/identity (get-in schema [a :db/unique :db/ident]))
+          {a v})))
+
+    (map? stmt)
+    (into {} (filter (fn [[a v]] (= :db.unique/identity (get-in schema [a :db/unique :db/ident]))) stmt))))
+
+(defn unified-identifier
+  [id0 id1]
+  (let [ks (set/intersection (set (keys id0)) (set (keys id1)))
+        unified-ks (filter #(= (get id0 %) (get id1 %)) ks)]
+    (if (empty? unified-ks)
+      nil
+      (into {} (map (fn [k] [k (get id0 k)]) unified-ks)))))
+
+(defn ideal-idx
+  [identifier ideal]
+  (filterv
+    identity
+    (mapv
+      (fn [[id grp] i]
+        (when (unified-identifier identifier id)
+          i))
+      ideal
+      (range))))
+
+(defmulti absorb
+  (fn [schema identifier ideal stmt]
+    (cond
+      (map? stmt)
+      :map
+
+      (vector? stmt)
+      (first stmt))))
+
+(defmethod absorb :map
+  [schema identifier ideal stmt]
+  [identifier
+   (reduce
+     (fn [ideal [a v]]
+       (-> ideal
+           (update-existing :- dissoc a)
+           (update-in [:+ a] deep-merge v)))
+     (assoc ideal :retracted :false)
+     stmt)])
+
+(defmethod absorb :db/add
+  [schema identifier ideal [_ _ a v]]
+  [(if (= :db.unique/identity (get-in schema [a :db/unique]))
+     (assoc identifier a v)
+     identifier)
+   (-> ideal
+       (assoc :retracted false)
+       (update-existing :- dissoc a)
+       (assoc-in [:+ a] v))])
+
+(defmethod absorb :db/retract
+  [schema identifier ideal [_ _ a v]]
+  [identifier
+   (if (= v (get-in ideal [:+ a]))
+     (-> ideal
+         (update-existing :+ dissoc a))
+     (-> ideal
+         (update :- assoc a v)))])
+
+(defmethod absorb :db/retractEntity
+  [schema identifier ideal _]
+  [identifier (assoc ideal :retracted true)])
+
+(defmethod absorb :db/cas
+  [schema identifier ideal [_ f]]
+  [identifier
+   (if (contains? ideal :cas)
+     (update ideal :cas conj f)
+     (assoc ideal :cas [f]))])
+
+(defn absorb-stmt
+  [schema ideals stmt]
+  (let [identifier (identifier schema stmt)]
+    (if-let [idx (first (ideal-idx identifier ideals))]
+      (update ideals idx (fn [[identifier ideal]] (absorb schema identifier ideal stmt)))
+      (conj ideals (absorb schema identifier nil stmt)))))
+
+(defn construct
+  ([schema tx]
+   (construct schema [] tx))
+  ([schema ideals tx]
+   (doall (map println (map (partial identifier schema) tx)))
+   (doall (map println (reduce (partial absorb-stmt schema) ideals tx)))
+   (reduce (partial absorb-stmt schema) ideals tx)))
+
+(defn identifier->e
+  [identifier]
+  (or (:db/id identifier)
+      (:tempid identifier)
+      (throw (ex-info {} "No :db/id or tempid defined for ideal (I don't think this will happen)"))))
+
+(defn deconstruct-ideal
+  [identifier {adds :+ retracts :- :keys [retracted cas]}]
+  (let [e (identifier->e identifier)]
+    (if retracted
+      [[:db/retractEntity e]]
+      (into
+        []
+        (concat
+          (map (fn [[a v]] [:db/add e a v]) adds)
+          (map (fn [a] [:db/retract e a]) retracts)
+          (map (fn [f] [:db/cas e f]) cas))))))
+
+(defn deconstruct
+  [ideals]
+  (reduce into [] (map (partial apply deconstruct-ideal) ideals)))
+
 (comment
   [[:db/add "a" :person/name "Alice"]
    {:person/name "Bob"
@@ -187,13 +317,13 @@
    [:db/cas [:person/name "Gandalf"] :person/age 22 23]
    [:user.fn/foo 'x 'y 'z 'q 'r]
    [:esub.fn/sign-up-by-uuid (:db/id *user*) (java.util.UUID/fromString id)]
-   [:sub.fn/ensure-sub-status (:db/id *user*)]
-   ]
+   [:sub.fn/ensure-sub-status (:db/id *user*)]]
+
 
   [[:db/add :db/retractEntity :hyperfiddle/whitelist-attribute true]
-   [:db/add :db/cas :hyperfiddle/whitelist-attribute true]]
+   [:db/add :db/cas :hyperfiddle/whitelist-attribute true]])
 
-  )
+
 
 ;(defn ^:legacy entity-components [schema entity]
 ;  (mapcat (fn [[attr v]]
