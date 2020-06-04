@@ -115,3 +115,21 @@
         (seq? form) `(apply list ~cat)
         :else (throw (Exception. "Unknown collection type"))))
     :else `'~form))
+
+(comment
+
+  (eval (unquote-via '(println ~(inc 1)) identity))
+  => (println (inc 1))
+
+  (eval (unquote-via '(println ~(inc 1)) eval))
+  => (println 2)
+
+  (def scope {'a 10})
+  (eval (unquote-via '[::find ~a] (fn [x] (get scope x))))
+  => [::find 10]
+
+  (def a 42)
+  (eval (unquote-via '{z ~a} eval))
+  => {z 42}
+
+  )
