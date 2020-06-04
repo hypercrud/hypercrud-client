@@ -213,6 +213,8 @@
        (string? e) e                                        ; tempid
        () (throw (ex-info "unknown route param" {}))))))
 
+(defn with-hf-args [f] (f *$* (arg *route*)))
+
 (defn ^:temporary ->either-domain                           ; todo remove
   "Wrap a domain `x` as `Right x`. Useful to make existing (either-branched) code
   compatible with unested, reshaped domain values."
