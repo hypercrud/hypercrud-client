@@ -213,8 +213,8 @@
                 (local-children child-pid)
                 (if false                                   ; todo, branched? branched-popover?
                   (update acc :rehydrate-pids conj child-pid)
-                  (update acc :actions conj [:delete-partition child-pid]))
-                ))
+                  (update acc :actions conj [:delete-partition child-pid]))))
+
             {:actions []
              :rehydrate-pids []}
             (set/union local-children new-children))))
@@ -357,7 +357,14 @@
 (defn- update-to-tempids! [rt pid dbname tx]                ; cljs!
   (let [schema @(get-schema+ rt pid dbname)
         id->tempid (get-tempid-lookup! rt pid dbname)]
-    (map (partial hf/stmt-id->tempid id->tempid schema) tx)))
+    (map (fn [stmt]
+           (cond
+             (map? stmt)
+             stmt
+
+             (vector? stmt)
+             (hf/stmt-id->tempid id->tempid schema stmt)))
+         tx)))
 
 (defn with-tx
   "Stage tx to the given dbname (appends to existing tx).  This will rehydrate the given branch.  This may or may not immediately transact.

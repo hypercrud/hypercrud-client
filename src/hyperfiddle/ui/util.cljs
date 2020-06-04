@@ -24,10 +24,17 @@
   ([ctx o n]
    (let [[e a v] @(:hypercrud.browser/eav ctx)
          attribute (context/hydrate-attribute! ctx a)
-         n' (empty->nil n)]                                 ; hack for garbage string controls
+         component? (context/attr? (:hypercrud.browser/parent ctx) :db/isComponent)
+         n' (empty->nil n)                                 ; hack for garbage string controls
+         tx (tx/edit-entity e attribute o n')]
      (when (and (some? n) (nil? n'))
        (timbre/warn "Trimming empty value to nil. This will be removed in a future release"))
-     (tx/edit-entity e attribute o n'))))
+     (println tx)
+     (if component?
+       (let [[pe pa pv] @(:hypercrud.browser/eav (:hypercrud.browser/parent ctx))
+             e (runtime/id->tempid! (:runtime ctx) (:partition-id ctx) "$" pe)]
+         [{:db/id e pa {a n}}])
+       tx))))
 
 (defn ^:deprecated with-tx!
   ([ctx tx]

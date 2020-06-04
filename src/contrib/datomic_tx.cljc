@@ -1,21 +1,23 @@
 (ns contrib.datomic-tx
   (:require
     [clojure.set :as set]
-    [contrib.data :refer [update-existing update-in-existing deep-merge]]
+    [contrib.data :refer [update-existing update-in-existing deep-merge dissoc-nils]]
     [contrib.datomic :refer [tempid? cardinality? ref?
                              ref-one? ref-many? scalar-one? scalar-many?
                              isComponent unique attr?]]))
 
+(defn component?
+  [schema a]
+  (:db/isComponent (get schema a)))
 
 (defn edit-entity "o/n are sets in the :many case"
   [id attribute o n]
-  (let [{a :db/ident {cardinality :db/ident} :db/cardinality component? :db/isCompnent} attribute]
+  (let [{a :db/ident {cardinality :db/ident} :db/cardinality component? :db/isComponent} attribute]
     (case cardinality
       :db.cardinality/one
-      (case
-        (cond-> []
-                (some? o) (conj [:db/retract id a o])
-                (some? n) (conj [:db/add id a n])))
+      (cond-> []
+              (some? o) (conj [:db/retract id a o])
+              (some? n) (conj [:db/add id a n]))
 
       :db.cardinality/many
       (let [o (set o)
@@ -23,27 +25,13 @@
         (vec (concat (map (fn [v] [:db/retract id a v]) (set/difference o n))
                      (map (fn [v] [:db/add id a v]) (set/difference n o))))))))
 
-(defn- simplify-oeav [simplified-tx next-stmt]
-  (let [[op e a v] next-stmt
-        g (group-by (fn [[op' e' a' v']] (and (= e' e) (= a' a) (= v' v)))
-                    simplified-tx)
-        [op' e' a' v'] (first (get g true))                 ;if this count > 1, we have duplicate stmts, they are harmless and discard dups here.
-        unrelated (get g false)]
-    (case op
-      :db/add (if (= op' :db/retract)
-                unrelated                                   ;we have a related previous stmt that cancels us and it out
-                (conj unrelated next-stmt))
-      :db/retract (if (= op' :db/add)
-                    unrelated                               ;we have a related previous stmt that cancels us and it out
-                    (conj unrelated next-stmt)))))
-
 (defn- retract-entity [schema tx-data e]
   (let [{:keys [tx child-entids orphaned-parent-check]}
         (reduce (fn [acc next-stmt]
                   (if (contains? #{:db/add :db/retract} (first next-stmt))
                     (let [[op' e' a' v'] next-stmt]
                       (cond
-                        (= e e') (if (and (:db/isComponent (get schema a')) (tempid? v'))
+                        (= e e') (if (and (component? schema a') (tempid? v'))
                                    (update acc :child-entids conj v')
                                    acc)
                         (= e v') (if (tempid? e')
@@ -76,20 +64,6 @@
         (recur rest (retract-entity schema tx entid))
         tx))))
 
-(defn- simplify [schema simplified-tx next-stmt]
-  (condp contains? (first next-stmt)
-    #{:db/add :db/retract} (simplify-oeav simplified-tx next-stmt)
-    #{:db/retractEntity :db.fn/retractEntity} (let [e (second next-stmt)]
-                                                (cond-> (retract-entity schema simplified-tx e)
-                                                  (not (tempid? e)) (conj next-stmt)))
-    (conj simplified-tx next-stmt)))
-
-(defn into-tx [schema tx more-statements]
-  "We don't care about the cardinality (schema) because the UI code is always
-  retracting values before adding new value, even in cardinality one case. This is a very
-  convenient feature and makes the local datoms cancel out properly always to not cause
-  us to re-assert datoms needlessly in datomic"
-  (deconstruct (construct schema (into tx more-statements))))
 
 (defn ^:export find-datom "not a good abstraction" [tx e-needle a-needle]
   (let [[[_ _ _ v]] (->> tx (filter (fn [[op e a v]]
@@ -197,7 +171,14 @@
           {a v})))
 
     (map? stmt)
-    (into {} (filter (fn [[a v]] (= :db.unique/identity (get-in schema [a :db/unique :db/ident]))) stmt))))
+    (let [idents (into {} (filter (fn [[a v]] (= :db.unique/identity (get-in schema [a :db/unique :db/ident]))) stmt))
+          {id :db/id tempid :tempid} stmt]
+      (merge
+       idents
+       (when (or tempid (string? id))
+         {:tempid (or tempid id)})
+       (when (number? id)
+         {:db/id id})))))
 
 (defn unified-identifier
   [id0 id1]
@@ -235,7 +216,7 @@
        (-> ideal
            (update-existing :- dissoc a)
            (update-in [:+ a] deep-merge v)))
-     (assoc ideal :retracted :false)
+     (assoc ideal :retracted false)
      stmt)])
 
 (defmethod absorb :db/add
@@ -279,31 +260,63 @@
   ([schema tx]
    (construct schema [] tx))
   ([schema ideals tx]
-   (doall (map println (map (partial identifier schema) tx)))
-   (doall (map println (reduce (partial absorb-stmt schema) ideals tx)))
+   (println tx)
    (reduce (partial absorb-stmt schema) ideals tx)))
 
 (defn identifier->e
   [identifier]
   (or (:db/id identifier)
       (:tempid identifier)
-      (throw (ex-info {} "No :db/id or tempid defined for ideal (I don't think this will happen)"))))
+      :no-db-id
+      #_(throw (ex-info {} "No :db/id or tempid defined for ideal (I don't think this will happen)"))))
+
+(defn deconstruct-add
+  [schema e [a v]]
+  (if (component? schema a)
+    {:db/id e a v}
+    [:db/add e a v]))
+
+(defn invalid?
+  [tx]
+  (and (vector? tx) (= :db/id (nth tx 2))))
 
 (defn deconstruct-ideal
-  [identifier {adds :+ retracts :- :keys [retracted cas]}]
+  [schema identifier {adds :+ retracts :- :keys [retracted cas]}]
   (let [e (identifier->e identifier)]
     (if retracted
       [[:db/retractEntity e]]
       (into
         []
         (concat
-          (map (fn [[a v]] [:db/add e a v]) adds)
-          (map (fn [a] [:db/retract e a]) retracts)
+          (->> adds
+               (map (partial deconstruct-add schema e))
+               (remove invalid?))
+          (map (fn [[a v]] [:db/retract e a v]) retracts)
           (map (fn [f] [:db/cas e f]) cas))))))
 
+(defn remove-nils
+  "remove pairs of key-value that has nil value from a (possibly nested) map. also transform map to nil if all of its value are nil"
+  [nm]
+  (clojure.walk/postwalk
+   (fn [el]
+     (if (map? el)
+       (not-empty (into {} (remove (comp nil? second)) el))
+       el))
+   nm))
+
 (defn deconstruct
-  [ideals]
-  (reduce into [] (map (partial apply deconstruct-ideal) ideals)))
+  [schema ideals]
+  (->>
+    (reduce into [] (map (partial apply deconstruct-ideal schema) ideals))
+    remove-nils
+    (filterv (fn [tx] (not (and (map? tx) (<= (count tx) 1)))))))
+
+(defn into-tx [schema tx more-statements]
+  "We don't care about the cardinality (schema) because the UI code is always
+  retracting values before adding new value, even in cardinality one case. This is a very
+  convenient feature and makes the local datoms cancel out properly always to not cause
+  us to re-assert datoms needlessly in datomic"
+  (deconstruct schema (construct schema (into tx more-statements))))
 
 (comment
   [[:db/add "a" :person/name "Alice"]
