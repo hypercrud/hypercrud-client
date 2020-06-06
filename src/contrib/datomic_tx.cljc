@@ -1,6 +1,7 @@
 (ns contrib.datomic-tx
   (:require
     [clojure.set :as set]
+    [clojure.pprint :refer [pprint]]
     [contrib.data :refer [update-existing update-in-existing deep-merge dissoc-nils]]
     [contrib.datomic :refer [tempid? cardinality? ref?
                              ref-one? ref-many? scalar-one? scalar-many?
@@ -151,6 +152,10 @@
       []
       forms)))
 
+(defn identity?
+  [schema a]
+  (= :db.unique/identity (get-in schema [a :db/unique :db/ident])))
+
 (defn identifier
   [schema stmt]
   (cond
@@ -167,11 +172,11 @@
           (vector? e)
           (conj {} e))
 
-        (when (= :db.unique/identity (get-in schema [a :db/unique :db/ident]))
+        (when (identity? schema a)
           {a v})))
 
     (map? stmt)
-    (let [idents (into {} (filter (fn [[a v]] (= :db.unique/identity (get-in schema [a :db/unique :db/ident]))) stmt))
+    (let [idents (into {} (filter (fn [[a v]] (identity? schema a)) stmt))
           {id :db/id tempid :tempid} stmt]
       (merge
        idents
@@ -221,7 +226,7 @@
 
 (defmethod absorb :db/add
   [schema identifier ideal [_ _ a v]]
-  [(if (= :db.unique/identity (get-in schema [a :db/unique]))
+  [(if (identity? schema a)
      (assoc identifier a v)
      identifier)
    (-> ideal
@@ -260,14 +265,14 @@
   ([schema tx]
    (construct schema [] tx))
   ([schema ideals tx]
-   (println tx)
+   (pprint (reduce (partial absorb-stmt schema) ideals tx))
    (reduce (partial absorb-stmt schema) ideals tx)))
 
 (defn identifier->e
-  [identifier]
+  [schema identifier]
   (or (:db/id identifier)
       (:tempid identifier)
-      :no-db-id
+      (first (filter (fn [[a v]] (identity? schema a)) identifier))
       #_(throw (ex-info {} "No :db/id or tempid defined for ideal (I don't think this will happen)"))))
 
 (defn deconstruct-add
@@ -282,7 +287,7 @@
 
 (defn deconstruct-ideal
   [schema identifier {adds :+ retracts :- :keys [retracted cas]}]
-  (let [e (identifier->e identifier)]
+  (let [e (identifier->e schema identifier)]
     (if retracted
       [[:db/retractEntity e]]
       (into

@@ -1,6 +1,7 @@
 (ns hyperfiddle.api                                         ; cljs can always import this
   (:refer-clojure :exclude [memoize])
   (:require
+
     [cats.monad.either :refer [left right]]
     [clojure.spec.alpha :as s]
     [taoensso.timbre :as timbre]))
@@ -19,8 +20,8 @@
   (basis-t [db])
   (pull [db arg-map])
   (with [db arg-map])
-  (history [db])                                            ; TODO
-  )
+  (history [db]))                                            ; TODO
+
 
 ; This protocol can be multimethods
 (defprotocol Browser
@@ -156,14 +157,17 @@
     ; Legacy compat - options by fiddle/renderer explicit props route to select via ref renderer
     (if (:options props)
       (extract-set (hyperfiddle.api/attr ctx) :db/valueType :db/cardinality))
-    (if (hyperfiddle.api/identity? ctx) #{:db.unique/identity})
+    (let [[pe pa pv] @(:hypercrud.browser/eav (:hypercrud.browser/parent ctx))
+          component? (-> ctx :hypercrud.browser/schema deref (get pa) :db/isComponent)]
+      (if (and (not component?) (hyperfiddle.api/identity? ctx))
+        #{:db.unique/identity}))
     (if-let [attr (hyperfiddle.api/attr ctx)]
       (extract-set attr :db/valueType :db/cardinality))
     (if (hyperfiddle.api/element ctx)
-      (extract-set ctx hyperfiddle.api/element-type))       ; :hf/variable, :hf/aggregate, :hf/pull
+      (extract-set ctx hyperfiddle.api/element-type))))       ; :hf/variable, :hf/aggregate, :hf/pull
     ;(contrib.datomic/parser-type (context/qfind ctx))       ; :hf/find-rel :hf/find-scalar
     ;:hf/blank
-    ))
+
 
 (defmethod tx :default [ctx eav props]
   nil)
