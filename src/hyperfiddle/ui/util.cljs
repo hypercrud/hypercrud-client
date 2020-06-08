@@ -26,10 +26,6 @@
         {component? :db/isComponent} (context/hydrate-attribute! (:hypercrud.browser/parent ctx) pa)]
     (case cardinality
       :db.cardinality/one
-      ; (if component?
-      ;   (if (vector? pe)
-      ;     [(conj {pa {a n}} pe)]
-      ;     [{:db/id pe pa {a n}}])
       (if (and component?
                (or (nil? e)
                    (and (vector? e) (= a (first e)))))

@@ -3,13 +3,9 @@
     [clojure.walk :as walk]
     [clojure.set :as set]
     [contrib.data :refer [update-existing update-in-existing deep-merge dissoc-nils]]
-    [contrib.datomic :refer [tempid? cardinality?
-                             ref-one? ref-many? scalar-one? scalar-many?
-                             isComponent unique attr?]]))
+    [contrib.datomic.schema :refer [ref? identity? component?]]
+    [contrib.datomic :refer [tempid? ref-one? ref-many? scalar-one? scalar-many? isComponent unique]]))
 
-(defn component?
-  [schema a]
-  (:db/isComponent (get schema a)))
 (defn- retract-entity [schema tx-data e]
   (let [{:keys [tx child-entids orphaned-parent-check]}
         (reduce (fn [acc next-stmt]
@@ -54,10 +50,6 @@
   (let [[[_ _ _ v]] (->> tx (filter (fn [[op e a v]]
                                       (= [op e a] [:db/add e-needle a-needle]))))]
     v))
-
-(defn ref?
-  [schema a]
-  (= :db.type/ref (get-in schema [a :db/valueType :db/ident])))
 
 (declare flatten-map-stmt)
 
@@ -139,10 +131,6 @@
           (conj acc form)))
       []
       forms)))
-
-(defn identity?
-  [schema a]
-  (= :db.unique/identity (get-in schema [a :db/unique :db/ident])))
 
 (defn identifier
   [schema stmt]
@@ -268,10 +256,11 @@
   (or (nil? tx)
       (and (map? tx) (<= (count tx) 1))
       (and (vector? tx)
-           (= :db/id (nth tx 2))
-           #_(let [[_ e a v] tx]
+           (or
+             (= :db/id (nth tx 2))
+             (let [[_ e a v] tx]
                (and (vector? e)
-                    (= e [a v]))))))
+                    (= e [a v])))))))
 
 (defn ->flatform-adds
   [e adds]
