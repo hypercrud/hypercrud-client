@@ -5,7 +5,7 @@
     [promesa.core :as p]
     ;[promesa.async]
     )
-  #?(:cljs (:require-macros [contrib.do])))
+  #?(:cljs (:require-macros [contrib.do :refer [do-async]])))
 
 (defn tag-type [tag]
   (some->> (re-matches #"^([A-Z][-a-z]*)(.*)$" (name tag)) second keyword))

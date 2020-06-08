@@ -38,7 +38,7 @@
 
 
 #?(:cljs
-   (defn Account [_ ctx _]
+   (defn Account [_ ctx props]
      (let [user @(:hypercrud.browser/result ctx)]
        [:div.container-fluid props
         [:div.p

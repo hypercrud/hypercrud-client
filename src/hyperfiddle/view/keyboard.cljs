@@ -6,7 +6,7 @@
 (defn code [^js e]
   (let [key (.-key e)]
     (if (= "Dead" key)
-      (get keys/native-map (.-which e) key)
+      (get keys/native-keys (.-which e) key)
       key)))
 
 (defn keyboard-key [^js e]
