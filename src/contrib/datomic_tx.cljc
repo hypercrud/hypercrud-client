@@ -300,8 +300,8 @@
 (defn deconstruct
   [schema ideals]
   (->> ideals
-       (remove-dangling-ids schema)
-       (ideals->tx schema)))
+       (ideals->tx schema)
+       (remove-dangling-ids schema)))
 
 (defn mappify-add-statements
   [adds]
