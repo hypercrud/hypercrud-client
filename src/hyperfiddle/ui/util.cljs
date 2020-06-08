@@ -1,5 +1,6 @@
 (ns hyperfiddle.ui.util
   (:require
+    [clojure.set :as set]
     [contrib.datomic-tx :as tx]
     [contrib.reactive :as r]
     [contrib.string :refer [empty->nil]]
@@ -9,35 +10,43 @@
     [hyperfiddle.runtime :as runtime]
     [taoensso.timbre :as timbre]))
 
+(defn change-tx
+  [e a o n]
+  (cond-> [] (some? o) (conj [:db/retract e a o])
+             (some? n) (conj [:db/add e a n])))
 
-(defn entity-change->tx                                     ; :Many editor is probably not idiomatic
-  ([ctx vorvs]
-   ; wut is going on with eav here in :many case
-   ; the parent would still be in scope i guess
-   (let [[_ a v] @(:hypercrud.browser/eav ctx)
-         o (if (not= :db.type/ref (contrib.datomic/valueType @(:hypercrud.browser/schema ctx) a))
-             v                                              ;(get entity a)      ; scalar
-             (case (contrib.datomic/cardinality @(:hypercrud.browser/schema ctx) a) ; backwards refs good here? lol
-               :db.cardinality/one v                        ;(context/smart-entity-identifier ctx (get entity a))
-               :db.cardinality/many (map (partial context/smart-entity-identifier ctx) vorvs)))]
-     (entity-change->tx ctx o vorvs)))
-  ([ctx o n]
-   (let [[e a v] @(:hypercrud.browser/eav ctx)
-         attribute (context/hydrate-attribute! ctx a)
-         component? (context/attr? (:hypercrud.browser/parent ctx) :db/isComponent)
-         n' (empty->nil n)]
-     ; hack for garbage string controls
-     (when (and (some? n) (nil? n'))
-       (timbre/warn "Trimming empty value to nil. This will be removed in a future release"))
-     (if (and component?
-              (or (nil? e)
-                  (and (vector? e) (= (first e) a))))
-       (let [[pe pa pv] @(:hypercrud.browser/eav (:hypercrud.browser/parent ctx))
-             pe (runtime/id->tempid! (:runtime ctx) (:partition-id ctx) "$" pe)
-             e (str pe pa)
-             tx (tx/edit-entity e attribute o n')]
-         (into [{:db/id pe pa {:db/id e}}] tx))
-       (tx/edit-entity e attribute o n')))))
+(defn entity-change->tx
+  [ctx o n]
+  (let [[e a v] @(:hypercrud.browser/eav ctx)
+        attribute (context/hydrate-attribute! ctx a)
+        component? (context/attr? (:hypercrud.browser/parent ctx) :db/isComponent)
+        n' (empty->nil n)
+        {a :db/ident {cardinality :db/ident} :db/cardinality} (context/hydrate-attribute! ctx a)
+        [pe pa pv] @(:hypercrud.browser/eav (:hypercrud.browser/parent ctx))
+        {component? :db/isComponent} (context/hydrate-attribute! (:hypercrud.browser/parent ctx) pa)]
+    (case cardinality
+      :db.cardinality/one
+      ; (if component?
+      ;   (if (vector? pe)
+      ;     [(conj {pa {a n}} pe)]
+      ;     [{:db/id pe pa {a n}}])
+      (if (and component?
+               (or (nil? e)
+                   (and (vector? e) (= a (first e)))))
+        (let [e (str pe pa)]
+          (into
+            [(if (vector? pe)
+               (conj {pa e} pe)
+               (let [pe (runtime/id->tempid! (:runtime ctx) (:partition-id ctx) (context/dbname ctx) pe)]
+                 {:db/id pe pa e}))]
+            (change-tx e a o n)))
+        (change-tx e a o n))
+
+      :db.cardinality/many
+      (let [o (set o)
+            n (set n)]
+        (vec (concat (map (fn [v] [:db/retract e a v]) (set/difference o n))
+                     (map (fn [v] [:db/add e a v]) (set/difference n o))))))))
 
 (defn ^:deprecated with-tx!
   ([ctx tx]

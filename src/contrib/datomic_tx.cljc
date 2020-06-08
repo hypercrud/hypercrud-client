@@ -1,31 +1,15 @@
 (ns contrib.datomic-tx
   (:require
+    [clojure.walk :as walk]
     [clojure.set :as set]
-    [clojure.pprint :refer [pprint]]
     [contrib.data :refer [update-existing update-in-existing deep-merge dissoc-nils]]
-    [contrib.datomic :refer [tempid? cardinality? ref?
+    [contrib.datomic :refer [tempid? cardinality?
                              ref-one? ref-many? scalar-one? scalar-many?
                              isComponent unique attr?]]))
 
 (defn component?
   [schema a]
   (:db/isComponent (get schema a)))
-
-(defn edit-entity "o/n are sets in the :many case"
-  [id attribute o n]
-  (let [{a :db/ident {cardinality :db/ident} :db/cardinality component? :db/isComponent} attribute]
-    (case cardinality
-      :db.cardinality/one
-      (cond-> []
-              (some? o) (conj [:db/retract id a o])
-              (some? n) (conj [:db/add id a n]))
-
-      :db.cardinality/many
-      (let [o (set o)
-            n (set n)]
-        (vec (concat (map (fn [v] [:db/retract id a v]) (set/difference o n))
-                     (map (fn [v] [:db/add id a v]) (set/difference n o))))))))
-
 (defn- retract-entity [schema tx-data e]
   (let [{:keys [tx child-entids orphaned-parent-check]}
         (reduce (fn [acc next-stmt]
@@ -70,6 +54,10 @@
   (let [[[_ _ _ v]] (->> tx (filter (fn [[op e a v]]
                                       (= [op e a] [:db/add e-needle a-needle]))))]
     v))
+
+(defn ref?
+  [schema a]
+  (= :db.type/ref (get-in schema [a :db/valueType :db/ident])))
 
 (declare flatten-map-stmt)
 
@@ -221,7 +209,7 @@
        (-> ideal
            (update-existing :- dissoc a)
            (update-in [:+ a] deep-merge v)))
-     (assoc ideal :retracted false)
+     ideal
      stmt)])
 
 (defmethod absorb :db/add
@@ -229,10 +217,11 @@
   [(if (identity? schema a)
      (assoc identifier a v)
      identifier)
-   (-> ideal
-       (assoc :retracted false)
-       (update-existing :- dissoc a)
-       (assoc-in [:+ a] v))])
+   (if (contains? (get ideal :-) a)
+     (if (= (get-in ideal [:- a]) v)
+       (update-existing ideal :- dissoc a)
+       (assoc-in ideal [:+ a] v))
+     (assoc-in ideal [:+ a] v))])
 
 (defmethod absorb :db/retract
   [schema identifier ideal [_ _ a v]]
@@ -265,7 +254,6 @@
   ([schema tx]
    (construct schema [] tx))
   ([schema ideals tx]
-   (pprint (reduce (partial absorb-stmt schema) ideals tx))
    (reduce (partial absorb-stmt schema) ideals tx)))
 
 (defn identifier->e
@@ -275,15 +263,19 @@
       (first (filter (fn [[a v]] (identity? schema a)) identifier))
       #_(throw (ex-info {} "No :db/id or tempid defined for ideal (I don't think this will happen)"))))
 
-(defn deconstruct-add
-  [schema e [a v]]
-  (if (component? schema a)
-    {:db/id e a v}
-    [:db/add e a v]))
-
 (defn invalid?
   [tx]
-  (and (vector? tx) (= :db/id (nth tx 2))))
+  (or (nil? tx)
+      (and (map? tx) (<= (count tx) 1))
+      (and (vector? tx)
+           (= :db/id (nth tx 2))
+           #_(let [[_ e a v] tx]
+               (and (vector? e)
+                    (= e [a v]))))))
+
+(defn ->flatform-adds
+  [e adds]
+  (mapv (fn [[a v]] [:db/add e a v]) adds))
 
 (defn deconstruct-ideal
   [schema identifier {adds :+ retracts :- :keys [retracted cas]}]
@@ -291,37 +283,64 @@
     (if retracted
       [[:db/retractEntity e]]
       (into
-        []
-        (concat
-          (->> adds
-               (map (partial deconstruct-add schema e))
-               (remove invalid?))
-          (map (fn [[a v]] [:db/retract e a v]) retracts)
-          (map (fn [f] [:db/cas e f]) cas))))))
+       []
+       (concat
+        (->flatform-adds e adds)
+        (map (fn [[a v]] [:db/retract e a v]) retracts)
+        (map (fn [f] [:db/cas e f]) cas))))))
 
-(defn remove-nils
-  "remove pairs of key-value that has nil value from a (possibly nested) map. also transform map to nil if all of its value are nil"
-  [nm]
-  (clojure.walk/postwalk
-   (fn [el]
-     (if (map? el)
-       (not-empty (into {} (remove (comp nil? second)) el))
-       el))
-   nm))
+(defn ideals->tx
+  [schema ideals]
+  (->>
+    ideals
+    (map (partial apply deconstruct-ideal schema))
+    (reduce into [])
+    (filterv (complement invalid?))))
+
+(defn remove-dangling-ids
+  [schema tx]
+  (let [called-tempids (set (map second tx))]
+    (vec
+     (remove
+      (fn [[_ e a v :as stmt]]
+        (and (ref? schema a)
+             (string? v)
+             (not (contains? called-tempids v))))
+      tx))))
 
 (defn deconstruct
   [schema ideals]
-  (->>
-    (reduce into [] (map (partial apply deconstruct-ideal schema) ideals))
-    remove-nils
-    (filterv (fn [tx] (not (and (map? tx) (<= (count tx) 1)))))))
+  (->> ideals
+       (remove-dangling-ids schema)
+       (ideals->tx schema)))
+
+(defn mappify-add-statements
+  [adds]
+  (let [add-groups (group-by second adds)]
+    (mapv
+      (fn [[id group]]
+        (into
+          (cond
+            (string? id) {:db/id id}
+
+            (vector? id) (let [[a v] id]
+                           {a v}))
+
+          (map (comp vec nnext) group)))
+      add-groups)))
+
+(defn mappify
+  [schema tx]
+  (reduce
+    into
+    (vals (update (group-by first tx) :db/add mappify-add-statements))))
 
 (defn into-tx [schema tx more-statements]
   "We don't care about the cardinality (schema) because the UI code is always
   retracting values before adding new value, even in cardinality one case. This is a very
   convenient feature and makes the local datoms cancel out properly always to not cause
   us to re-assert datoms needlessly in datomic"
-  (deconstruct schema (construct schema (into tx more-statements))))
+  (mappify schema (deconstruct schema (construct schema (construct schema tx) more-statements))))
 
 (comment
   [[:db/add "a" :person/name "Alice"]
