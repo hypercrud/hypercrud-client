@@ -65,8 +65,14 @@
                :on-key-down (r/partial on-key-down)
                :on-key-up   (r/partial on-key-up)}
         [TopNav {:ctx ctx}]
-        [iframe/iframe-cmp ctx]
-        [staging/inline-stage ctx]])))
+        ;; Below nesting and class lists is meant to preserve IDE CSS rules.
+        ;; They are complex and valuable enough to justify this patch.
+        ;; @see ide.css
+        [:div {:class "hyperfiddle hyperfiddle-ide -hyperfiddle-ide-edit"}
+         [:div {:class "-hyperfiddle-ide-preview"}
+          [:div {:id "root"}
+           [iframe/iframe-cmp ctx]]
+          [staging/inline-stage ctx]]]])))
 
 #?(:cljs
    (defn view [ctx]
