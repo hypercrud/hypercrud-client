@@ -55,94 +55,77 @@
           nil
           (merge v0 v1)))})))
 
-(def match|map
-  (reify
-    do/Do-via
-    (resolver-for
-      [H]
-      {:Match.match
-       (fn [[_ pattern target continuation]]
-         (if (empty? pattern)
-           (! :Return (empty? target))
-           (let [[pk pv] (first pattern)]
-             (! :Return.join
-              (-matches? pv (get target pk) [(dissoc pattern pk) (dissoc target pk)])
-              (apply -matches? continuation)))))})))
-
-(def match|vector
-  (reify
-    do/Do-via
-    (resolver-for
-      [H]
-      {:Match.match
-       (fn [[_ pattern target continuation]]
-         (if (empty? pattern)
-           (! :Return (empty? target))
+(deftype Matcher
+  []
+  do/Do-via
+  (resolver-for
+    [H]
+    {:Match.map
+     (fn [[_ pattern target continuation]]
+       (if (empty? pattern)
+         (! :Return (empty? target))
+         (let [[pk pv] (first pattern)]
            (! :Return.join
-            (-matches? (peek pattern) (peek target) [(pop pattern) (pop target)])
-            (apply -matches? continuation))))})))
+            (-matches? pv (get target pk) [(dissoc pattern pk) (dissoc target pk)])
+            (apply -matches? continuation)))))
 
-(def match|symbol
-  (reify
-    do/Do-via
-    (resolver-for
-      [H]
-      {:Match.match
-       (fn [[_ pattern target continuation]]
-         (cond
-           (= '_ pattern)
-           (apply -matches? continuation)
+     :Match.vector
+      (fn [[_ pattern target continuation]]
+        (if (empty? pattern)
+          (! :Return (empty? target))
+          (if (empty? target)
+            (! :Return false)
+            (! :Return.join
+             (-matches? (peek pattern) (peek target) [(pop pattern) (pop target)])
+             (apply -matches? continuation)))))
 
-           (! :Environment.contains? pattern)
-           (-matches? (! :Environment.get pattern) target continuation)
+     :Match.symbol
+      (fn [[_ pattern target continuation]]
+        (cond
+          (= '_ pattern)
+          (apply -matches? continuation)
 
-           :else
-           (do
-             (! :Environment.set pattern target)
-             (apply -matches? continuation))))})))
+          (! :Environment.contains? pattern)
+          (-matches? (! :Environment.get pattern) target continuation)
 
-(def match|fn
-  (reify
-    do/Do-via
-    (resolver-for
-      [H]
-      {:Match.match
-       (fn [[_ pattern target continuation]]
-         (if (apply pattern [target])
-           (apply -matches? continuation)
-           (! :Return false)))})))
+          :else
+          (do
+            (! :Environment.set pattern target)
+            (apply -matches? continuation))))
 
-(def match|val
-  (reify
-    do/Do-via
-    (resolver-for
-      [H]
-      {:Match.match
-       (fn [[_ pattern target continuation]]
-         (! :Return.join
-           (! :Return (= pattern target))
-           (apply -matches? continuation)))})))
+     :Match.fn
+      (fn [[_ pattern target continuation]]
+        (if (apply pattern [target])
+          (apply -matches? continuation)
+          (! :Return false)))
+
+     :Match.val
+      (fn [[_ pattern target continuation]]
+        (! :Return.join
+          (! :Return (= pattern target))
+          (apply -matches? continuation)))}))
+
 
 (defn match-dispatch
   [v]
   (condp apply [v]
-    vector? match|vector
-    map?    match|map
-    symbol? match|symbol
-    fn?     match|fn
-            match|val))
+    vector? :Match.vector
+    map?    :Match.map
+    symbol? :Match.symbol
+    fn?     :Match.fn
+            :Match.val))
 
 (defn -matches?
   ([] (! :Return true))
   ([pattern target & [continuation]]
-   (via* (match-dispatch pattern)
-         (! :Match.match pattern target continuation))))
+   (! (match-dispatch pattern) pattern target continuation)))
 
 (defn --matches?
   [pattern target]
   (via* (Environment.)
-    (! :Environment.init)
-    (-matches? pattern target)))
+    (via* (Matcher.)
+      (! :Environment.init)
+      (-matches? pattern target))))
 
 (defn matches?
   [pattern target]
@@ -162,20 +145,20 @@
      v))
 
 (defmacro match
-  [x & branches]
+  [expr & branches]
   (let [emit (fn emit [& branches]
                (cond
                  (empty? branches)
-                 `(throw (IllegalArgumentException. (str "No matching clause: " ~x)))
+                 `(throw (IllegalArgumentException. (str "No matching clause: " ~expr)))
 
                  (= 1 (count branches))
                  (first branches)
 
                  :else
-                 (let [[pred then & branches] branches
-                       pred (handle-quotes pred)
+                 (let [[form then & branches] branches
+                       form (handle-quotes form)
                        then (handle-quotes then)]
-                   `(if-let [env# (--matches? ~pred ~x)]
+                   `(if-let [env# (--matches? ~form ~expr)]
                       (walk/postwalk-replace env# ~then)
                       ~(apply emit branches)))))]
 
