@@ -2,7 +2,10 @@
   (:require
     [contrib.data :as data]
     [contrib.datomic :refer [indexed-schema]]
-    [contrib.datomic-tx :refer :all]
+    [contrib.datomic-tx :refer [into-tx mappify-add-statements flatten-tx construct remove-tx
+                                absorb expand-hf-tx find-datom identifier->e flatten-ref-stmt
+                                deconstruct-ideal flatten-map-stmt absorb-stmt ideal-idx remove-dangling-ids
+                                ideals->tx invalid? filter-tx unified-identifier mappify identifier deconstruct]]
     [clojure.set :as set]
     [clojure.test :refer [deftest is testing]]))
 
