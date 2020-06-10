@@ -17,6 +17,8 @@ jobs:
             - ~/.boot/cache/lib
             - ~/.boot/cache/bin
           key: test-clj-{{checksum "boot.properties"}}-{{checksum "build.boot"}}-{{checksum "deps.edn"}}
+      - store_test_results:
+          path: test-results
 
   test-cljs-yarn:
     docker:
@@ -33,6 +35,8 @@ jobs:
           paths:
             - node_modules
           key: test-cljs-yarn-{{checksum "yarn.lock"}}
+      - store_test_results:
+          path: test-results
 
   test-cljs:
     docker:
@@ -53,6 +57,9 @@ jobs:
             - ~/.boot/cache/lib
             - ~/.boot/cache/bin
           key: test-cljs-{{checksum "boot.properties"}}-{{checksum "build.boot"}}-{{checksum "deps.edn"}}
+      - store_test_results:
+          path: test-results
+
 
   build:
     docker:
