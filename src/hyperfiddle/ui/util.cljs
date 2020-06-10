@@ -12,6 +12,9 @@
 
 (defn change-tx
   [e a o n]
+  "Creates transactions based on value e.a changing from o to n
+   Has the caveat that it creates extraneous retracts when dealing
+   with cardinality/one case."
   (cond-> [] (some? o) (conj [:db/retract e a o])
              (some? n) (conj [:db/add e a n])))
 

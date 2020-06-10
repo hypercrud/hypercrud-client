@@ -167,17 +167,17 @@
         unified-ks (filter #(= (get id0 %) (get id1 %)) ks)]
     (if (empty? unified-ks)
       nil
-      (into {} (map (fn [k] [k (get id0 k)]) unified-ks)))))
+      (select-keys id0 unified-ks))))
 
 (defn ideal-idx
-  [identifier ideal]
+  [identifier ideals]
   (filterv
     identity
     (mapv
       (fn [[id grp] i]
         (when (unified-identifier identifier id)
           i))
-      ideal
+      ideals
       (range))))
 
 (defmulti absorb
@@ -190,8 +190,8 @@
       (first stmt))))
 
 (defmethod absorb :map
-  [schema identifier ideal stmt]
-  [identifier
+  [schema id ideal stmt]
+  [(merge id (identifier schema stmt))
    (reduce
      (fn [ideal [a v]]
        (-> ideal
@@ -229,7 +229,7 @@
   [identifier
    (if (contains? ideal :cas)
      (update ideal :cas conj f)
-     (assoc ideal :cas [f]))])
+     (assoc ideal :cas f))])
 
 (defn absorb-stmt
   [schema ideals stmt]
@@ -248,8 +248,7 @@
   [schema identifier]
   (or (:db/id identifier)
       (:tempid identifier)
-      (first (filter (fn [[a v]] (identity? schema a)) identifier))
-      #_(throw (ex-info {} "No :db/id or tempid defined for ideal (I don't think this will happen)"))))
+      (first (filter (fn [[a v]] (identity? schema a)) identifier))))
 
 (defn invalid?
   [tx]
@@ -257,14 +256,10 @@
       (and (map? tx) (<= (count tx) 1))
       (and (vector? tx)
            (or
-             (= :db/id (nth tx 2))
+             (= :db/id (nth tx 2 nil))
              (let [[_ e a v] tx]
                (and (vector? e)
                     (= e [a v])))))))
-
-(defn ->flatform-adds
-  [e adds]
-  (mapv (fn [[a v]] [:db/add e a v]) adds))
 
 (defn deconstruct-ideal
   [schema identifier {adds :+ retracts :- :keys [retracted cas]}]
@@ -274,9 +269,9 @@
       (into
        []
        (concat
-        (->flatform-adds e adds)
+        (map (fn [[a v]] [:db/add e a v])     adds)
         (map (fn [[a v]] [:db/retract e a v]) retracts)
-        (map (fn [f] [:db/cas e f]) cas))))))
+        (map (fn [[a f]]     [:db/cas e a f])       cas))))))
 
 (defn ideals->tx
   [schema ideals]
@@ -288,7 +283,7 @@
 
 (defn remove-dangling-ids
   [schema tx]
-  (let [called-tempids (set (map second tx))]
+  (let [called-tempids (set (filter string? (map second tx)))]
     (vec
      (remove
       (fn [[_ e a v :as stmt]]
@@ -322,6 +317,7 @@
   [schema tx]
   (reduce
     into
+    []
     (vals (update (group-by first tx) :db/add mappify-add-statements))))
 
 (defn into-tx [schema tx more-statements]
@@ -332,7 +328,7 @@
   (mappify schema (deconstruct schema (construct schema (construct schema tx) more-statements))))
 
 (comment
-  [[:db/add "a" :person/name "Alice"]
+ [[:db/add "a" :person/name "Alice"
    {:person/name "Bob"
     :person/parents [{:person/name "Cindy"}
                      {:person/name "David"}]}
@@ -347,7 +343,7 @@
 
 
   [[:db/add :db/retractEntity :hyperfiddle/whitelist-attribute true]
-   [:db/add :db/cas :hyperfiddle/whitelist-attribute true]])
+   [:db/add :db/cas :hyperfiddle/whitelist-attribute true]]])
 
 
 

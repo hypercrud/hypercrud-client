@@ -68,7 +68,13 @@
       to-string (fn [v]
                   (if v
                     (binding [*print-namespace-maps* true]
-                      (pprint-datoms-str (vec (some-> v reverse))))
+                      (let [s (->> v
+                                   reverse
+                                   (map (fn [x] (if (vector? x) (str x) (pprint-str x))))
+                                   (interpose \newline))]
+                        (str \[ (first s)
+                                (apply str (map #(str \space %) (rest s)))
+                             \])))
                     ""))
       on-change (fn [rt pid dbname-ref o n] (runtime/set-stage rt pid @dbname-ref n))]
   (defn- tab-content [rt pid dbname-ref & [child]]

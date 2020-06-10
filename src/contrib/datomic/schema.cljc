@@ -2,7 +2,11 @@
 
 (defn ref?
   [schema a]
-  (= :db.type/ref (get-in schema [a :db/valueType :db/ident])))
+  (= :db.type/ref
+     (let [unique (get-in schema [a :db/valueType])]
+       (if (map? unique)
+         (get unique :db/ident)
+         unique))))
 
 (defn component?
   [schema a]
@@ -10,12 +14,25 @@
 
 (defn identity?
   [schema a]
-  (= :db.unique/identity (get-in schema [a :db/unique :db/ident])))
+  (or (= :db/id a)
+      (= :db.unique/identity
+         (let [unique (get-in schema [a :db/unique])]
+           (if (map? unique)
+             (get unique :db/ident)
+             unique)))))
 
 (defn many?
   [schema a]
-  (= :db.cardinality/many identity (get-in schema [a :db/cardinality :db/ident])))
+  (= :db.cardinality/many
+     (let [cardinality (get-in schema [a :db/cardinality])]
+       (if (map? cardinality)
+         (get cardinality :db/ident)
+         cardinality))))
 
 (defn one?
   [schema a]
-  (= :db.cardinality/one identity (get-in schema [a :db/cardinality :db/ident])))
+  (= :db.cardinality/one
+     (let [cardinality (get-in schema [a :db/cardinality])]
+       (if (map? cardinality)
+         (get cardinality :db/ident)
+         cardinality))))
