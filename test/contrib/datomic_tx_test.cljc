@@ -523,7 +523,6 @@
   (is (= [[:db/add 1 2 3] [:db/add "asdf" "qwer" :zxcv]]
          (expand-hf-tx '[[contrib.datomic-tx-test/f 1 2 3] [:db/add "asdf" "qwer" :zxcv]]))))
 
-
 (deftest test|identifier
   (let [schema (map-by :db/ident seattle-schema-tx)]
     (is (= (identifier schema [:db/add "tempid" :community/name "community"])

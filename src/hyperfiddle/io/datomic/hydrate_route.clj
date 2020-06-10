@@ -19,7 +19,6 @@
     [hyperfiddle.def :as hf-def]
     [hyperfiddle.domain :as domain]
     [promesa.core :as p]
-    [hyperfiddle.scope :refer [scope]]
     [taoensso.timbre :as timbre]))
 
 (deftype RT [domain db-with-lookup get-secure-db-with+ state-atom ?subject]
@@ -36,12 +35,7 @@
 
             (get ptm request)                               ; cache
 
-            (let [result
-                  (hydrate-requests/hydrate-request domain get-secure-db-with+
-                    (case (:pull-exp request)
-                      :default (assoc request :pull-exp (-> :hyperfiddle/ide hyperfiddle.def/get-fiddle :fiddle/pull))
-                      request)
-                    ?subject)
+            (let [result (hydrate-requests/hydrate-request domain get-secure-db-with+ request ?subject)
 
                   ptm (assoc ptm request result)
 

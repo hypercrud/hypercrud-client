@@ -1,8 +1,6 @@
 (ns contrib.pprint-test
   (:require
-    [clojure.pprint]
-    [clojure.test :refer [deftest is]]
-    [contrib.pprint :refer [pprint-datoms-str]]))
+    [clojure.pprint]))
 
 
 (def stage

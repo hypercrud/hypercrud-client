@@ -6,6 +6,7 @@
     [contrib.datomic.schema :refer [ref? identity? component?]]
     [contrib.datomic :refer [tempid? ref-one? ref-many? scalar-one? scalar-many? isComponent unique]]))
 
+
 (defn- retract-entity [schema tx-data e]
   (let [{:keys [tx child-entids orphaned-parent-check]}
         (reduce (fn [acc next-stmt]

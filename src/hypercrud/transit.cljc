@@ -7,6 +7,7 @@
     #?(:cljs [com.cognitect.transit.types])
     [contrib.datomic :refer [->Schema #?(:cljs Schema)]]
     [contrib.uri :refer [->URI #?(:cljs URI)]]
+    [hyperfiddle.spec :refer [->Spec #?(:cljs Spec)]]
     [hypercrud.types.DbName :refer [->DbName #?(:cljs DbName)]]
     [hypercrud.types.DbRef :refer [->DbRef #?(:cljs DbRef)]]
     [hypercrud.types.EntityRequest :refer [->EntityRequest #?(:cljs EntityRequest)]]
@@ -21,6 +22,7 @@
        (cats.monad.exception Failure Success)
        (clojure.lang ExceptionInfo)
        (contrib.datomic Schema)
+       (hyperfiddle.spec Spec)
        (hypercrud.types.DbName DbName)
        (hypercrud.types.DbRef DbRef)
        (hypercrud.types.EntityRequest EntityRequest)
@@ -52,6 +54,7 @@
      "ex-info" (t/read-handler #(apply ex-info %))
      "sorted-map" (t/read-handler #(into (sorted-map) %))
      "ordered-map" (t/read-handler #(apply with-order %))
+     "spec" (t/read-handler #(apply ->Spec %))
      }))
 
 (def write-handlers
@@ -66,6 +69,7 @@
      ThinEntity (t/write-handler (constantly "entity") (fn [^ThinEntity v] [(.-dbname v) (.-id v)]))
      Left (t/write-handler (constantly "left-v") (fn [v] (vector (cats/extract v))))
      Right (t/write-handler (constantly "right-v") (fn [v] (vector (cats/extract v))))
+     Spec (t/write-handler (constantly "spec") (fn [v] [(:args v) (:ret v) (:attributes v)]))
      Failure (t/write-handler (constantly "failure-v") (fn [v] (vector (cats/extract v))))
      Success (t/write-handler (constantly "success-v") (fn [v] (vector (cats/extract v))))
      ExceptionInfo (t/write-handler (constantly "ex-info") (fn [ex] [(ex-message ex) (ex-data ex) (ex-cause ex)]))

@@ -1,13 +1,12 @@
 (ns hyperfiddle.config
   (:require
     [clojure.spec.alpha :as s]
-    [contrib.data :refer [to-keys tag]]
     [contrib.io :refer [get-edn get-resource]]
-    [hyperfiddle.scope :refer :all]
+    [hyperfiddle.api :as hf]
     [hyperfiddle.domain :refer [map->EdnishDomain]]
     [hyperfiddle.io.datomic.core]
-    [taoensso.timbre :refer [warn debug info]]
-    [hyperfiddle.api :as hf]))
+    [contrib.do :as do]
+    [taoensso.timbre :refer [warn info]]))
 
 
 (declare get-config)                                        ; convert config files to server config and user domain values
@@ -55,13 +54,13 @@
         domain (-> m
                  (update :basis #(or % (System/currentTimeMillis)))
                  (update :environment #(or % {}))
-                 (update :home-route #(or % {:hyperfiddle.route/fiddle :index}))
+                 (update :home-route #(or % {:hyperfiddle.route/fiddle ::hf/index}))
                  (update :fiddle-dbname #(or % "$hyperfiddle")) ; but only if hyperfiddle is listed as a database, TODO
                  (cond-> (:client-config m) (assoc :?datomic-client (hyperfiddle.io.datomic.core/dyna-client (:client-config m))))
                  (dissoc :client-config)
                  (assoc :memoize-cache (atom nil))
                  (assoc :config config)
-                 hyperfiddle.domain/map->EdnishDomain)]
+                 map->EdnishDomain)]
     (s/assert (or spec-selection hyperfiddle.domain/spec-ednish-domain) domain)
     domain))
 

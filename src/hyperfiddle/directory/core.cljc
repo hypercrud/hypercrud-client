@@ -1,11 +1,6 @@
 (ns hyperfiddle.directory.core
   (:require
-    [cats.core :refer [mlet]]
-    [cats.monad.either :as either]
-    [contrib.uri :refer [is-uri?]]
-    [hypercrud.types.DbRef :refer [->DbRef]]
-    [hypercrud.types.EntityRequest :refer [->EntityRequest]]
-    [hyperfiddle.domain :refer [map->EdnishDomain map->BidiDomain]]))
+    [cats.monad.either :as either]))
 
 
 (defn fiddle-dbname+ [datomic-record]

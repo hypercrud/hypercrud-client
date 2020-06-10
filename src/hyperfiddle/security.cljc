@@ -4,8 +4,8 @@
     #?(:clj [hyperfiddle.io.datomic.core])
     #?(:clj [hyperfiddle.schema])
     [contrib.datomic-tx :refer [remove-tx]]
-    [contrib.pprint :refer [pprint-str pprint-datoms-str]]
-    [taoensso.timbre :as timbre]
+    #?(:clj [contrib.pprint :refer [pprint-str pprint-datoms-str]])
+    #?(:clj [taoensso.timbre :as timbre])
     [hyperfiddle.api :as hf])
   #?(:clj
      (:import

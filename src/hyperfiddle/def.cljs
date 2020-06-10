@@ -1,5 +1,6 @@
 (ns hyperfiddle.def
-  (:require-macros [hyperfiddle.def]))
+  (:require-macros [hyperfiddle.def])
+  (:require [hyperfiddle.spec]))
 
 (def *defs (atom (hyperfiddle.def/lookup)))                 ; Copy JVM defs into CLJS via macro
 ; Can we get shadow-cljs to recompile this line whenever the clj *defs map changes?

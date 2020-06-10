@@ -1,15 +1,12 @@
 (ns hyperfiddle.ide.service.pedestal
   (:refer-clojure :exclude [sync])
   (:require
-    [hyperfiddle.service.resolve :as R]
-    [contrib.do :refer :all]
+    [contrib.base-64-url-safe :as base64-url-safe]
     [contrib.data :refer [unqualify]]
+    [contrib.do :refer :all]
     [hyperfiddle.api :as hf]
     [hyperfiddle.domain :as domain]
     [hyperfiddle.ide.authenticate]
-    [hyperfiddle.ide.directory :as ide-directory]           ; immoral
-    [hyperfiddle.ide.domain :as ide-domain]
-    [hyperfiddle.ide.service.core :as ide-service]
     [hyperfiddle.io.core :as io]
     [hyperfiddle.io.datomic.hydrate-requests :refer [hydrate-requests]]
     [hyperfiddle.io.datomic.sync :refer [sync]]
@@ -18,16 +15,16 @@
     [hyperfiddle.service.cookie :as cookie]
     [hyperfiddle.service.dispatch :as dispatch]
     [hyperfiddle.service.pedestal :as hf-http]
+    [hyperfiddle.service.resolve :as R]
     [promesa.core :as p]
-    [taoensso.timbre :as timbre]
-    [contrib.base-64-url-safe :as base64-url-safe])
+    [taoensso.timbre :as timbre])
   (:import
-    [hyperfiddle.ide.domain IdeDomain]))
+    [hyperfiddle.domain EdnishDomain]))
 
 
-(defmethod dispatch/via-domain IdeDomain [context]
+(defmethod dispatch/via-domain EdnishDomain [context]
   (let [domain (:domain (R/from context))
-        cookie-domain (::ide-directory/ide-domain domain)
+        cookie-domain (:hyperfiddle.ide.directory/ide-domain domain)
         {:keys [auth0]} (:config (R/from context))
         #_#_{:keys [cookie-name jwt-secret jwt-issuer]} (-> (get-in context [:request :domain])
                                                           domain/environment-secure :jwt)]
@@ -35,7 +32,7 @@
 
       auth0
       (hf-http/via
-        (hf-http/with-user-id ide-service/cookie-name
+        (hf-http/with-user-id "jwt"
           cookie-domain
           (:client-secret auth0)
           (:domain auth0)))
@@ -70,7 +67,7 @@
               (= "user" (namespace (:handler route)))
               (dispatch/endpoint
                 (update context :request #(-> (dissoc % :jwt) ; this is brittle
-                                              (assoc :domain (from-result (::ide-domain/user-domain+ domain))
+                                              (assoc :domain (from-result domain)
                                                      :handler (keyword (name (:handler route)))
                                                      :route-params (:route-params route)))))
 
@@ -109,7 +106,7 @@
           context
           {:status 302
            :headers {"Location" (-> (get-in request [:query-params :state]) base64-url-safe/decode)}
-           :cookies {ide-service/cookie-name (-> domain ::ide-directory/ide-domain
+           :cookies {"jwt" (-> domain :hyperfiddle.ide.directory/ide-domain
                                                  (cookie/jwt-options-pedestal)
                                                  (assoc :value jwt
                                                         #_#_:expires expiration))}
@@ -121,9 +118,9 @@
     context
     {:status 302
      :headers {"Location" "/"}
-     :cookies {ide-service/cookie-name (-> context :request :domain ::ide-directory/ide-domain
+     :cookies {"jwt" (-> context :request :domain :hyperfiddle.ide.directory/ide-domain
                                            (cookie/jwt-options-pedestal)
-                                           (assoc :value (get-in (:request context) [:cookies ide-service/cookie-name :value])
+                                           (assoc :value (get-in (:request context) [:cookies "jwt" :value])
                                                   :expires "Thu, 01 Jan 1970 00:00:00 GMT"))}
      :body ""}
     ))

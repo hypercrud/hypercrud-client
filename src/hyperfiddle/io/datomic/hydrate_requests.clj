@@ -2,11 +2,11 @@
   (:require
     [cats.core :as cats :refer [mlet]]
     [cats.monad.either :as either]
-    [cats.monad.exception :as exception :refer [try-on success]]
+    [cats.monad.exception :as exception :refer [try-on]]
     [clojure.set :as set]
     [clojure.string :as string]
-    [clojure.walk :refer [postwalk]]
     [contrib.data :refer [cond-let map-values parse-query-element]]
+    [contrib.do :as do]
     [contrib.datomic]
     [contrib.pprint :refer [pprint-str]]
     [contrib.try$ :refer [try-either]]
@@ -14,10 +14,8 @@
     [hypercrud.types.QueryRequest]
     [hypercrud.types.DbRef :refer [->DbRef]]
     [hyperfiddle.api :as hf]
-    [hyperfiddle.domain :as domain]
     [hyperfiddle.io.datomic.core :as d]
     [hyperfiddle.security]
-    [hyperfiddle.scope :refer [scope]]
     [taoensso.timbre :as timbre]
     [hyperfiddle.def :as hf-def]
     [contrib.datomic-tx :refer [expand-hf-tx]])
@@ -211,7 +209,7 @@
          (every? #(or (instance? EntityRequest %)
                       (instance? QueryRequest %)
                       (instance? EvalRequest %)) requests)]}
-  (scope [`hydrate-requests requests]
+  (do/scope [`hydrate-requests requests]
     (let [db-with-lookup (atom {})
           local-basis (into {} local-basis)                 ; :: ([dbname 1234]), but there are some duck type shenanigans happening
           get-secure-db-with+ (build-get-secure-db-with+ domain (constantly partitions) db-with-lookup local-basis ?subject)

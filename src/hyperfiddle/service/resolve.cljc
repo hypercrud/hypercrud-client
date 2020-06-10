@@ -42,22 +42,22 @@
                                                             true :405}
                        true                                :404}
         "favicon.ico" :favicon
-        true          {:get :ssr
-                       true :405}}])
-
-(def ide-routes
-  ["/" {"api/"        {"/"                       (api-routes nil)
-                       [[#"[^/]*" :version] "/"] {true :force-refresh}
-                       true                      :404}
-        "api-user/"   {"/"                       (api-routes "user")
-                       [[#"[^/]*" :version] "/"] {true :force-refresh}
-                       true                      :404}
         "auth0"       {:get  :hyperfiddle.ide/auth0-redirect
                        #".+" :404
                        true  :405}
         "logout"      {:post :hyperfiddle.ide/logout
                        #".+" :404
                        true  :405}
+        true          {:get :ssr
+                       true :405}}])
+
+(def ^:deprecated ide-routes
+  ["/" {"api/"        {"/"                       (api-routes nil)
+                       [[#"[^/]*" :version] "/"] {true :force-refresh}
+                       true                      :404}
+        "api-user/"   {"/"                       (api-routes "user")
+                       [[#"[^/]*" :version] "/"] {true :force-refresh}
+                       true                      :404}
         "static/"     {[:build "/" [#".+" :resource-name]] {:get :static-resource
                                                             true :405}
                        true                                :404}

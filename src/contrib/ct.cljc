@@ -2,7 +2,7 @@
   (:require
     [cats.core :refer [extract]]
     [cats.monad.either :as either :refer [left right]]
-    [cats.monad.maybe :as maybe :refer [maybe? just? just nothing nothing?]]))
+    [cats.monad.maybe :as maybe :refer [maybe? just nothing nothing?]]))
 
 
 (defn unwrap [lf v+]

@@ -9,7 +9,7 @@
     [hypercrud.types.Err :refer [->Err]]
     [hyperfiddle.api :as hf]
     [hyperfiddle.route]                                     ; spec validation
-    [taoensso.timbre]))
+    [taoensso.timbre :as timbre]))
 
 
 (defn- serializable-error [e]
@@ -237,8 +237,13 @@
 
 (def root-reducer (reducers/combine-reducers reducer-map))
 
-(defn dispatch! [rt [tag :as action]]
-  ; Log this deeper to deconstruct batch actions
+(defn dispatch! [rt action]
+  ;; Using js/console.debug with Chrome DevTools uses ~5ms instead of ~200ms for
+  ;; big dispatch events. An optimized logging strategy should be discussed.
+  ;; - JS/JVM specific optimizations
+  ;; - unified runtime-specific logging configuration / flags
+  #?(:clj (timbre/debug "dispatch!" action)
+     :cljs (js/console.debug "dispatch!" action))
   (reducers/dispatch! (hf/state rt) root-reducer action))
 
 (defn initialize [v] (root-reducer v nil))

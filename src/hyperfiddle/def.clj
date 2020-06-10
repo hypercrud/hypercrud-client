@@ -5,7 +5,8 @@
     [contrib.expr :refer :all]
     [contrib.do :refer [do-result]]
     [contrib.data :refer [qualify trim-str for-kv]]
-    [hyperfiddle.fiddle]))
+    [hyperfiddle.fiddle]
+    [hyperfiddle.spec :as hf-spec]))
 
 
 (declare def!) ; main definitions
@@ -218,7 +219,13 @@
 
        :fiddle/eval
        {:fiddle/type :eval
-        :fiddle/eval (-> v one map-expr)}
+        :fiddle/eval (-> v one map-expr)
+        :fiddle/spec (when-let [spec (s/get-spec (ffirst v))]
+                       (-> (hf-spec/parse spec)
+                           (hf-spec/fiddle-spec)))}
+
+       :fiddle/shape
+       {:fiddle/shape (-> v one map-expr)}
 
        :fiddle/code :fiddle/cljs-ns
 
@@ -252,6 +259,16 @@
     (if (not (map? kv))
       {kv v} kv)))
 
+(defn adjust-type
+  "When a fiddle is of type :fiddle/eval we want to be able to infer the resultset
+  schema from a static definition. Passing a :query parameter to a fiddle
+  provides a way to infer a schema, but this doesn't make this fiddle a :query
+  fiddle, so it should stay of type :eval."
+  [fiddle]
+  (if (contains? fiddle :fiddle/eval)
+    (assoc fiddle :fiddle/type :eval)
+    fiddle))
+
 (defn map-attrs [type & attrs]
   (->>
     (apply merge attrs)
@@ -267,7 +284,8 @@
                (-> k name keyword #{:query :pull :formula}) (map-expr v)
                (-> k name keyword #{:code :cljs-ns :renderer :markdown :css}) (repr-val v)
                () v)}))
-      {})))
+      {})
+    (adjust-type)))
 
 ; ---
 

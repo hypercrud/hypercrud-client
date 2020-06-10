@@ -7,7 +7,7 @@
     [cats.core :as cats :refer [mlet return]]
     [cats.monad.either :as either]
     [contrib.data :refer [update-existing for-kv]]
-    [contrib.do :refer [do-result from-result]]
+    [contrib.do :as do :refer [do-result from-result]]
     [clojure.string :as string]
     [contrib.datomic.common.query :as query]
     [contrib.reactive :as r]
@@ -22,7 +22,6 @@
     [hyperfiddle.fiddle :as fiddle]
     [hyperfiddle.route :as route]
     [hyperfiddle.runtime :as runtime]
-    [hyperfiddle.scope :refer [scope]]
     [taoensso.timbre :as timbre]
     [contrib.expr :as expr])
   #?(:clj
@@ -98,145 +97,69 @@
       lookup-ref)
     lookup-ref))
 
-(defn interp-attr [fiddle scope x]
-  (let [eval-mode (= (:eval/mode scope) :eval)]
-    (eval
-        (expr/unquote-via x
-          (fn eval-expr [x]
-            (cond (qualified-keyword? x) {:fiddle/ident (str x)}
+(declare eval-attr)
+(declare interp-attr)
+(declare normalize)
 
-                  (expr/form? x)
-                  (cond (qualified-keyword? (first x))
-                        {:fiddle/ident (first x)
-                         :fiddle/apply (vec (rest x))}
-                        () (if eval-mode x (list 'quote (list 'unquote x))))
-
-                  (not eval-mode)
-                  (list 'quote (list 'unquote x))
-
-                  (symbol? x)
-                  (get scope x x)
-
-                  (simple-keyword? x)
-                  (or (if (contains? scope x) (get scope x))
-                      (throw (ex-info (str "var " x " not defined in" (:fiddle/ident fiddle))
-                               {:x x :fiddle fiddle :scope scope})))
-
-                  () (throw (ex-info (str "unknown form" x "in" (:fiddle/ident fiddle))
-                              {:x x :fiddle fiddle :scope scope}))))))))
-
-(defn eval-attr [fiddle scope x]
-  (->
-    (do-result
-        (cond-> (interp-attr fiddle scope x)
-          (= (:eval/mode scope) :eval) eval))
-    (either/branch-left
-      (fn [e]
-        (timbre/error e "error in fiddle eval")
-        (either/left e)))
-    from-result))
-
-(defn get-fiddle-def [fiddle #_{rt :runtime pid :partition-id :as ctx}]
-  (when (find-ns 'hyperfiddle.def)
-    (@(resolve 'hyperfiddle.def/get-fiddle) fiddle)))
-
-(defn normalize [scope key val]
-  (case key
-    :fiddle/links
-    (reduce
-      (fn [[scope acc] link]
-        (let [[scope link]
-              (reduce-kv
-                (fn [[scope kv] k v]
-                  (let [[scope v] (normalize scope k v)]
-                    [scope (assoc kv k v)]))
-                [scope {}] link)]
-          [scope (conj acc (assoc link :db/id
-                                       ; hack for https://github.com/hyperfiddle/hyperfiddle/issues/1022
-                                       ; :db/id must be `long? if Datomic specs are in the spec registry
-                                       (-> scope :eval/env :route :hyperfiddle.route/fiddle hash)))]))
-      [scope []]
-      val)
-
-    :link/fiddle
-    (cond (expr/form? val)
-          [scope val]
-
-          (map? val)
-          [(update scope :eval/refs concat [(:fiddle/ident val)])
-           (cond (and (:fiddle/apply val)
-                      (= (:eval/mode val) :eval))
-                 (from-result
-                   (eval-fiddle+
-                     (merge (get-fiddle-def (:fiddle/ident val))
-                            (select-keys val [:fiddle/apply]))
-                     (:eval/env scope)))
-                 () (merge val
-                           (-> (get-fiddle-def (:fiddle/ident val))
-                               (select-keys [:db/id :fiddle/type :fiddle/query :fiddle/pull])
-                               (update-existing :fiddle/query str)
-                               (update-existing :fiddle/pull str)
-                               (update-existing :fiddle/eval str))))]
-
-          () [scope val])
-
-    [scope
-     (cond-> val
-       ((-> key name keyword) #{:code :cljs-ns :renderer :markdown :css
-                                :query :pull :eval :formula :path}) str)]))
+(defrecord Eval [fiddle scope]
+  do/Do-via
+  (resolver-for [h]
+    {:Eval.fiddle
+     (fn [_] (:fiddle do/*state))
+     :Eval.scope
+     (fn [_] (:scope do/*state))
+     :Eval.get-var
+     (fn [[_ name]] (get (:scope do/*state) name))
+     :Eval.set-var!
+     (fn [[_ name val]]
+       (set! do/*state (update do/*state assoc name val)))}))
 
 (defn eval-fiddle+ [fiddle {:keys [domain route ctx] :as env}]
-  (scope (into [`eval-fiddle+ (:fiddle/ident fiddle)] (seq (:fiddle/apply fiddle)))
+  (do/scope (into [`eval-fiddle+ (:fiddle/ident fiddle)] (seq (:fiddle/apply fiddle)))
     (->
       (do-result
+        (let [fiddle (fiddle/apply-defaults fiddle)]
 
-        (let
-          [fiddle (fiddle/apply-defaults fiddle)
+          (do/via*
+            (->Eval
+              fiddle
+              (merge
+                {:eval/env  env
+                 :eval/mode (fiddle/kind fiddle)
+                 :route     route}
+                (let [[_ system-fiddle db] (re-find #"([^\$]*)(\$.*)" (name (:fiddle/ident fiddle)))]
+                  (when system-fiddle
+                    {'domain       domain
+                     'db           db
+                     'user-db->ide (:hyperfiddle.ide.domain/user-dbname->ide domain)}))))
 
-           ; parse dbname out of fiddle-ident
-           [_ system-fiddle db] (re-find #"([^\$]*)(\$.*)" (name (:fiddle/ident fiddle)))
+            (doseq [[name x]
+                    (merge
+                      (zipmap (:fiddle/args fiddle)
+                              (concat (:fiddle/apply fiddle) (repeat nil)))
+                      (:fiddle/with fiddle))]
+              (do/! :Eval.set-var! name (eval-attr x)))
 
-           scope
-           (reduce-kv
-             (fn [scope k v]
-               (assoc scope k (eval-attr fiddle scope v)))
-             (merge
-               {:eval/env  env
-                :eval/mode (fiddle/kind fiddle)
-                :route route}
-               (when system-fiddle
-                 {'domain       domain
-                  'db           db
-                  'user-db->ide (:hyperfiddle.ide.domain/user-dbname->ide domain)}))
-             (merge
-               (zipmap (:fiddle/args fiddle)
-                       (concat (:fiddle/apply fiddle) (repeat nil)))
-               (:fiddle/with fiddle)))
+            (case (do/! :Eval.get-var :eval/mode)
 
-           fiddle
-           (-> fiddle
-               (dissoc :fiddle/args :fiddle/with :fiddle/apply)
-               (assoc :fiddle/ident
-                 (or (:ident scope) (:fiddle/ident fiddle))))
+              :skip (merge {:fiddle/type :blank}
+                      (select-keys fiddle [:fiddle/source]))
 
-           [scope fiddle]
-           (case (:eval/mode scope)
-             :skip [scope
-                    (merge {:fiddle/type :blank}
-                      (select-keys fiddle [:fiddle/source]))]
-             (for-kv fiddle [scope {}]
-               (fn [[scope kv] attr val]
-                 (let [x (interp-attr fiddle scope val)
-                       [scope x] (normalize scope attr x)]
-                   [scope (assoc kv attr x)]))))
-           ]
-          #_(timbre/debug fiddle)
-          fiddle
-          ))
-        (either/branch-left
-          (fn [e]
-            (timbre/error e)
-            (either/left e))))))
+              (let [fiddle
+                    (-> fiddle
+                        (dissoc :fiddle/args :fiddle/with :fiddle/apply)
+                        (assoc :fiddle/ident
+                          (or (do/! :Eval.get-var :ident) (:fiddle/ident fiddle))))]
+
+                (for-kv fiddle {}
+                  (fn [fiddle' attr val]
+                    (assoc fiddle' attr
+                      (normalize attr (interp-attr val))))))))))
+
+      (either/branch-left
+        (fn [e]
+          (timbre/error e)
+          (either/left e))))))
 
 (defn- resolve-route [route]
   (let [fiddle (::route/fiddle route)]
@@ -246,13 +169,39 @@
              ::route/db db)
       route)))
 
+(def fiddle-pull [:db/id
+                  :fiddle/css
+                  :fiddle/ident
+                  {:fiddle/links [:db/id
+                                  :link/class
+                                  {:link/fiddle [:db/id
+                                                 :fiddle/ident       ; routing
+                                                 :fiddle/query       ; validation
+                                                 :fiddle/type        ; validation
+                                                 #_:fiddle/eval      ; todo validation ?
+                                                 ]}
+                                  :link/formula
+                                  :link/path
+                                  :link/rel
+                                  :link/tx-fn]}
+                  :fiddle/markdown
+                  :fiddle/pull
+                  :fiddle/pull-database
+                  :fiddle/query
+                  :fiddle/cljs-ns
+                  :fiddle/renderer
+                  :fiddle/type
+                  :fiddle/hydrate-result-as-fiddle
+                  #_*                                                ; For hyperblog, so we can access :hyperblog.post/title etc from the fiddle renderer
+                  ])
+
 (defn- resolve-fiddle+ [rt pid route ctx]
   (do-result
 
     (let [route (resolve-route route)
           fiddle-ident (::route/fiddle route)
           db (runtime/db rt pid (hf/fiddle-dbname (hf/domain rt)))
-          request (->EntityRequest (legacy-fiddle-ident->lookup-ref fiddle-ident) db :default)
+          request (->EntityRequest (legacy-fiddle-ident->lookup-ref fiddle-ident) db fiddle-pull)
           record (from-result @(hf/request rt pid request))]
 
       (when-not (or (:db/id record) (:fiddle/source record))
@@ -361,3 +310,92 @@
   (if request
     @(hf/request rt pid request)
     (either/right nil)))
+
+(defn eval-error [x msg]
+  (throw (ex-info msg
+                  {:fiddle ((do/! :Eval.fiddle))
+                   :scope  (do/! :Eval.scope)
+                   :x      x})))
+
+(defn get-fiddle-def [fiddle #_{rt :runtime pid :partition-id :as ctx}]
+  (when (find-ns 'hyperfiddle.def)
+    (@(resolve 'hyperfiddle.def/get-fiddle) fiddle)))
+
+(defn eval-attr [x]
+  (->
+    (do-result
+      (cond-> (interp-attr x)
+        (= (do/! :Eval.get-var :eval/mode) :eval) eval))
+    (either/branch-left
+      (fn [e]
+        (timbre/error e "error in fiddle eval")
+        (either/left e)))
+    from-result))
+
+(defn interp-attr [x]
+  (let [eval-mode (= = (do/! :Eval.get-var :eval/mode) :eval :eval)]
+
+    (eval
+      (expr/unquote-via x
+        (fn eval-expr [x]
+
+          (cond (qualified-keyword? x) {:fiddle/ident (str x)}
+
+                (expr/form? x)
+                (cond (qualified-keyword? (first x))
+                      {:fiddle/ident (first x)
+                       :fiddle/apply (vec (rest x))}
+                      () (if eval-mode x (list 'quote (list 'unquote x))))
+
+                (not eval-mode)
+                (list 'quote (list 'unquote x))
+
+                (symbol? x)
+                (do/! :Eval.get-var x x)
+
+                (simple-keyword? x)
+                (or (if (contains? (do/! :Eval.scope) x) (do/! :Eval.get-var x))
+                    (eval-error x (str "var " x " not defined in" (:fiddle/ident (do/! :Eval.fiddle)))))
+
+                () (eval-error x (str "unknown form" x "in" (:fiddle/ident (do/! :Eval.fiddle))))
+                ))))))
+
+(defn normalize [key val]
+  (case key
+    :fiddle/links
+    (mapv (fn [link]
+            (-> (reduce-kv
+                  (fn [kv k v] (assoc kv k (normalize k v)))
+                  {} link)
+                (assoc :db/id
+                  ; hack for https://github.com/hyperfiddle/hyperfiddle/issues/1022
+                  ; :db/id must be `long? if Datomic specs are in the spec registry
+                  (-> (do/! :Eval.get-var :eval/env) :route :hyperfiddle.route/fiddle hash))))
+          val)
+
+    :link/fiddle
+    (cond (expr/form? val)
+          val
+
+          (map? val)
+          (do
+            (do/! :Eval.set-var! :eval/refs (concat (do/! :Eval.get-var :eval/refs) [(:fiddle/ident val)]))
+            (cond (and (:fiddle/apply val)
+                       (= (:eval/mode val) :eval))
+                  (from-result
+                    (eval-fiddle+
+                      (merge (get-fiddle-def (:fiddle/ident val))
+                        (select-keys val [:fiddle/apply]))
+                      (do/! :Eval.get-var :eval/env)))
+                  () (merge val
+                       (-> (get-fiddle-def (:fiddle/ident val))
+                           (select-keys [:db/id :fiddle/type :fiddle/query :fiddle/pull])
+                           (update-existing :fiddle/query str)
+                           (update-existing :fiddle/pull str)
+                           (update-existing :fiddle/eval str)))))
+
+          () val)
+
+    (cond-> val
+      ((-> key name keyword) #{:code :cljs-ns :renderer :markdown :css
+                               :query :pull :eval :formula :path}) str)))

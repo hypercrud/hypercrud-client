@@ -1,6 +1,6 @@
 (ns contrib.string
   (:require
-    [clojure.string :as string :refer [join split]]
+    [clojure.string :as string]
     [contrib.data :refer [orp pad]]
     [cuerdas.core :as str]))
 
@@ -47,11 +47,11 @@
 #?(:cljs                                                    ; todo clj
    (defn lpad-str [n zero s]
      (-> s
-         (split "")
+         (str/split "")
          reverse                                            ; make it a left pad
          (->> (pad 2 zero))                                 ; this is a right-pad
          reverse
-         join)))
+         str/join)))
 
 (defn str-last-n [n s]
   #?(:clj (.substring s (max 0 (- (.length s) n)))

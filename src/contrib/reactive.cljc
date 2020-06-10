@@ -1,7 +1,6 @@
 (ns contrib.reactive
   (:refer-clojure :exclude [atom comp constantly partial sequence apply])
-  (:require [cats.core :as cats :refer [return]]
-            [cats.monad.either :refer [branch left right]]
+  (:require [cats.core :as cats]
             [clojure.spec.alpha :as s]
             [contrib.data :as util]
     #?(:cljs [reagent.core :as reagent])

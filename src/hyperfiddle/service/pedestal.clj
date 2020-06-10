@@ -1,14 +1,11 @@
 (ns hyperfiddle.service.pedestal
   (:require
     [clojure.string :as string]
-    [promesa.core :as p]
     [taoensso.timbre :as timbre]
     [cognitect.transit :as transit]
     [hypercrud.transit :as hc-t]
-    [clojure.core.async :refer [chan put!]]
     [contrib.pprint]
     [contrib.do :refer :all]
-    [hyperfiddle.scope :refer :all]
     [hyperfiddle.core]
     [hyperfiddle.service.cookie :as cookie]
     [hyperfiddle.service.jwt :as jwt]
@@ -23,8 +20,7 @@
     [io.pedestal.interceptor.chain]
     [io.pedestal.http.secure-headers :as secure-headers]
     [ring.middleware.file :as file]
-    [ring.middleware.resource :as resource]
-    [ring.util.response :as ring-resp])
+    [ring.middleware.resource :as resource])
 
   (:import
     [com.auth0.jwt.exceptions JWTVerificationException]

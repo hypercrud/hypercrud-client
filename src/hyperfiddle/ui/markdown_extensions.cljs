@@ -1,6 +1,6 @@
 (ns hyperfiddle.ui.markdown-extensions
   (:require
-    [cats.core :refer [fmap mlet return]]
+    [cats.core :refer [fmap]]
     [cats.monad.either :as either]
     [contrib.css :refer [css]]
     [contrib.ct :refer [unwrap]]
@@ -13,7 +13,6 @@
     [goog.object]
     [hypercrud.browser.context :as context]
     [hyperfiddle.ui]
-    [hyperfiddle.ui.error :refer [error-comp]]
     [taoensso.timbre :as timbre]))
 
 
