@@ -17,36 +17,36 @@
         (update-existing :ns-regex #(java.util.regex.Pattern/compile %)))))
 
 (defn test-clj
-  [{:keys [output ns-regex]}]
+  [args]
+  (let [{:keys [output test ns-regex]
+         :or {ns-regex #".*"}
+         :as args}
+        (parse-args args)]
 
-  (apply require :reload
-    (nsfind/find-namespaces-in-dir (io/file "test") nsfind/clj))
+    (apply require :reload
+      (nsfind/find-namespaces-in-dir (io/file "test") nsfind/clj))
 
-  (let [namespaces (filter #(re-matches ns-regex (name (ns-name %))) (all-ns))]
-    (with-open [w (if output
-                    (io/writer output :append false)
-                    (io/writer *out* :append true))]
-      (binding [clojure.test/*test-out* w]
-        (junit/with-junit-output
-          (apply clj-test/run-tests namespaces))))))
+    (when output
+      (io/make-parents (io/file output)))
+
+    (let [namespaces (filter #(re-matches ns-regex (name (ns-name %))) (all-ns))]
+      (with-open [w (if output
+                      (io/writer output :append false)
+                      (io/writer *out* :append true))]
+        (binding [clojure.test/*test-out* w]
+          (junit/with-junit-output
+            (apply clj-test/run-tests namespaces)))))))
 
 
 ; -namespace-regex "hyper.*|contrib.*" --env node
 ; [env dir out watch ns-symbols ns-regexs var include exclude verbose compile-opts doo-opts]
 (defn test-cljs
-  [{:keys [env ns-regex output]}]
-  (with-open [w (if output
-                  (io/writer output :append false)
-                  (io/writer *out* :append true))]
-    (cljs-test-runner/-main "-r" ns-regex "-x" env)))
+  [args]
+  (apply cljs-test-runner/-main args))
 
 (defn -main
   [target & args]
-  (let [{:keys [output test ns-regex]
-         :or {ns-regex #".*"}
-         :as args}
-        (parse-args args)]
-    (condp = target
-      "clj"  (test-clj args)
-      "cljs" (test-cljs args)
-      (ex-info (str "Unsupported target: " target {:target target})))))
+  (condp = target
+    "clj"  (test-clj args)
+    "cljs" (test-cljs args)
+    (ex-info (str "Unsupported target: " target {:target target}))))

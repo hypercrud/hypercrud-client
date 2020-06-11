@@ -10,13 +10,13 @@ jobs:
       - checkout
       - restore_cache:
           key: test-clj-{{checksum "deps.edn"}}
-      - run: clojure -A:test-clj :output test_clj.xml :ns-regex "hyper.*|contrib.*"
+      - run: clojure -A:test-clj :output test-results/clojure/results.xml :ns-regex "hyper.*|contrib.*"
       - save_cache:
           paths:
             - ~/.m2
           key: test-clj-{{checksum "deps.edn"}}
       - store_test_results:
-          path: test_clj.xml
+          path: test-results
 
   test-cljs-yarn:
     docker:
@@ -45,13 +45,13 @@ jobs:
           at: .
       - restore_cache:
           key: test-cljs-{{checksum "deps.edn"}}
-      - run: clojure -A:test-cljs -namespace-regex "hyper.*|contrib.*" --env node
+      - run: clojure -A:test-cljs --namespace-regex "hyper.*|contrib.*" --env node
       - save_cache:
           paths:
             - ~/.m2
           key: test-cljs-{{checksum "deps.edn"}}
       - store_test_results:
-          path: test_cljs.xml
+          path: test-results
 
 
   build:
