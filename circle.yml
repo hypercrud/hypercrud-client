@@ -50,8 +50,8 @@ jobs:
           paths:
             - ~/.m2
           key: test-cljs-{{checksum "deps.edn"}}
-      - store_test_results:
-          path: test-results
+      #- store_test_results:
+          #path: test-results
 
 
   build:
