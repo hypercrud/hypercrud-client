@@ -1,22 +1,19 @@
 (ns hyperfiddle.ui.iframe
   (:require
-    [cats.monad.either :as either]
     [clojure.spec.alpha :as s]
     [contrib.css :refer [css css-slugify]]
-    [contrib.eval-cljs :as eval-cljs]
     [contrib.pprint :refer [pprint-str]]
     [contrib.reactive :as r]
     [contrib.reader :as reader]
-    [contrib.string :refer [blank->nil]]
     [contrib.ui]
     [contrib.ui.safe-render :refer [user-portal]]
     [hypercrud.browser.base :as base]
-    [hypercrud.browser.context :as context]
     [hyperfiddle.runtime :as runtime]
     [hyperfiddle.ui.error :as ui-error]
     [hyperfiddle.ui.stale :as stale]
     [hyperfiddle.api :as hf]
-    [taoensso.timbre :as timbre]))
+    [taoensso.timbre :as timbre]
+    [clojure.string :as str]))
 
 
 (defn auto-ui-css-class [?ctx]                              ; semantic css
@@ -28,44 +25,36 @@
 
 (defn- fiddle-css-renderer [s] [:style {:dangerouslySetInnerHTML {:__html @s}}])
 
-(defn- build-wrapped-render-expr-str [user-str]
-  (str "(fn [val ctx props]\n" (cond-> user-str (not (string? user-str)) (clojure.string/join "\n")) ")"))
+(defn- render-fiddle
+  "Proxy to the `hf/render-fiddle` multimethod. Since `hf/render-fiddle` is a
+  multimethod, you want to call this function instead to ensure reagent will
+  react properly on props change. See
+  https://stackoverflow.com/questions/33299746/why-are-multi-methods-not-working-as-functions-for-reagent-re-frame"
+  [val ctx props]
+  [hf/render-fiddle val ctx props])
 
 (defn- fiddle-renderer-cmp [value ctx props & bust-component-did-update]
-  (let [last-cljs-ns (atom nil)]                            ; don't spam the compiler - memoize buffer of 1
-    (fn [value ctx props & bust-component-did-update]
-      (let [cljs-ns @(r/fmap-> (:hypercrud.browser/fiddle ctx) :fiddle/cljs-ns blank->nil)] ; always do this
-        (when (and (some? cljs-ns)
-                   (not= @last-cljs-ns cljs-ns))
-          (eval-cljs/eval-statement-str! 'user cljs-ns))    ; Exceptions caught at user-portal error-comp
-        (reset! last-cljs-ns cljs-ns)
+  (let [props props #_(select-keys props [:class :initial-tab :on-click #_:disabled])]
+    (case (:hyperfiddle.ui/display-mode ctx)
 
-        (let [props props #_(select-keys props [:class :initial-tab :on-click #_:disabled])]
-          (case (:hyperfiddle.ui/display-mode ctx)
+      :hypercrud.browser.browser-ui/user
+      [:<>
+       (if-let [user-renderer (:user-renderer props)] ; validate qfind and stuff?
+         [user-renderer value ctx props]
+         [render-fiddle value ctx props])
+       [fiddle-css-renderer (r/cursor (:hypercrud.browser/fiddle ctx) [:fiddle/css])]]
 
-            :hypercrud.browser.browser-ui/user
-            [:<>
-             (if-let [user-renderer (:user-renderer props)] ; validate qfind and stuff?
-               [user-renderer value ctx props]
-               (-> @(r/cursor (:hypercrud.browser/fiddle ctx) [:fiddle/renderer])
-                   build-wrapped-render-expr-str
-                   (->> (context/eval-expr-str!+ ctx))
-                   (either/branch
-                     (fn [e] (throw e))
-                     (fn [f] [f value ctx props]))))
-             [fiddle-css-renderer (r/cursor (:hypercrud.browser/fiddle ctx) [:fiddle/css])]]
+      :hypercrud.browser.browser-ui/xray
+      [:<>
+       (if-let [user-renderer (:user-renderer props)]
+                                        ; don't use r/partial with user-renderer, r/partial useful for args, not components
+                                        ; Select user-renderer is valid in xray mode now
+         [user-renderer value ctx props]
+         [hyperfiddle.ui/fiddle-xray value ctx props])
+       [fiddle-css-renderer (r/cursor (:hypercrud.browser/fiddle ctx) [:fiddle/css])]]
 
-            :hypercrud.browser.browser-ui/xray
-            [:<>
-             (if-let [user-renderer (:user-renderer props)]
-               ; don't use r/partial with user-renderer, r/partial useful for args, not components
-               ; Select user-renderer is valid in xray mode now
-               [user-renderer value ctx props]
-               [hyperfiddle.ui/fiddle-xray value ctx props])
-             [fiddle-css-renderer (r/cursor (:hypercrud.browser/fiddle ctx) [:fiddle/css])]]
-
-            :hypercrud.browser.browser-ui/api
-            [hyperfiddle.ui/fiddle-api value ctx props]))))))
+      :hypercrud.browser.browser-ui/api
+      [hyperfiddle.ui/fiddle-api value ctx props])))
 
 (defn- ui-comp [ctx & [props]]                              ; user-renderer comes through here
   (let [value @(:hypercrud.browser/result ctx)              ; TODO remove this, make them ask

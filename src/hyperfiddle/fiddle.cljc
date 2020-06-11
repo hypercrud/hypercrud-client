@@ -9,7 +9,7 @@
     [cats.monad.either :as either :refer [right]]
     [clojure.spec.alpha :as s]
     [contrib.ct :refer [unwrap]]
-    [contrib.data :refer [update-existing]]
+    [contrib.data :refer [orf update-existing]]
     [contrib.reader]
     [contrib.string :refer [or-str]]
     [contrib.template :refer [load-resource]]
@@ -18,7 +18,8 @@
     [cuerdas.core :as str]
     [datascript.parser]
     #_[hyperfiddle.api] ; tempid formulas
-    [taoensso.timbre :as timbre]))
+    [taoensso.timbre :as timbre]
+    [hyperfiddle.api :as hf]))
 
 
 (s/def :swing/quux string?)
@@ -33,7 +34,6 @@
                                                :opt [:link/class :link/fiddle :link/formula :link/tx-fn])
                                        #_(s/multi-spec fiddle-link :link/class))))
 (s/def :fiddle/markdown string?)
-(s/def :fiddle/renderer string?)
 (s/def :fiddle/css string?)
 (s/def :fiddle/cljs-ns string?)
 (s/def :fiddle/hydrate-result-as-fiddle boolean?)
@@ -147,18 +147,16 @@
                                      :else ":db/retractEntity")) ; legacy compat, remove
                    nil))})
 
-; to be manually kept in sync with hf.ui/fiddle
-(def ^:private default-renderer-str
-  ; Format this manually:
-  ; - Syntax quote will expand @ into `(clojure.core/deref ..)`
-  ; - pretty printers suck at clojure, even the slow one
-  ; embedded newline lets this pass the cursive clojure formatter
-  (-> "
-(let [{:keys [:hypercrud.browser/fiddle]} ctx]
-  [:div.container-fluid props
-   [:h1 (str (:fiddle/ident @fiddle))]
-   [hyperfiddle.ui/result val ctx {}]])"
-      (str/ltrim "\n")))
+;; to be manually kept in sync with hf.ui/fiddle
+(defmethod hf/render-fiddle :default [val ctx props]
+  ;; Format this manually:
+  ;; - Syntax quote will expand @ into `(clojure.core/deref ..)`
+  ;; - pretty printers suck at clojure, even the slow one
+  ;; embedded newline lets this pass the cursive clojure formatter
+  (let [{:keys [:hypercrud.browser/fiddle]} ctx]
+    #?(:cljs [:div.container-fluid props
+              [hyperfiddle.ui/markdown (:fiddle/markdown @fiddle) ctx]
+              [hyperfiddle.ui/result val ctx props]])))
 
 (def fiddle-defaults
   ; touching this is sensitive to build-pid-from-link and can cause deepbugs in the rt
@@ -167,7 +165,6 @@
    :fiddle/pull-database (constantly "$")
    :fiddle/query (constantly "" #_(load-resource "fiddle-query-default.edn"))
    :fiddle/eval (constantly "(->> \n  (datomic.api/q\n   '[:in $ \n     :find [(pull ?e [:db/ident]) ...]     ; Final value must match FindColl pattern as here\n     :where [?e :db/ident]]\n   hyperfiddle.api/*$*)\n  (sort-by :db/ident)\n  (take 20))\n")
-   :fiddle/renderer (constantly default-renderer-str)
    :fiddle/type (constantly :blank)})                       ; Toggling default to :query degrades perf in ide
 
 (defn auto-link+ [schemas qin link]
@@ -184,7 +181,7 @@
   [fiddle]
   ; touching this is sensitive to build-pid-from-link and can cause deepbugs in the rt
   (as-> fiddle fiddle
-    (update fiddle :fiddle/type #(or % ((:fiddle/type fiddle-defaults) fiddle)))
+    (update fiddle :fiddle/type (orf ((:fiddle/type fiddle-defaults) fiddle)))
     (case (:fiddle/type fiddle)
       :query (update fiddle :fiddle/query or-str ((:fiddle/query fiddle-defaults) fiddle))
       :entity (-> fiddle
@@ -193,8 +190,7 @@
                     (empty? (:fiddle/pull fiddle)) (assoc :fiddle/pull ((:fiddle/pull fiddle-defaults) fiddle))))
       :eval (update fiddle :fiddle/eval or-str ((:fiddle/eval fiddle-defaults) fiddle))
       :blank fiddle)
-    (update fiddle :fiddle/markdown or-str ((:fiddle/markdown fiddle-defaults) fiddle))
-    (update fiddle :fiddle/renderer or-str ((:fiddle/renderer fiddle-defaults) fiddle))))
+    (update fiddle :fiddle/markdown or-str ((:fiddle/markdown fiddle-defaults) fiddle))))
 
 (defn apply-fiddle-links-defaults+ "Link defaults require a parsed qfind, so has to be done separately later."
   [fiddle schemas qparsed]

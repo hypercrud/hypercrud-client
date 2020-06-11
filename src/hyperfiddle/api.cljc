@@ -140,7 +140,7 @@
 
 (declare render-dispatch)
 
-; Dispatch is a set
+;; Dispatch is a set
 (defmulti render (fn [ctx props]
                    (render-dispatch ctx props)))
 
@@ -172,6 +172,8 @@
     ;(contrib.datomic/parser-type (context/qfind ctx))       ; :hf/find-rel :hf/find-scalar
     ;:hf/blank
 
+
+(defmulti render-fiddle (fn [_val ctx _props] (fiddle ctx)))
 
 (defmethod tx :default [ctx eav props]
   nil)
