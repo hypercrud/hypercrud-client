@@ -36,10 +36,10 @@
         (binding [clojure.test/*test-out* w]
           (let [failed? (atom false)]
             (junit/with-junit-output
-              (let [{:keys [failed]} (apply clj-test/run-tests namespaces)]
-                (when-not (zero? failed)
-                  (reset! failed true))))
-            (when failed?
+              (let [{:keys [fail]} (apply clj-test/run-tests namespaces)]
+                (when-not (or (nil? fail) (zero? fail))
+                  (reset! failed? true))))
+            (when @failed?
               (System/exit 1))))))))
 
 ; -namespace-regex "hyper.*|contrib.*" --env node
