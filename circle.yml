@@ -2,23 +2,21 @@ version: 2
 jobs:
   test-clj:
     docker:
-      - image: clojure:boot-2.8.1-alpine
+      - image: clojure:tools-deps
         environment:
           BOOT_JVM_OPTIONS: "-Xms1024m -Xmx2048m"
           BOOT_WATCHERS_DISABLE: "yes"
     steps:
       - checkout
       - restore_cache:
-          key: test-clj-{{checksum "boot.properties"}}-{{checksum "build.boot"}}-{{checksum "deps.edn"}}
-      - run: boot test-clj
+          key: test-clj-{{checksum "deps.edn"}}
+      - run: clj -A:test-clj :output test_clj.xml :ns-regex "hyper.*|contrib.*"
       - save_cache:
           paths:
             - ~/.m2
-            - ~/.boot/cache/lib
-            - ~/.boot/cache/bin
-          key: test-clj-{{checksum "boot.properties"}}-{{checksum "build.boot"}}-{{checksum "deps.edn"}}
+          key: test-clj-{{checksum "deps.edn"}}
       - store_test_results:
-          path: test-results
+          path: test_clj.xml
 
   test-cljs-yarn:
     docker:
@@ -36,29 +34,24 @@ jobs:
             - node_modules
           key: test-cljs-yarn-{{checksum "yarn.lock"}}
       - store_test_results:
-          path: test-results
+          path: test_yarn.xml
 
   test-cljs:
     docker:
-      - image: hyperfiddle/boot-node
-        environment:
-          BOOT_JVM_OPTIONS: "-Xms1024m -Xmx2048m"
-          BOOT_WATCHERS_DISABLE: "yes"
+      - image: clojure:tools-deps
     steps:
       - checkout
       - attach_workspace:
           at: .
       - restore_cache:
-          key: test-cljs-{{checksum "boot.properties"}}-{{checksum "build.boot"}}-{{checksum "deps.edn"}}
-      - run: boot test-cljs -x
+          key: test-cljs-{{checksum "deps.edn"}}
+      - run: clj -A:test-cljs -namespace-regex "hyper.*|contrib.*" --env node
       - save_cache:
           paths:
             - ~/.m2
-            - ~/.boot/cache/lib
-            - ~/.boot/cache/bin
-          key: test-cljs-{{checksum "boot.properties"}}-{{checksum "build.boot"}}-{{checksum "deps.edn"}}
+          key: test-cljs-{{checksum "deps.edn"}}
       - store_test_results:
-          path: test-results
+          path: test_cljs.xml
 
 
   build:
