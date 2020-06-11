@@ -79,10 +79,4 @@
    (defn view [ctx]
      [:div {:style {:height "100%"}}
       [:style {:dangerouslySetInnerHTML {:__html (:project/css (hyperfiddle.runtime/get-project (:runtime ctx) (:partition-id ctx)))}}]
-      (-> (hyperfiddle.runtime/get-project (:runtime ctx) (:partition-id ctx))
-          :project/code
-          project/eval-domain-code!+
-          (either/branch
-           (fn [e] [:div [:h2 {:style {:margin-top "10%" :text-align "center"}} "Misconfigured domain"]])
-           (fn [_]
-             [Main ctx])))]))
+      [Main ctx]]))

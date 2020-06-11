@@ -146,7 +146,7 @@
 (defn ^:export hyper-control "Val is for userland field renderers, our builtin controls use ctx and ignore val."
   [val ctx & [props]]
   {:post [%]}
-  (or (attr-renderer-control val ctx props)                 ; compat
+  (or (attr-renderer-control val ctx props)                 ; compat TODO: remove this line, hyper-control === hf/render
       (hf/render ctx props)))
 
 (defn ^:export hyper-label [_ ctx & [props]]                ; props has sort :on-click

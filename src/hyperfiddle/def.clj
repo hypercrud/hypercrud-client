@@ -227,7 +227,7 @@
        :fiddle/shape
        {:fiddle/shape (-> v one map-expr)}
 
-       :fiddle/code :fiddle/cljs-ns
+       :fiddle/code :fiddle/cljs-ns ;; DEPRECATED
 
        :fiddle/links
        {:fiddle/links
