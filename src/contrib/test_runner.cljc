@@ -34,11 +34,13 @@
                       (io/writer output :append false)
                       (io/writer *out* :append true))]
         (binding [clojure.test/*test-out* w]
-          (junit/with-junit-output
-            (let [{:keys [failed]} (apply clj-test/run-tests namespaces)]
-              (when-not (zero? failed)
-                (System/exit 1)))))))))
-
+          (let [failed? (atom false)]
+            (junit/with-junit-output
+              (let [{:keys [failed]} (apply clj-test/run-tests namespaces)]
+                (when-not (zero? failed)
+                  (reset! failed true))))
+            (when failed?
+              (System/exit 1))))))))
 
 ; -namespace-regex "hyper.*|contrib.*" --env node
 ; [env dir out watch ns-symbols ns-regexs var include exclude verbose compile-opts doo-opts]
