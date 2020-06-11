@@ -10,7 +10,7 @@ jobs:
       - checkout
       - restore_cache:
           key: test-clj-{{checksum "deps.edn"}}
-      - run: clj -A:test-clj :output test_clj.xml :ns-regex "hyper.*|contrib.*"
+      - run: clojure -A:test-clj :output test_clj.xml :ns-regex "hyper.*|contrib.*"
       - save_cache:
           paths:
             - ~/.m2
@@ -45,7 +45,7 @@ jobs:
           at: .
       - restore_cache:
           key: test-cljs-{{checksum "deps.edn"}}
-      - run: clj -A:test-cljs -namespace-regex "hyper.*|contrib.*" --env node
+      - run: clojure -A:test-cljs -namespace-regex "hyper.*|contrib.*" --env node
       - save_cache:
           paths:
             - ~/.m2
