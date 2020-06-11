@@ -1,39 +1,11 @@
 (ns contrib.datomic-tx
   (:require
+    [clojure.walk :as walk]
     [clojure.set :as set]
-    [contrib.datomic :refer [tempid?
-                             ref-one? ref-many? scalar-one? scalar-many?
-                             isComponent unique]]))
+    [contrib.data :refer [update-existing update-in-existing deep-merge dissoc-nils]]
+    [contrib.datomic.schema :refer [ref? identity? component?]]
+    [contrib.datomic :refer [tempid? ref-one? ref-many? scalar-one? scalar-many? isComponent unique]]))
 
-
-(defn edit-entity "o/n are sets in the :many case"
-  [id attribute o n]
-  (let [{a :db/ident {cardinality :db/ident} :db/cardinality} attribute]
-    (case cardinality
-      :db.cardinality/one
-      (cond-> []
-        (some? o) (conj [:db/retract id a o])
-        (some? n) (conj [:db/add id a n]))
-
-      :db.cardinality/many
-      (let [o (set o)
-            n (set n)]
-        (vec (concat (map (fn [v] [:db/retract id a v]) (set/difference o n))
-                     (map (fn [v] [:db/add id a v]) (set/difference n o))))))))
-
-(defn- simplify-oeav [simplified-tx next-stmt]
-  (let [[op e a v] next-stmt
-        g (group-by (fn [[op' e' a' v']] (and (= e' e) (= a' a) (= v' v)))
-                    simplified-tx)
-        [op' e' a' v'] (first (get g true))                 ;if this count > 1, we have duplicate stmts, they are harmless and discard dups here.
-        unrelated (get g false)]
-    (case op
-      :db/add (if (= op' :db/retract)
-                unrelated                                   ;we have a related previous stmt that cancels us and it out
-                (conj unrelated next-stmt))
-      :db/retract (if (= op' :db/add)
-                    unrelated                               ;we have a related previous stmt that cancels us and it out
-                    (conj unrelated next-stmt)))))
 
 (defn- retract-entity [schema tx-data e]
   (let [{:keys [tx child-entids orphaned-parent-check]}
@@ -41,7 +13,7 @@
                   (if (contains? #{:db/add :db/retract} (first next-stmt))
                     (let [[op' e' a' v'] next-stmt]
                       (cond
-                        (= e e') (if (and (:db/isComponent (get schema a')) (tempid? v'))
+                        (= e e') (if (and (component? schema a') (tempid? v'))
                                    (update acc :child-entids conj v')
                                    acc)
                         (= e v') (if (tempid? e')
@@ -74,20 +46,6 @@
         (recur rest (retract-entity schema tx entid))
         tx))))
 
-(defn- simplify [schema simplified-tx next-stmt]
-  (condp contains? (first next-stmt)
-    #{:db/add :db/retract} (simplify-oeav simplified-tx next-stmt)
-    #{:db/retractEntity :db.fn/retractEntity} (let [e (second next-stmt)]
-                                                (cond-> (retract-entity schema simplified-tx e)
-                                                  (not (tempid? e)) (conj next-stmt)))
-    (conj simplified-tx next-stmt)))
-
-(defn into-tx [schema tx more-statements]
-  "We don't care about the cardinality (schema) because the UI code is always
-  retracting values before adding new value, even in cardinality one case. This is a very
-  convenient feature and makes the local datoms cancel out properly always to not cause
-  us to re-assert datoms needlessly in datomic"
-  (reduce (partial simplify schema) tx more-statements))
 
 (defn ^:export find-datom "not a good abstraction" [tx e-needle a-needle]
   (let [[[_ _ _ v]] (->> tx (filter (fn [[op e a v]]
@@ -131,8 +89,8 @@
                      (->> v                                 ; [:movies :ice-cream :clojure]
                           (mapv (fn [v]
                                   [:db/add e a v])))
-                     :else (throw (ex-info "Flatten Map Statement | Attribute not defined as ref in schema" {:schema schema :attribute a}))
-                     ))))))
+                     :else (throw (ex-info "Flatten Map Statement | Attribute not defined as ref in schema" {:schema schema :attribute a}))))))))
+
 
 
 
@@ -175,8 +133,203 @@
       []
       forms)))
 
+(defn identifier
+  [schema stmt]
+  (cond
+    (vector? stmt)
+    (let [[_ e a v] stmt]
+      (merge {}
+        (cond
+          (string? e)
+          {:tempid e}
+
+          (number? e)
+          {:db/id e}
+
+          (vector? e)
+          (conj {} e))
+
+        (when (identity? schema a)
+          {a v})))
+
+    (map? stmt)
+    (let [idents (into {} (filter (fn [[a v]] (identity? schema a)) stmt))
+          {id :db/id tempid :tempid} stmt]
+      (merge
+       idents
+       (when (or tempid (string? id))
+         {:tempid (or tempid id)})
+       (when (number? id)
+         {:db/id id})))))
+
+(defn unified-identifier
+  [id0 id1]
+  (let [ks (set/intersection (set (keys id0)) (set (keys id1)))
+        unified-ks (filter #(= (get id0 %) (get id1 %)) ks)]
+    (if (empty? unified-ks)
+      nil
+      (select-keys id0 unified-ks))))
+
+(defn ideal-idx
+  [identifier ideals]
+  (filterv
+    identity
+    (mapv
+      (fn [[id grp] i]
+        (when (unified-identifier identifier id)
+          i))
+      ideals
+      (range))))
+
+(defmulti absorb
+  (fn [schema identifier ideal stmt]
+    (cond
+      (map? stmt)
+      :map
+
+      (vector? stmt)
+      (first stmt))))
+
+(defmethod absorb :map
+  [schema id ideal stmt]
+  [(merge id (identifier schema stmt))
+   (reduce
+     (fn [ideal [a v]]
+       (-> ideal
+           (update-existing :- dissoc a)
+           (update-in [:+ a] deep-merge v)))
+     ideal
+     stmt)])
+
+(defmethod absorb :db/add
+  [schema identifier ideal [_ _ a v]]
+  [(if (identity? schema a)
+     (assoc identifier a v)
+     identifier)
+   (if (contains? (get ideal :-) a)
+     (if (= (get-in ideal [:- a]) v)
+       (update-existing ideal :- dissoc a)
+       (assoc-in ideal [:+ a] v))
+     (assoc-in ideal [:+ a] v))])
+
+(defmethod absorb :db/retract
+  [schema identifier ideal [_ _ a v]]
+  [identifier
+   (if (= v (get-in ideal [:+ a]))
+     (-> ideal
+         (update-existing :+ dissoc a))
+     (-> ideal
+         (update :- assoc a v)))])
+
+(defmethod absorb :db/retractEntity
+  [schema identifier ideal _]
+  [identifier (assoc ideal :retracted true)])
+
+(defmethod absorb :db/cas
+  [schema identifier ideal [_ f]]
+  [identifier
+   (if (contains? ideal :cas)
+     (update ideal :cas conj f)
+     (assoc ideal :cas f))])
+
+(defn absorb-stmt
+  [schema ideals stmt]
+  (let [identifier (identifier schema stmt)]
+    (if-let [idx (first (ideal-idx identifier ideals))]
+      (update ideals idx (fn [[identifier ideal]] (absorb schema identifier ideal stmt)))
+      (conj ideals (absorb schema identifier nil stmt)))))
+
+(defn construct
+  ([schema tx]
+   (construct schema [] tx))
+  ([schema ideals tx]
+   (reduce (partial absorb-stmt schema) ideals tx)))
+
+(defn identifier->e
+  [schema identifier]
+  (or (:db/id identifier)
+      (:tempid identifier)
+      (first (filter (fn [[a v]] (identity? schema a)) identifier))))
+
+(defn invalid?
+  [tx]
+  (or (nil? tx)
+      (and (map? tx) (<= (count tx) 1))
+      (and (vector? tx)
+           (or
+             (= :db/id (nth tx 2 nil))
+             (let [[_ e a v] tx]
+               (and (vector? e)
+                    (= e [a v])))))))
+
+(defn deconstruct-ideal
+  [schema identifier {adds :+ retracts :- :keys [retracted cas]}]
+  (let [e (identifier->e schema identifier)]
+    (if retracted
+      [[:db/retractEntity e]]
+      (into
+       []
+       (concat
+        (map (fn [[a v]] [:db/add e a v])     adds)
+        (map (fn [[a v]] [:db/retract e a v]) retracts)
+        (map (fn [[a f]]     [:db/cas e a f])       cas))))))
+
+(defn ideals->tx
+  [schema ideals]
+  (->>
+    ideals
+    (map (partial apply deconstruct-ideal schema))
+    (reduce into [])
+    (filterv (complement invalid?))))
+
+(defn remove-dangling-ids
+  [schema tx]
+  (let [called-tempids (set (filter string? (map second tx)))]
+    (vec
+     (remove
+      (fn [[_ e a v :as stmt]]
+        (and (ref? schema a)
+             (string? v)
+             (not (contains? called-tempids v))))
+      tx))))
+
+(defn deconstruct
+  [schema ideals]
+  (->> ideals
+       (ideals->tx schema)
+       (remove-dangling-ids schema)))
+
+(defn mappify-add-statements
+  [adds]
+  (let [add-groups (group-by second adds)]
+    (mapv
+      (fn [[id group]]
+        (into
+          (cond
+            (string? id) {:db/id id}
+
+            (vector? id) (let [[a v] id]
+                           {a v}))
+
+          (map (comp vec nnext) group)))
+      add-groups)))
+
+(defn mappify
+  [schema tx]
+  (reduce
+    into
+    []
+    (vals (update (group-by first tx) :db/add mappify-add-statements))))
+
+(defn into-tx [schema tx more-statements]
+  "We don't care about the cardinality (schema) because the UI code is always
+  retracting values before adding new value, even in cardinality one case. This is a very
+  convenient feature and makes the local datoms cancel out properly always to not cause
+  us to re-assert datoms needlessly in datomic"
+  (mappify schema (deconstruct schema (construct schema (construct schema tx) more-statements))))
+
 (comment
-  [[:db/add "a" :person/name "Alice"]
+ [[:db/add "a" :person/name "Alice"
    {:person/name "Bob"
     :person/parents [{:person/name "Cindy"}
                      {:person/name "David"}]}
@@ -187,13 +340,13 @@
    [:db/cas [:person/name "Gandalf"] :person/age 22 23]
    [:user.fn/foo 'x 'y 'z 'q 'r]
    [:esub.fn/sign-up-by-uuid (:db/id *user*) (java.util.UUID/fromString id)]
-   [:sub.fn/ensure-sub-status (:db/id *user*)]
-   ]
+   [:sub.fn/ensure-sub-status (:db/id *user*)]]
+
 
   [[:db/add :db/retractEntity :hyperfiddle/whitelist-attribute true]
-   [:db/add :db/cas :hyperfiddle/whitelist-attribute true]]
+   [:db/add :db/cas :hyperfiddle/whitelist-attribute true]]])
 
-  )
+
 
 ;(defn ^:legacy entity-components [schema entity]
 ;  (mapcat (fn [[attr v]]

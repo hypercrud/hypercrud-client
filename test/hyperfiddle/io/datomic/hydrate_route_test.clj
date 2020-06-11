@@ -77,7 +77,8 @@
                         @(p/branch (hydrate-route/hydrate-route test-domain local-basis route pid partitions subject)
                                    exception/success
                                    exception/failure)))]
-      (is (thrown-with-msg? ExceptionInfo (re-pattern (Pattern/quote ":db.error/datoms-conflict")) @response+)))))
+      ; issue #1026
+      #_(is (thrown-with-msg? ExceptionInfo (re-pattern (Pattern/quote ":db.error/datoms-conflict")) @response+)))))
 
 (comment
 

@@ -3,7 +3,7 @@
     [cats.monad.either :as either]
     [clojure.string :as string]
     [contrib.css :refer [css]]
-    [contrib.pprint :refer [pprint-datoms-str]]
+    [contrib.pprint :refer [pprint-str pprint-datoms-str]]
     [contrib.reactive :as r]
     [contrib.reader :refer [read-edn-string!]]
     [contrib.hfrecom :refer [anchor-tabs]]
@@ -65,7 +65,17 @@
                        (assert (and (or (nil? v) (vector? v) (seq? v))
                                     (every? (fn [v] (or (map? v) (vector? v) (seq? v))) v)))
                        (some-> v reverse vec)))
-      to-string (fn [v] (pprint-datoms-str (some-> v reverse)))
+      to-string (fn [v]
+                  (if v
+                    (binding [*print-namespace-maps* true]
+                      (let [s (->> v
+                                   reverse
+                                   (map (fn [x] (if (vector? x) (str x) (pprint-str x))))
+                                   (interpose \newline))]
+                        (str \[ (first s)
+                                (apply str (map #(str \space %) (rest s)))
+                             \])))
+                    ""))
       on-change (fn [rt pid dbname-ref o n] (runtime/set-stage rt pid @dbname-ref n))]
   (defn- tab-content [rt pid dbname-ref & [child]]
     [:div.hyperfiddle-stage-content
