@@ -38,7 +38,7 @@ jobs:
 
   test-cljs:
     docker:
-      - image: clojure-node:tools-deps
+      - image: circleci/clojure:tools-deps-node
     steps:
       - checkout
       - attach_workspace:
