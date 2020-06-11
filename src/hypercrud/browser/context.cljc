@@ -140,9 +140,9 @@
       (some-> (:hypercrud.browser/schema ctx) deref (lookup-ref e-map)) ; Entity must already be inferred for this to work
       id
       ;(if-not (coll? e-map) e-map)                        ; id-scalar
-      nil                                                   ; This is an entity but you didn't pull identity - error?
+      nil))                                                   ; This is an entity but you didn't pull identity - error?
       ; Or it could be a relation. Why did this get called?
-      ))
+
 
 (let [f (fn [?schema+ path] (some->> ?schema+ (cats/fmap #(get-in % path))))]
   (defn hydrate-attribute! [ctx ident & ?more-path]
@@ -424,6 +424,13 @@ a speculative db/id."
 
 (defn element-type [ctx]
   (some-> ctx element contrib.datomic/parser-type))
+
+(defn component?
+  [ctx]
+  (let [[_ a _] @(:hypercrud.browser/eav ctx)]
+    (-> ctx
+        :hypercrud.browser/parent
+        (attr? a :db/isComponent))))
 
 (defn qfind [ctx]
   (some-> (:hypercrud.browser/qfind ctx) deref))

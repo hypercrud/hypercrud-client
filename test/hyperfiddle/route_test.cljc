@@ -43,28 +43,30 @@
                                                                                           ::route/fragment ":src"}))
 
   (is (= "/:hyperfiddle.blog!post/~entity('$',:hyperfiddle.blog!homepage)" (encode {::route/fiddle :hyperfiddle.blog/post
-                                                                                    ::route/datomic-args [#entity["$" :hyperfiddle.blog/homepage]]})))
+                                                                                    ::route/datomic-args [#entity["$" :hyperfiddle.blog/homepage]]}))))
   ;(is (= "/:hyperfiddle.blog!post/~entity('$',:hyperfiddle.blog!homepage)?#:src" (encode [:hyperfiddle.blog/post [#entity["$" :hyperfiddle.blog/homepage]] nil ":src"])))
 
-  )
+
 
 (deftest query-params []
-  (is (= (decode "/:bar?utm=asdfdsaf") {::route/fiddle :bar}))
-  (is (= (decode "/:bar/?utm=asdfdsaf") {::route/fiddle :bar}))
+  (is (= (decode "/:bar?utm=asdfdsaf") {::route/fiddle :bar 'utm 'j�_vƟ}))
+  (is (= (decode "/:bar/?utm=asdfdsaf") {::route/fiddle :bar 'utm 'j�_vƟ}))
   (is (= (decode "/:bar?:hyperfiddle.route!where=W1s_ZSA6Zm9vID9hXV0,&utm=asdfdsaf") {::route/fiddle :bar
-                                                                                      ::route/where '[[?e :foo ?a]]}))
+                                                                                      ::route/where '[[?e :foo ?a]]
+                                                                                      'utm 'j�_vƟ}))
   (is (= (decode "/:bar?:hyperfiddle.route!where=W1s_ZSA6Zm9vID9hXV0,&utm=asdfdsaf#blah") {::route/fiddle :bar
                                                                                            ::route/where '[[?e :foo ?a]]
-                                                                                           ::route/fragment "blah"}))
-  )
+                                                                                           'utm 'j�_vƟ
+                                                                                           ::route/fragment "blah"})))
+
 
 (deftest router-malformed-1
-  []
+  [])
   ;#entity["$" [:user/sub "google-oauth2|116635422485042503270"]]
   ;(decode "/") [nil [nil]]
   ;(decode "/garbagasdf..23425649=//e")
   ;(decode "/asdf/asdf/asdf?asdf?asdf?sadf")
-  )
+
 
 (deftest fragment-1 []
   (is (= "/:hyperfiddle.blog!post/~entity('$',:hyperfiddle.blog!homepage)#:src" (encode {::route/fiddle :hyperfiddle.blog/post

@@ -810,7 +810,7 @@
 
   (testing "link primitives"
     (is (= (->> (hyperfiddle.data/spread-links-here ctx-blog-slug) (map first))
-           [17592186047370 17592186047372]))
+           (list 152027927 -754968947)))
     (is (= (->> (hyperfiddle.data/spread-links-here ctx-blog-slug) (map (comp :link/path deref second)))
            [":dustingetz.post/slug" ":dustingetz.post/slug"]))
 
