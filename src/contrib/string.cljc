@@ -44,14 +44,8 @@
 
 (defn or-str [a b] (orp seq a b))
 
-#?(:cljs                                                    ; todo clj
-   (defn lpad-str [n zero s]
-     (-> s
-         (str/split "")
-         reverse                                            ; make it a left pad
-         (->> (pad 2 zero))                                 ; this is a right-pad
-         reverse
-         str/join)))
+(defn lpad-str [n zero s]
+  (str (apply str (repeat (- n (count s)) zero)) s))
 
 (defn str-last-n [n s]
   #?(:clj (.substring s (max 0 (- (.length s) n)))

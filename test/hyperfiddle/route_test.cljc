@@ -49,15 +49,15 @@
 
 
 (deftest query-params []
-  (is (= (decode "/:bar?utm=asdfdsaf") {::route/fiddle :bar 'utm 'j�_vƟ}))
-  (is (= (decode "/:bar/?utm=asdfdsaf") {::route/fiddle :bar 'utm 'j�_vƟ}))
-  (is (= (decode "/:bar?:hyperfiddle.route!where=W1s_ZSA6Zm9vID9hXV0,&utm=asdfdsaf") {::route/fiddle :bar
-                                                                                      ::route/where '[[?e :foo ?a]]
-                                                                                      'utm 'j�_vƟ}))
-  (is (= (decode "/:bar?:hyperfiddle.route!where=W1s_ZSA6Zm9vID9hXV0,&utm=asdfdsaf#blah") {::route/fiddle :bar
-                                                                                           ::route/where '[[?e :foo ?a]]
-                                                                                           'utm 'j�_vƟ
-                                                                                           ::route/fragment "blah"})))
+  (is (= (decode "/:bar?:asdf=InF3ZXJ6eGN2Ig,,") {::route/fiddle :bar :asdf "qwerzxcv"}))
+  (is (= (decode "/:bar/?:asdf=InF3ZXJ6eGN2Ig,,") {::route/fiddle :bar :asdf "qwerzxcv"}))
+  (is (= (decode "/:bar?:hyperfiddle.route!where=W1s_ZSA6Zm9vID9hXV0,&:asdf=InF3ZXJ6eGN2Ig,,") {::route/fiddle :bar
+                                                                                                ::route/where '[[?e :foo ?a]]
+                                                                                                :asdf "qwerzxcv"}))
+  (is (= (decode "/:bar?:hyperfiddle.route!where=W1s_ZSA6Zm9vID9hXV0,&:asdf=InF3ZXJ6eGN2Ig,,#blah") {::route/fiddle :bar
+                                                                                                     ::route/where '[[?e :foo ?a]]
+                                                                                                     :asdf "qwerzxcv"
+                                                                                                     ::route/fragment "blah"})))
 
 
 (deftest router-malformed-1

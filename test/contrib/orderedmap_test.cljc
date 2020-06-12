@@ -45,9 +45,10 @@
       "Ordered Map reduce-kv"
       (is (= (vec (range 1 30)) (reduce-kv (fn [acc k v] (conj acc k)) [] m))))))
 
-(deftest orderedmap|iterator
-  (let [m (apply ordered-map (interleave (range 1 30) (range 1 30)))
-        iter (.iterator m)]
-    (testing
-      "Ordered Map Iterator"
-      (is (reduce (fn [acc kv] (if (and (.hasNext iter) (= (.next iter) kv)) true (reduced false))) true m)))))
+#(:clj
+  (deftest orderedmap|iterator
+    (let [m (apply ordered-map (interleave (range 1 30) (range 1 30)))
+          iter (.iterator m)]
+      (testing
+        "Ordered Map Iterator"
+        (is (reduce (fn [acc kv] (if (and (.hasNext iter) (= (.next iter) kv)) true (reduced false))) true m))))))
