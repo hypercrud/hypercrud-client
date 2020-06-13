@@ -7,8 +7,14 @@
     )
   #?(:cljs (:require-macros [contrib.do :refer [do-async]])))
 
-(defn tag-type [tag]
-  (some->> (re-matches #"^([A-Z][-a-z]*)(.*)$" (name tag)) second keyword))
+(defn tag-type
+  "Extract the type from an action. Action is any keyword that starts with an uppercase letter.
+  The type is encoded as the first segment.
+
+  Action: :Eval.set-var
+  Type: :Eval"
+  [tag]
+  (some->> (name tag) (re-matches #"^([A-Z][-a-z]*)(.*)$") second keyword))
 
 (defn typed-tag? [tag]
   (not (nil? (tag-type tag))))
