@@ -182,7 +182,7 @@
             #_#__ (js/console.log option-records-untupled option-records-untupled')]
         [:<>
          [truncated-options (count option-records-untupled)]
-         [:> Typeahead {:id          (r/partial label-key select-props)
+         [:> Typeahead {:id          (:html/id select-props) ; Warning: [react-bootstrap-typeahead] The `id` prop will be required in future versions to make the component accessible for users of assistive technologies such as screen readers.
                         :labelKey    (r/partial label-key select-props)
                         :placeholder (:placeholder select-props)
                         ;; widget requires the option records, not ids
