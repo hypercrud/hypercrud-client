@@ -187,6 +187,9 @@
       (map? stmt)
       :map
 
+      (and (list? stmt) (symbol? (first stmt)))
+      :mutation
+
       (vector? stmt)
       (first stmt))))
 
@@ -232,6 +235,11 @@
      (update ideal :cas conj f)
      (assoc ideal :cas f))])
 
+(defmethod absorb :mutation
+  [schema identifier ideal tx]
+  [identifier
+   (update ideal :mutations (fn [m] (conj (or m []) tx)))])
+
 (defn absorb-stmt
   [schema ideals stmt]
   (let [identifier (identifier schema stmt)]
@@ -263,7 +271,7 @@
                     (= e [a v])))))))
 
 (defn deconstruct-ideal
-  [schema identifier {adds :+ retracts :- :keys [retracted cas]}]
+  [schema identifier {adds :+ retracts :- :keys [retracted cas mutations]}]
   (let [e (identifier->e schema identifier)]
     (if retracted
       [[:db/retractEntity e]]
@@ -272,7 +280,8 @@
        (concat
         (map (fn [[a v]] [:db/add e a v])     adds)
         (map (fn [[a v]] [:db/retract e a v]) retracts)
-        (map (fn [[a f]]     [:db/cas e a f])       cas))))))
+        (map (fn [[a f]] [:db/cas e a f])     cas)
+        mutations)))))
 
 (defn ideals->tx
   [schema ideals]

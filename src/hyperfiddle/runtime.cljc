@@ -362,8 +362,11 @@
              (map? stmt)
              stmt
 
-             (vector? stmt)
-             (hf/stmt-id->tempid id->tempid schema stmt)))
+             ; e.g. [:db/retract e a v] [:db/retractEntity e] (user/f v)
+             (or (vector? stmt) (list? stmt))
+             (hf/stmt-id->tempid id->tempid schema stmt)
+
+             () (throw (ex-info (str `update-to-tempids! " no match") {:stmt stmt}))))
          tx)))
 
 (defn with-tx
