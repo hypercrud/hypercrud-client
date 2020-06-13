@@ -117,7 +117,7 @@
     (p/do* (hydrate-requests domain local-basis requests partitions ?subject)))
 
   (hydrate-route [io local-basis route pid partitions]
-    (hydrate-route domain local-basis route pid partitions ?subject))
+    (p/do* (hydrate-route domain local-basis route pid partitions ?subject)))
 
   (sync [io dbnames]
     (p/do* (ds/sync domain dbnames)))
