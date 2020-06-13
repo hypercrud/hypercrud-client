@@ -150,7 +150,8 @@
   stub. Must return string otherwise \"invariant undefined\"; you can pr-str
   from userland."
   [select-props record]
-  (str (get record (:option-label select-props))))
+  ; :option-label can be a function or a keyword
+  (str ((:option-label select-props) record)))
 
 (defn typeahead-html [_ options-ctx props]                  ; element, etc
   (either/branch
