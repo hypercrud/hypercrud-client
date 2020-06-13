@@ -275,7 +275,7 @@
      "placeholder" (:placeholder select-props)
      ; V might not be in options - widget accounts for this by taking a selected record rather than identity
      ; V might have different keys than options - as long as :option-label works, it doesn't matter
-     "selected" (if value #js [value] #js [])
+     "selected" (if value #js [value] #js [])               ; because of multi-select
 
      "highlightOnlyResult" true                             ; this helps avoid
 
