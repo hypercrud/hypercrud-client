@@ -132,15 +132,6 @@
     #_#_(domain/valid-dbname? (domain rt) dbname) (throw (ex-info "Invalid dbname" {:dbname dbname}))
     :else (->DbRef dbname pid)))
 
-(defn get-schema+
-  "Returns nil or cats.monad.exception[contrib.datomic.Schema]"
-  ; todo this needs work
-  [rt pid dbname]
-  {:pre [pid]}
-  (or
-    @(state-ref rt [::partitions pid :schemas dbname])      ; hack, see below
-    @(state-ref rt [::partitions (get-branch-pid rt pid) :schemas dbname])))
-
 (defn get-schemas
   "Returns a map[k,v]
   k :: dbname
@@ -152,7 +143,15 @@
   (or
     ; When hydrating a popover directly, this partition has the schemas, not the parent. Todo untangle this
     @(state-ref rt [::partitions pid :schemas])             ; hack
-    @(state-ref rt [::partitions (get-branch-pid rt pid) :schemas]))) ; code path as designed
+    (get-schemas rt (parent-pid rt pid))
+    #_@(state-ref rt [::partitions (get-branch-pid rt pid) :schemas]))) ; code path as designed
+
+(defn get-schema+
+  "Returns nil or cats.monad.exception[contrib.datomic.Schema]"
+  ; todo this needs work
+  [rt pid dbname]
+  {:pre [pid]}
+  (get (get-schemas rt pid) dbname))
 
 (defn get-attr-renderer
   [rt pid ident]
