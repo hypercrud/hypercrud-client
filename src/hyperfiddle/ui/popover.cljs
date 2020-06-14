@@ -35,6 +35,7 @@
                                  tx}
                       popover-data @(:hypercrud.browser/result popover-ctx)] ; Can this be (hf/data ctx)?
                   (runtime/close-popover (:runtime ctx) (:partition-id ctx) (:partition-id popover-ctx))
+                  (runtime/delete-partition (:runtime ctx) (:partition-id popover-ctx))
                   (cond-> (runtime/commit-branch (:runtime ctx) (:partition-id popover-ctx) tx-groups) ; if branched
                     (::redirect props) (p/then (fn [_]
                                                  (hf/set-route rt
