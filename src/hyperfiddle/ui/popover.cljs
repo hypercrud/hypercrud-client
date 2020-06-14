@@ -80,12 +80,11 @@
                              (ex-data e) (str "\n" (pprint-str (ex-data e)))))))))
 
 (defn ^:export effect-cmp [ctx link-ref props label]
-  (let [link-ctx (-> (mlet [ctx (context/refocus-to-link+ ctx link-ref)
-                            args (context/build-args+ ctx @link-ref)] ; not sure what args would be in this case
-                       (return (context/occlude-eav ctx args))) ; guessing we are occluding v to nil?
-                     (either/branch
-                       (fn [e] nil)                         ; wtf how does anything work
-                       identity))
+  (let [link-ctx (try
+                   (let [ctx (from-result (context/refocus-to-link+ ctx link-ref))
+                         args (from-result (context/build-args+ ctx @link-ref))] ; not sure what args would be in this case
+                     (context/occlude-eav ctx args))        ; guessing we are occluding v to nil?
+                   (catch js/Error e nil))                  ; wtf how does anything work
         props (-> props
                   (assoc :on-click (r/partial run-effect! link-ctx props))
                   (update :class css "hyperfiddle"
