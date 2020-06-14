@@ -1,4 +1,5 @@
 (ns hyperfiddle.ui.select$                                  ; Namespace clashes with var hyperfiddle.ui/select
+  (:require-macros [contrib.do :refer [do-result from-result]])
   (:require
     ["react-bootstrap-typeahead" :refer [Typeahead AsyncTypeahead]]
     [cats.core :as cats :refer [mlet return]]
@@ -17,7 +18,6 @@
     [hyperfiddle.runtime :as runtime]
     [hyperfiddle.ui.error :as ui-error]
     [hyperfiddle.ui.iframe :as iframe]
-    [hyperfiddle.ui.util :refer [with-entity-change!]]
     [taoensso.timbre :as timbre]))
 
 (defn ident->label [v]
@@ -104,7 +104,7 @@
   ; if select is pull-level, is options qfind untupled?
   ; We must compare both ctxs to decide this.
   (let [option-element (:option-element props 0)
-        select-props {:option-element option-element
+        select-props {:option-element option-element        ; add ::hf namespace to all these keys
                       :option-value (let []
                                       (fn [val ctx]
                                         ; in the case of tupled options, the userland view props must
@@ -127,7 +127,7 @@
 
       :else
       (let [select-props (merge {:value value               ; typeahead does not use this
-                                 :on-change (with-entity-change! anchor-ctx)}
+                                 :on-change ((::hf/view-change! anchor-ctx) anchor-ctx)}
                                 select-props
                                 props)
             option-props {:disabled (compute-disabled anchor-ctx select-props)}]
@@ -227,6 +227,7 @@
                                                           {:record (pr-str ?record)}))))))]])
 
 (defn- typeahead-success [ctx select-props common-props]
+  #_(js/console.log "typeahead-success " (hf/data ctx))
   [:<>
    [truncated-options @(r/fmap count (:hypercrud.browser/result ctx))]
    ^{:key :async-typeahead}
@@ -249,27 +250,22 @@
 (defn- select-needle-typeahead [{rt :runtime :as parent-ctx} options-pid value
                                 ; todo these props need cleaned up, shouldn't be adapting them over and over again
                                 select-props options-props]
+  #_(js/console.log "select-needle-typeahead " (hf/data parent-ctx))
   [:div {:key options-pid}
    [iframe/stale-browse (context/set-partition parent-ctx options-pid)
     typeahead-error typeahead-success select-props
     {
      #_#_"delay" 200
      "isLoading" (runtime/loading? rt options-pid)
-     #_#_"minLength" 2
+     "minLength" 0                                          ; minLength 0 shows the initial result page before having typed anything
      "filterBy" (constantly true)                           ; no client side filtering
      "onSearch" (fn [s]
-                  (-> (mlet [args (context/build-args+ parent-ctx @(:hypercrud.browser/link parent-ctx))
-                             route (context/build-route+ args parent-ctx)]
-                        (if (and s (:hf/where select-props))
-                          (->> (route/fill-where (:hf/where select-props) s)
-                               (assoc route ::route/where)
-                               route/validate-route+)
-                          (return route)))
-                      (either/branch
-                        (fn [e] (runtime/set-error rt options-pid e))
-                        (fn [route]
-                          (hf/set-route rt options-pid route)))))
-
+                  (try
+                    (let [args (from-result (context/build-args+ parent-ctx @(:hypercrud.browser/link parent-ctx)))
+                          route (from-result (context/build-route+ args parent-ctx))]
+                      (hf/set-route rt options-pid (assoc route (::hf/needle-key select-props) s)))
+                    (catch js/Error e
+                      (runtime/set-error rt options-pid e))))
      ; Must return string otherwise "invariant undefined"; you can pr-str from userland
      "labelKey" (comp str (:option-label select-props))
      "placeholder" (:placeholder select-props)
@@ -309,7 +305,7 @@
              (let [options-pid (context/build-pid-from-link ctx link-ctx initial-route)]
                (cond
                  ; hybrid, use the existing iframe to render initial options, but use the needle to filter on server
-                 (:hf/where props)
+                 (::hf/needle-key props)
                  (mlet [[select-props options-props] (options-value-bridge+ ctx props)]
                    (return [select-needle-typeahead occluded-ctx options-pid (hf/data ctx) select-props options-props]))
 
@@ -325,6 +321,8 @@
 
 (defn ^:export typeahead [ctx props]
   [select-needle ctx props])
+
+(def picklist typeahead)                                    ; better name
 
 (defn ^:export select
   ([ctx props] [select-needle ctx props])

@@ -13,6 +13,7 @@
     #?(:cljs [hyperfiddle.ui.checkbox :refer [Checkbox Radio RadioGroup]])
     #?(:cljs [hyperfiddle.ui.iframe :as iframe])
     #?(:cljs [hyperfiddle.ui.staging :as staging])
+    #?(:cljs [hyperfiddle.ui.util :refer [with-entity-change!]])
     #?(:cljs [hyperfiddle.view.keyboard :as k])
     #?(:cljs [hyperfiddle.view.keyboard.combos :as combos])
     [hyperfiddle.view.controller :as view]
@@ -89,6 +90,7 @@
 #?(:cljs
    (defn augment [ctx view-state]
      (merge ctx {:hyperfiddle.ui/display-mode    (view/mode view-state)
+                 ::hf/view-change!               with-entity-change! ; ctx must be provided by the leaf view
                  :hyperfiddle.ui.iframe/on-click (r/partial frame-on-click (:runtime ctx))})))
 
 (defn on-key-down [e]

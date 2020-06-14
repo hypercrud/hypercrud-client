@@ -55,6 +55,15 @@
    (timbre/warn "deprecated. invoke runtime/with-tx directly")
    (runtime/with-tx (:runtime ctx) (:partition-id ctx) dbname tx)))
 
-(defn with-entity-change! [ctx]
-  (r/comp (r/partial runtime/with-tx (:runtime ctx) (:partition-id ctx) (context/dbname ctx))
-          (r/partial entity-change->tx ctx)))
+(defn with-entity-change! [ctx] #_[tx]
+  #_(js/console.log `with-entity-change! ctx)
+  (r/comp (r/partial runtime/with-tx (:runtime ctx) (:partition-id ctx) (context/dbname ctx)) ; [ctx vorvs]
+          (r/partial entity-change->tx ctx)))               ; [tx]
+
+(defn with-entity-change-route!
+  ; Curried both ways for backwards compat with `with-entity-change!
+  ([ctx]
+   (r/partial with-entity-change-route! ctx)
+   #_(fn [vorvs] (with-entity-change-route! ctx vorvs)))
+  ([ctx vorvs]
+   (hf/swap-route! ctx assoc-in (:hypercrud.browser/result-path ctx) vorvs)))

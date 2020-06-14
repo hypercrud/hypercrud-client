@@ -30,7 +30,7 @@
                                  :database/write-security
                                  :hf/transaction-operation-whitelist]))
 (s/def :database/write-security (s/keys :req [:db/ident]))  ;  {:db/ident :hyperfiddle.security/tx-operation-whitelist}
-(s/def :hf/transaction-operation-whitelist (s/coll-of keyword?)) ; [:school/street-address :sub/phone-confirmed :sub-req/subject]
+(s/def :hf/transaction-operation-whitelist (s/coll-of (s/or :k keyword? :f symbol?))) ; [:school/street-address :sub/phone-confirmed :sub-req/subject]
 
 (s/def ::config map?)                                       ; can validate config too
 (s/def ::basis some?)

@@ -18,7 +18,7 @@
     #_[hyperfiddle.ui]
     [hyperfiddle.ui.docstring :refer [semantic-docstring]]
     [hyperfiddle.ui.select$ :refer [select]]
-    [hyperfiddle.ui.util :refer [entity-change->tx with-entity-change!]]
+    [hyperfiddle.ui.util :refer [entity-change->tx ]]
     [taoensso.timbre :as timbre]))
 
 (defn label-with-docs [label help-md props]
@@ -164,7 +164,7 @@
 (defn ^:export keyword [val ctx & [props]]
   [:div.hyperfiddle-input-group
    (let [props (-> props
-                 (assoc :value val :on-change (with-entity-change! ctx))
+                 (assoc :value val :on-change ((::hf/view-change! ctx) ctx))
                  (cond-> (::hf/is-invalid props) (update :class contrib.css/css "invalid"))
                  (dissoc ::hf/invalid-messages ::hf/is-invalid))] ; this dissoc should be inverted to select-keys whitelist
      [debounced props contrib.ui/keyword])
@@ -188,7 +188,7 @@
                  (hf-iframe val ctx))])
 
 (defn ^:export instant [val ctx & [props]]
-  (let [props (assoc props :value val :on-change (with-entity-change! ctx))]
+  (let [props (assoc props :value val :on-change ((::hf/view-change! ctx) ctx))]
     [:<> [recom-date props] [recom-time props]]))
 
 (defn- code-comp [ctx]
@@ -262,7 +262,7 @@
            props (-> (assoc props
                        :value val
                        :mode "clojure"
-                       :on-change (with-entity-change! ctx)))]
+                       :on-change ((::hf/view-change! ctx) ctx)))]
        [debounced props contrib.ui/validated-cmp (r/partial parse-string (value-validator ctx)) pprint-str
         (case (:hyperfiddle.ui/layout ctx :hyperfiddle.ui.layout/block)
           :hyperfiddle.ui.layout/block contrib.ui/code
@@ -276,7 +276,7 @@
     [:div.hyperfiddle-input-group
      (let [props (merge {:value val
                          :mode "clojure"
-                         :on-change (with-entity-change! ctx)}
+                         :on-change ((::hf/view-change! ctx) ctx)}
                         props)]
        [debounced props contrib.ui/validated-cmp
         (r/partial parse-string (value-validator ctx))
@@ -296,7 +296,7 @@
                        (-> (merge props option-props)
                            (assoc :checked (or (= (:value option-props) val)
                                                (and (nil? val) (= (:value option-props) (:default-value props))))
-                                  :on-change (with-entity-change! ctx)))]))))))
+                                  :on-change ((::hf/view-change! ctx) ctx)))]))))))
 
 (defn -magic-new-change! [state ctx #_ov v]
   (let [[e _ _] @(:hypercrud.browser/eav ctx)]
@@ -349,7 +349,7 @@
 
 (defn ^:export long [val ctx & [props]]
   [:div.hyperfiddle-input-group
-   (let [props (assoc props :value val :on-change (with-entity-change! ctx))]
+   (let [props (assoc props :value val :on-change ((::hf/view-change! ctx) ctx))]
      [debounced props contrib.ui/long])
    (render-related-links val ctx)])
 
@@ -358,7 +358,9 @@
    [:div (select-keys props [:class :style])
     (let [props (assoc props
                   :checked (clojure.core/boolean val)
-                  :on-change (with-entity-change! ctx))]
+                  :on-change (fn [v]
+                               (js/console.log `boolean v)
+                               (((::hf/view-change! ctx) ctx) v)))]
       [contrib.ui/easy-checkbox
        (select-keys props [:class :style ::hf/is-invalid :checked :on-change :disabled])])] ; readonly?
    (render-related-links val ctx)])
@@ -374,7 +376,7 @@
            select-props (select-keys props [:value :on-change :class :style :disabled])]
        [:select (assoc select-props
                   :value (if (nil? val) "" (str val))
-                  :on-change (r/comp (with-entity-change! ctx) adapter))
+                  :on-change (r/comp ((::hf/view-change! ctx) ctx) adapter))
         [:option (assoc option-props :key true :value "true") "True"]
         [:option (assoc option-props :key false :value "false") "False"]
         [:option (assoc option-props :key :nil :value "") "--"]])

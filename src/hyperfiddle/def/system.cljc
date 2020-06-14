@@ -137,7 +137,7 @@
                   (fn [val ctx & [props]]
                     (let [props (-> (assoc props
                                       :value val
-                                      :on-change (hyperfiddle.ui.util/with-entity-change! ctx)
+                                      :on-change ((:hyperfiddle.api/view-change! ctx) ctx)
                                       :mode "clojure"
                                       :linkNumbers false)
                                     (update :mode #(or % "clojure")))]

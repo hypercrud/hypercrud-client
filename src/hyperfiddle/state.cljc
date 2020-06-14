@@ -242,7 +242,7 @@
   ;; big dispatch events. An optimized logging strategy should be discussed.
   ;; - JS/JVM specific optimizations
   ;; - unified runtime-specific logging configuration / flags
-  #?(:clj (timbre/debug "dispatch!" action)
+  #_#?(:clj (timbre/debug "dispatch!" action)
      :cljs (js/console.debug "dispatch!" action))
   (reducers/dispatch! (hf/state rt) root-reducer action))
 

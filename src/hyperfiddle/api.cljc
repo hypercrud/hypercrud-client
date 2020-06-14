@@ -200,6 +200,7 @@
 
 (s/def ::invalid-messages (s/coll-of string?))
 (s/def ::is-invalid boolean?)
+(s/def ::view-change! fn?)
 
 (s/def :html/placeholder string?)
 
