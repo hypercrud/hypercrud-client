@@ -19,6 +19,9 @@
 
 (def root-pid "root")
 
+; Old source tree, before removal of IDE:
+; https://github.com/hyperfiddle/hyperfiddle/tree/aa11ec7ce636cf5554334974a575821710947cb2
+
 (defn TopNav [{:keys [ctx]}]
   [:nav {:role  :navigation
          :style {:display     :flex
@@ -72,7 +75,8 @@
         [:div {:class "hyperfiddle hyperfiddle-ide -hyperfiddle-ide-edit"}
          [:div {:class "-hyperfiddle-ide-preview"}
           [:div {:id "root"}
-           [iframe/iframe-cmp ctx]]
+           [iframe/iframe-cmp ctx
+            {:class (some-> ctx :hyperfiddle.ui/display-mode name (->> (str "display-mode-")))}]]
           [staging/inline-stage ctx]]]])))
 
 #?(:cljs
