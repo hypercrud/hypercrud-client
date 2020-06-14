@@ -98,7 +98,7 @@
     [:button (select-keys props [:class :style :disabled :on-click])
      [:span (str label "!")]]))
 
-(defn- popover-cmp-impl [ctx child-ctx props & body-children]
+(defn- popover-anchor-impl [ctx child-ctx props & body-children]
   [wrap-with-tooltip ctx (:partition-id child-ctx) (select-keys props [:class :on-click :style :disabled :tooltip])
    [with-keychord
     "esc" #(do (js/console.warn "esc") ((::close-popover props) child-ctx))
@@ -132,8 +132,8 @@
                                (runtime/create-partition (:runtime ctx) (:partition-id ctx) (:partition-id child-ctx) true)
                                (-> (hf/set-route rt (:partition-id child-ctx) route)
                                    (p/finally (fn [] (runtime/open-popover (:runtime ctx) (:partition-id ctx) (:partition-id child-ctx))))))]
-  (defn- branched-popover-cmp [child-ctx ctx props label]
-    [popover-cmp-impl ctx child-ctx
+  (defn- branched-popover-anchor [child-ctx ctx props label]
+    [popover-anchor-impl ctx child-ctx
      (assoc props
        ::label label
        ::open-popover (r/partial open-branched-popover! (:runtime ctx) ctx (:route props))
@@ -141,20 +141,20 @@
      ; body-cmp NOT inlined for perf
      [branched-popover-body-cmp child-ctx ctx props]]))
 
-(defn- unbranched-popover-body-cmp [child-ctx ctx]
+(defn- popover-anchor-body [child-ctx ctx]
   [:<>
    [iframe/iframe-cmp child-ctx]
    [:button {:on-click #(runtime/close-popover (:runtime ctx) (:partition-id ctx) (:partition-id child-ctx))}
     "close"]])
 
-(defn- unbranched-popover-cmp [child-ctx ctx props label]
-  [popover-cmp-impl ctx child-ctx
+(defn- unbranched-popover-anchor [child-ctx ctx props label]
+  [popover-anchor-impl ctx child-ctx
    (assoc props
      ::label label
      ::open-popover (r/partial runtime/open-popover ctx)
      ::close-popover (r/partial runtime/close-popover ctx))
    ; body-cmp NOT inlined for perf
-   [unbranched-popover-body-cmp child-ctx ctx]])
+   [popover-anchor-body child-ctx ctx]])
 
 (defn ^:export popover-cmp [ctx link-ref props label]
   (let [+route-and-ctx (context/refocus-build-route-and-occlude+ ctx link-ref) ; Can fail if formula dependency isn't satisfied
@@ -170,5 +170,5 @@
         child-ctx (context/set-partition ctx child-pid)
         should-branch @(r/fmap (r/comp some? blank->nil :link/tx-fn) link-ref)]
     (if should-branch
-      [branched-popover-cmp child-ctx link-ctx props label]
-      [unbranched-popover-cmp child-ctx link-ctx props label])))
+      [branched-popover-anchor child-ctx link-ctx props label]
+      [unbranched-popover-anchor child-ctx link-ctx props label])))
