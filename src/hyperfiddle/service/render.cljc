@@ -37,7 +37,7 @@
                                          (fn [hf-db]
                                            (if-some [auto-tx (:database/auto-transact hf-db)]
                                              auto-tx
-                                             (hf/subject-may-transact+ hf-db user-id)))
+                                             false #_(right? (hf/subject-may-transact+ hf-db user-id))))
                                          (hf/databases domain))
                ::runtime/partitions {foundation/root-pid {:route route
                                                           :is-branched true}}
