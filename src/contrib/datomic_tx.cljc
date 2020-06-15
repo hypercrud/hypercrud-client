@@ -133,6 +133,14 @@
       []
       forms)))
 
+(defn identifier->e
+  [schema identifier]
+  (or (:db/id identifier)
+      (:tempid identifier)
+      (->> identifier
+           (filter (fn [[a v]] (identity? schema a)))
+           first)))
+
 (defn identifier
   [schema stmt]
   (cond
@@ -215,14 +223,24 @@
        (assoc-in ideal [:+ a] v))
      (assoc-in ideal [:+ a] v))])
 
+(defn retract-munge-value
+  [schema v]
+  (if (map? v)
+    (let [e (identifier->e schema v)]
+      (if (vector? e)
+        (second e)
+        e))
+    v))
+
 (defmethod absorb :db/retract
   [schema identifier ideal [_ _ a v]]
-  [identifier
-   (if (= v (get-in ideal [:+ a]))
-     (-> ideal
-         (update-existing :+ dissoc a))
-     (-> ideal
-         (update :- assoc a v)))])
+  (let [v (retract-munge-value schema v)]
+    [identifier
+     (if (= v (get-in ideal [:+ a]))
+       (-> ideal
+           (update-existing :+ dissoc a))
+       (-> ideal
+           (update :- assoc a v)))]))
 
 (defmethod absorb :db/retractEntity
   [schema identifier ideal _]
@@ -252,12 +270,6 @@
    (construct schema [] tx))
   ([schema ideals tx]
    (reduce (partial absorb-stmt schema) ideals tx)))
-
-(defn identifier->e
-  [schema identifier]
-  (or (:db/id identifier)
-      (:tempid identifier)
-      (first (filter (fn [[a v]] (identity? schema a)) identifier))))
 
 (defn invalid?
   [tx]

@@ -191,8 +191,8 @@
                                        ;; foreign lib state is js array, single select is lifted into List like multi-select
                                        ;; unselected is []
                                        (let [[?record] (array-seq jrecord)
-                                             ?v        (hf/id options-ctx ?record)]
-                                         ((:on-change select-props) ?v)))
+                                             ?n        (hf/id options-ctx ?record)]
+                                         ((:on-change select-props) ?v ?n)))
                         ;; V might not be in options - widget accounts for this by taking a selected record rather than identity
                         ;; V might have different keys than options - as long as :option-label works, it doesn't matter
                         :selected    (if ?v #js [?v] #js [])
