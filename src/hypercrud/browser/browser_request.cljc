@@ -16,27 +16,29 @@
 (declare requests)
 
 (defn requests-here [{rt :runtime :as ctx}]
-  (doseq [link @(data/select-many-here ctx #{:hf/iframe})]
-    (either/branch
-      (context/refocus-build-route-and-occlude+ ctx (r/pure link))
-      (fn [e] (timbre/warn e))                              ; do we actually care about this error?
-      (fn [[link-ctx route]]
-        (let [new-pid (context/build-pid-from-link ctx link-ctx route)]
-          (condp = (runtime/get-route rt new-pid)
-            nil (do (runtime/create-partition rt (:partition-id ctx) new-pid)
-                    (hf/set-route rt new-pid route))
-            route (timbre/warn "Revisiting already created pid. Potential performance issue" route)
-            (throw (ex-info "pid generation non-unique" {:new-pid new-pid
-                                                         :existing-route (runtime/get-route rt new-pid)
-                                                         :route route
-                                                         :link link})))
-          (-> (context/set-partition link-ctx new-pid)
+  (doseq [link @(data/select-many-here ctx #{:hf/iframe})]  ; would like to select #{:hf/iframe (not :tx-fn)}
+    (if (context/branched-link?' link)
+      nil                                                   ; this fn performs effects, the result is never inspected
+      (either/branch
+        (context/refocus-build-route-and-occlude+ ctx (r/pure link))
+        (fn [e] (timbre/warn e))                            ; do we actually care about this error?
+        (fn [[link-ctx route]]
+          (let [new-pid (context/build-pid-from-link ctx link-ctx route)]
+            (condp = (runtime/get-route rt new-pid)
+              nil (do (runtime/create-partition rt (:partition-id ctx) new-pid false)
+                      (hf/set-route rt new-pid route))
+              route (timbre/warn "Revisiting already created pid. Potential performance issue" route)
+              (throw (ex-info "pid generation non-unique" {:new-pid        new-pid
+                                                           :existing-route (runtime/get-route rt new-pid)
+                                                           :route          route
+                                                           :link           link})))
+            (-> (context/set-partition link-ctx new-pid)
               (base/browse-partition+)
               (either/branch
                 (fn [e]
                   (timbre/warn e)
                   (runtime/set-error rt new-pid e))
-                requests)))))))
+                requests))))))))
 
 ; at this point we only care about inline links and popovers are hydrated on their on hydrate-route calls
 ; On the request side, we walk the whole resultset and load each iframe from exactly the right place

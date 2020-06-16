@@ -401,7 +401,7 @@
                                               [:with pid dbname tx]))))]
               ; should the tx fn not be withd? if the transact! fails, do we want to run it again?
               (state/dispatch! rt (into [:batch] with-actions)))
-            (let [ppid (get-branch-parent-pid rt pid)
+            (let [ppid (get-branch-parent-pid rt pid)       ; if not branched, there is no parent-pid
                   tx-groups (->> (get-stage rt pid)
                                  (filter (fn [[dbname tx]] (and (get-auto-transact rt dbname) (not (empty? tx)))))
                                  (into {}))]

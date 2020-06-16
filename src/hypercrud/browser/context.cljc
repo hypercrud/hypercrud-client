@@ -1141,6 +1141,15 @@ a speculative db/id."
               (either/right nil))]
       (unwrap (constantly nil) x))))
 
+(defn branched-link?' [link]                                ; todo remove
+  (-> link :link/tx-fn blank->nil some?))
+
+(defn branched-link?
+  "branched iframes are lazy loaded (e.g. Rosie sub-block)"
+  [ctx]
+  (branched-link?' (link ctx))
+  #_@(r/fmap (r/comp some? blank->nil :link/tx-fn) (:hypercrud.browser/link ctx)))
+
 (defn hash-portable [v]
   ; Transactions have db/id longs and longs hash differently on cljs vs clj
   (hash (pr-str v)))

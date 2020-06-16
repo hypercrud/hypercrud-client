@@ -35,7 +35,7 @@
                                  tx}
                       popover-data @(:hypercrud.browser/result popover-ctx)] ; Can this be (hf/data ctx)?
                   (runtime/close-popover (:runtime ctx) (:partition-id ctx) (:partition-id popover-ctx))
-                  (runtime/delete-partition (:runtime ctx) (:partition-id popover-ctx))
+                  #_(runtime/delete-partition (:runtime ctx) (:partition-id popover-ctx)) ; don't kill partition before committed, constraint violation
                   (cond-> (runtime/commit-branch (:runtime ctx) (:partition-id popover-ctx) tx-groups) ; if branched
                     (::redirect props) (p/then (fn [_]
                                                  (hf/set-route rt
@@ -166,8 +166,7 @@
                   (update :class css "hyperfiddle")
                   (update :disabled #(or % (disabled? link-ref link-ctx))))
         child-pid (context/build-pid-from-link ctx link-ctx (:route props)) ; todo remove route from props
-        child-ctx (context/set-partition ctx child-pid)
-        should-branch @(r/fmap (r/comp some? blank->nil :link/tx-fn) link-ref)]
-    (if should-branch
+        child-ctx (context/set-partition ctx child-pid)]
+    (if (context/branched-link? link-ctx)
       [branched-popover-anchor child-ctx link-ctx props label]
       [unbranched-popover-anchor child-ctx link-ctx props label])))
