@@ -176,8 +176,8 @@
 
 (deftest qualify'
   (is (= (qualify :foo nil) nil))
-  (is (thrown? AssertionError (qualify nil nil)))
+  (is (thrown? #?(:clj AssertionError :cljs js/Error) (qualify nil nil)))
   (is (= (qualify :foo :bar) :foo/bar))
-  (is (thrown? AssertionError (qualify :baz/flux :bar)))
-  (is (thrown? AssertionError (qualify nil :bar)))
+  (is (thrown? #?(:clj AssertionError :cljs js/Error) (qualify :baz/flux :bar)))
+  (is (thrown? #?(:clj AssertionError :cljs js/Error) (qualify nil :bar)))
   )

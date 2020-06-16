@@ -51,13 +51,19 @@
 (deftest query-params []
   (is (= (decode "/:bar?:asdf=InF3ZXJ6eGN2Ig,,") {::route/fiddle :bar :asdf "qwerzxcv"}))
   (is (= (decode "/:bar/?:asdf=InF3ZXJ6eGN2Ig,,") {::route/fiddle :bar :asdf "qwerzxcv"}))
-  (is (= (decode "/:bar?:hyperfiddle.route!where=W1s_ZSA6Zm9vID9hXV0,&:asdf=InF3ZXJ6eGN2Ig,,") {::route/fiddle :bar
-                                                                                                ::route/where '[[?e :foo ?a]]
-                                                                                                :asdf "qwerzxcv"}))
-  (is (= (decode "/:bar?:hyperfiddle.route!where=W1s_ZSA6Zm9vID9hXV0,&:asdf=InF3ZXJ6eGN2Ig,,#blah") {::route/fiddle :bar
-                                                                                                     ::route/where '[[?e :foo ?a]]
-                                                                                                     :asdf "qwerzxcv"
-                                                                                                     ::route/fragment "blah"})))
+  ;
+  ; (is (= (decode "/:bar?:hyperfiddle.route!where=W1s_ZSA6Zm9vID9hXV0,&utm=asdfdsaf") {::route/fiddle :bar
+  ;                                                                                     ::route/where '[[?e :foo ?a]]
+  ;                                                                                     'utm #?(:clj 'j�_vƟ :cljs "jÇ_vÆ")}))
+  (is (= (decode "/:bar?:hyperfiddle.route!where=W1s_ZSA6Zm9vID9hXV0,&:asdf=InF3ZXJ6eGN2Ig,,")
+         {::route/fiddle :bar
+          ::route/where '[[?e :foo ?a]]
+          :asdf "qwerzxcv"}))
+  (is (= (decode "/:bar?:hyperfiddle.route!where=W1s_ZSA6Zm9vID9hXV0,&:asdf=InF3ZXJ6eGN2Ig,,#blah")
+         {::route/fiddle :bar
+          ::route/where '[[?e :foo ?a]]
+          :asdf "qwerzxcv"
+          ::route/fragment "blah"})))
 
 
 (deftest router-malformed-1

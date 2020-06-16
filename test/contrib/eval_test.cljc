@@ -8,8 +8,9 @@
 
 
 (deftest test-eval-string []
-  (is (= 1 (eval-expr-str! "1")))
-  (is (= 2 ((eval-expr-str! "(constantly 2)"))))
+  #?@(:clj
+      [(is (= 1 (eval-expr-str! "1")))
+       (is (= 2 ((eval-expr-str! "(constantly 2)"))))])
 
   (timbre/with-config {:enabled? false}
     (is (instance? Left (eval-expr-str!+ nil)))

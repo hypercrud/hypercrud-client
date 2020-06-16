@@ -272,7 +272,7 @@
 (defn first-key [k]
   (cond (ident? k) k
         (seqable? k) (first k)
-        :or #?(:cljs (js/error "IllegalArgumentException")
+        :or #?(:cljs (js/Error "IllegalArgumentException")
                :clj  (throw (IllegalArgumentException.)))))
 
 (defn to-keys [v]
