@@ -3,7 +3,7 @@
     [contrib.data :as data]
     [contrib.datomic :refer [indexed-schema]]
     [contrib.datomic-tx :refer [into-tx mappify-add-statements flatten-tx construct remove-tx
-                                absorb expand-hf-tx find-datom identifier->e flatten-ref-stmt
+                                absorb #?(:clj expand-hf-tx) find-datom identifier->e flatten-ref-stmt
                                 deconstruct-ideal flatten-map-stmt absorb-stmt ideal-idx remove-dangling-ids
                                 ideals->tx invalid? filter-tx unified-identifier mappify identifier deconstruct]]
     [clojure.set :as set]
@@ -506,10 +506,11 @@
   [x y z]
   [[:db/add x y z]])
 
-(deftest test|expand-hf-tx
-  (is (= [[:db/add 1 2 3]] (expand-hf-tx '[[contrib.datomic-tx-test/f 1 2 3]])))
-  (is (= [[:db/add 1 2 3] [:db/add "asdf" "qwer" :zxcv]]
-         (expand-hf-tx '[[contrib.datomic-tx-test/f 1 2 3] [:db/add "asdf" "qwer" :zxcv]]))))
+#?(:clj
+   (deftest test|expand-hf-tx
+     (is (= [[:db/add 1 2 3]] (expand-hf-tx '[[contrib.datomic-tx-test/f 1 2 3]])))
+     (is (= [[:db/add 1 2 3] [:db/add "asdf" "qwer" :zxcv]]
+            (expand-hf-tx '[[contrib.datomic-tx-test/f 1 2 3] [:db/add "asdf" "qwer" :zxcv]])))))
 
 (deftest test|identifier
   (let [schema (map-by :db/ident seattle-schema-tx)]

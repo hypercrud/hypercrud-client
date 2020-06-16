@@ -1,4 +1,6 @@
 (ns contrib.data
+  (:require
+   [clojure.string :as str])
   #?(:cljs (:require-macros [contrib.data])))
 
 (defn for-kv "f :: m k v -> m"
@@ -270,7 +272,8 @@
 (defn first-key [k]
   (cond (ident? k) k
         (seqable? k) (first k)
-        :or (throw (IllegalArgumentException.))))
+        :or #?(:cljs (js/error "IllegalArgumentException")
+               :clj  (throw (IllegalArgumentException.)))))
 
 (defn to-keys [v]
   (cond (seqable? v) v
@@ -281,5 +284,5 @@
 
 (defn trim-str [s]
   (if-let [indent (some-> (re-find #"(\n +)\S" s) second)]
-    (clojure.string/trim (clojure.string/replace s indent "\n"))
-    (clojure.string/trim s)))
+    (str/trim (str/replace s indent "\n"))
+    (str/trim s)))

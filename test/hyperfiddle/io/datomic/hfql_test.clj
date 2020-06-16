@@ -1,6 +1,6 @@
 (ns hyperfiddle.io.datomic.hfql-test
   (:require
-    [clojure.test :refer :all]
+    [clojure.test :refer [deftest testing is]]
     [hyperfiddle.io.datomic.hfql :as hfql]
     [hyperfiddle.api :as hf]
     [datomic.api :as d]))
