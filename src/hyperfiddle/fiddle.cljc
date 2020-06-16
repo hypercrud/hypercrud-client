@@ -87,7 +87,6 @@
              (keyword? a))
     v))
 
-;; TODO: GG: hf-def links are read here
 (defn read-a "Use :qin to infer the src if the link/a eschews it."
   [s qin]
   (let [[x :as xs] (->> (contrib.reader/memoized-read-edn-string+ (str "[" s "]"))
@@ -97,6 +96,11 @@
         2 xs
         1 ['$ x]                                            ; TODO: Use :qin to choose the right color
         nil))))
+
+(defn path [xorxs]
+  (if (seq? xorxs)
+    (last xorxs)
+    xorxs))
 
 (def link-defaults
   {:link/formula (fn [link]
@@ -127,19 +131,19 @@
                                 (cond
                                   ; Need to know what context we in.
                                   ; Identity can be parent-child ref.
-                                  (contrib.datomic/attr? schema a :db.unique/identity) ":zero" ; hack to draw as popover
-                                  (contrib.datomic/attr? schema a :db.type/ref) ":db/add"
-                                  :else ":zero"))           ; nil a, or qfind-level
+                                  (contrib.datomic/attr? schema a :db.unique/identity) :zero ; hack to draw as popover
+                                  (contrib.datomic/attr? schema a :db.type/ref) :db/add
+                                  :else :zero))           ; nil a, or qfind-level
 
                    #{:hf/remove} (let [[src-db a] (read-a (contrib.string/blank->nil (:link/path link)) qin)
                                        ; Consider: ref, fiddle-ident, scalar (e.g. :streaker/date, :fiddle/ident, :db/ident)
                                        dbname (str src-db)
                                        schema (some-> (get schemas dbname) deref)]
                                    (cond
-                                     (contrib.datomic/attr? schema a :db.unique/identity) ":db/retractEntity"
-                                     (contrib.datomic/isComponent schema a) ":db/retractEntity"
-                                     (contrib.datomic/attr? schema a :db.type/ref) ":db/retract"
-                                     :else ":db/retractEntity")) ; legacy compat, remove
+                                     (contrib.datomic/attr? schema a :db.unique/identity) :db/retractEntity
+                                     (contrib.datomic/isComponent schema a) :db/retractEntity
+                                     (contrib.datomic/attr? schema a :db.type/ref) :db/retract
+                                     :else :db/retractEntity)) ; legacy compat, remove
                    nil))})
 
 ;; to be manually kept in sync with hf.ui/fiddle
@@ -161,12 +165,18 @@
    :fiddle/eval (constantly "(->> \n  (datomic.api/q\n   '[:in $ \n     :find [(pull ?e [:db/ident]) ...]     ; Final value must match FindColl pattern as here\n     :where [?e :db/ident]]\n   hyperfiddle.api/*$*)\n  (sort-by :db/ident)\n  (take 20))\n")
    :fiddle/type (constantly :blank)})                       ; Toggling default to :query degrades perf in ide
 
+(defn- keywordize-link
+  "TODO: support [$db path] shape. For now we are assuming all link paths are
+  keywords."
+  [x]
+  (keywordize x))
+
 (defn auto-link+ [schemas qin link]
   (try-either                                               ; link/txfn could throw, todo wrap tighter
     (let [formula (or-str (:link/formula link) ((:link/formula link-defaults) link))
-          tx-fn   (keywordize (or-str (:link/tx-fn link) ((:link/tx-fn link-defaults) schemas qin link)))]
+          tx-fn (keywordize (or (:link/tx-fn link) ((:link/tx-fn link-defaults) schemas qin link)))]
       (-> (update-existing link :link/fiddle apply-defaults)
-          (update-existing :link/path keywordize)
+          (update-existing :link/path keywordize-link)
           (cond->
             formula (assoc :link/formula formula)
             tx-fn (assoc :link/tx-fn tx-fn))))))
