@@ -16,9 +16,9 @@
     [taoensso.timbre :as timbre]))
 
 
-(defn memoized-safe-eval [ctx code-str]
+(defn memoized-safe-eval [_ctx code-str]
   (if (blank->nil code-str)
-    (context/eval-expr-str!+ ctx code-str)
+    (eval/eval-expr-str!+ code-str)
     (either/left nil)))
 
 (declare markdown)                                          ; mutual recursion, it would be letfn if wasn't react components
@@ -132,7 +132,7 @@
         ?f (some->> content (memoized-safe-eval ctx) (unwrap #(timbre/warn %)))]
     (hyperfiddle.ui/field path ctx ?f (-> props
                                           (update :class css "unp")
-                                          (update :label-fn contrib.eval/ensure-fn)))))
+                                          (update :label-fn contrib.eval/eval-apply)))))
 
 (letfn [(fields [content props ctx]
           [[markdown content (assoc ctx ::unp true)]])]

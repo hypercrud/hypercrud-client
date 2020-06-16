@@ -274,9 +274,12 @@
   (= (str ns) (namespace (keyword x))))
 
 (defn keywordize [s]
-  (if (= \: (first s))
-    (keyword (subs s 1))
-    (keyword s)))
+  (when s
+    (if (keyword? s)
+      s
+      (if (= \: (first s))
+        (keyword (subs s 1))
+        (keyword s)))))
 
 (defn first-key [k]
   (cond (ident? k) k

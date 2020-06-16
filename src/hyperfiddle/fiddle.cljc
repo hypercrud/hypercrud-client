@@ -9,7 +9,7 @@
     [cats.monad.either :as either :refer [right]]
     [clojure.spec.alpha :as s]
     [contrib.ct :refer [unwrap]]
-    [contrib.data :refer [orf update-existing]]
+    [contrib.data :refer [orf update-existing keywordize]]
     [contrib.reader]
     [contrib.string :refer [or-str]]
     [contrib.template :refer [load-resource]]
@@ -40,9 +40,9 @@
 
 (s/def :link/class (s/coll-of keyword?))                    ; hf/new is not allowed on FindScalar at the top (no parent)
 (s/def :link/fiddle (comp not nil?))
-(s/def :link/path string?)
+(s/def :link/path keyword?)
 (s/def :link/formula (some-fn string? coll?))
-(s/def :link/tx-fn string?)
+(s/def :link/tx-fn keyword?)
 
 (s/def :hyperfiddle/owners (s/coll-of uuid?))
 
@@ -87,6 +87,7 @@
              (keyword? a))
     v))
 
+;; TODO: GG: hf-def links are read here
 (defn read-a "Use :qin to infer the src if the link/a eschews it."
   [s qin]
   (let [[x :as xs] (->> (contrib.reader/memoized-read-edn-string+ (str "[" s "]"))
@@ -96,12 +97,6 @@
         2 xs
         1 ['$ x]                                            ; TODO: Use :qin to choose the right color
         nil))))
-
-(defn read-path [s]
-  (->> (contrib.reader/memoized-read-edn-string+ (str "[" s "]"))
-       (unwrap #(timbre/error %))                           ; too late to report anything to the dev
-       last                                                 ; Adapt legacy to attribute
-       ))
 
 (def link-defaults
   {:link/formula (fn [link]
@@ -169,10 +164,12 @@
 (defn auto-link+ [schemas qin link]
   (try-either                                               ; link/txfn could throw, todo wrap tighter
     (let [formula (or-str (:link/formula link) ((:link/formula link-defaults) link))
-          tx-fn (or-str (:link/tx-fn link) ((:link/tx-fn link-defaults) schemas qin link))]
-      (cond-> (update-existing link :link/fiddle apply-defaults)
-        formula (assoc :link/formula formula)
-        tx-fn (assoc :link/tx-fn tx-fn)))))
+          tx-fn   (keywordize (or-str (:link/tx-fn link) ((:link/tx-fn link-defaults) schemas qin link)))]
+      (-> (update-existing link :link/fiddle apply-defaults)
+          (update-existing :link/path keywordize)
+          (cond->
+            formula (assoc :link/formula formula)
+            tx-fn (assoc :link/tx-fn tx-fn))))))
 
 (defn apply-defaults "Fiddle-level defaults but not links.
   Links need the qfind, but qfind needs the fiddle defaults.

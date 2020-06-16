@@ -14,6 +14,7 @@
     [contrib.ui]
     [contrib.ui.safe-render :refer [user-portal]]
     [contrib.ui.tooltip :refer [tooltip tooltip-props]]
+    [contrib.eval :as eval]
     [cuerdas.core :as str]
     [datascript.parser :refer [FindRel FindColl FindTuple FindScalar]]
     [hypercrud.browser.base :as base]
@@ -35,7 +36,7 @@
 
 (let [eval-renderer-comp (fn [fiddle-renderer-str val ctx props]
                            (either/branch
-                             (context/eval-expr-str!+ ctx fiddle-renderer-str)
+                             (eval/eval-expr-str!+ fiddle-renderer-str)
                              (fn [e] (throw e))
                              (fn [f] (into [f val ctx props]))))]
   (defn attr-renderer-control [val ctx & [props]]

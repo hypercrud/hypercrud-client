@@ -101,9 +101,13 @@
       :fiddle ::expr
       :& (s/* any?))))
 
+(s/def ::link-key
+  (s/or :attribute keyword?
+        :db-attribute (s/cat :db #{'$} :attribute keyword?)))
+
 (s/def ::links
   (s/map-of
-    any?
+    ::link-key
     (read-alt (s/& ::link-expr (s/conformer vector))
       (s/+ (s/spec ::link-expr)))))
 
@@ -143,6 +147,11 @@
   (read-schema {::d [:string "docstring" :identity :many]})
   (read-schema {::d [:string :identity :many "docstring"]})
   (read-schema {::e [:string* :identity :many :index]})
+
+  (read-links {":dustingetz/email" [[::submission-detail]
+                                    [:hf/new ::submission-detail :tx-fn ":user.hello-world/new-submission"]]
+               ":user.hello-world/submission-master" [:hf/iframe ::genders]
+               ":dustingetz/gender" [:hf/iframe ::shirt-sizes]})
   )
 
 (defn read-attrs [body]
@@ -230,8 +239,7 @@
        :fiddle/code :fiddle/cljs-ns ;; DEPRECATED
 
        :fiddle/links
-       {:fiddle/links
-        (mapv (fn [link] (reduce-kv (fn [x k v] (merge x (map-attr :link k v))) {} link)) v)}
+       {:fiddle/links (mapv (fn [link] (reduce-kv (fn [x k v] (merge x (map-attr :link k v))) {} link)) v)}
 
        :fiddle/with {:fiddle/with (one v)}
 

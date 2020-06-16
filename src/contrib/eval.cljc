@@ -5,19 +5,22 @@
     [contrib.try$ :refer [try-either]]))
 
 
-(defn eval-expr-str! [code-str]
-  #?(:clj  (load-string code-str)
-     :cljs (eval-cljs/eval-expr-str! code-str)))
+(def eval-expr-str! #?(:clj  load-string
+                       :cljs eval-cljs/eval-expr-str!))
 
 (defn eval-expr-str!+ [code-str]
   (try-either (eval-expr-str! code-str)))
 
-(let [memoized-eval-string (memoize eval-expr-str!+)]
-  (defn ensure-fn [s]
+(let [eval-fn (memoize eval-expr-str!+)]
+  (defn eval-apply
+    "Evaluate a serialized function's code `s` and return a 1-argument function `f x
+  where f = eval s`. Print an error and return nil if `s` can't be parsed to a
+  function. Print an error if `f x` throws."
+    [s]
     (if-not (string? s)
       s
       (either/branch
-        (memoized-eval-string s)
+        (eval-fn s)
         #(constantly (pr-str %))                            ; print the compile error when invoked
         (fn [user-fn]                                       ; eventually invoke this unsafe fn
           #(either/branch
