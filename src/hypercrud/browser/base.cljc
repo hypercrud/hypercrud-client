@@ -395,4 +395,4 @@
 
     (cond-> val
       ((-> key name keyword) #{:code :cljs-ns :renderer :markdown :css
-                               :query :pull :eval :formula :path}) str)))
+                               :query :pull :eval :formula}) str)))

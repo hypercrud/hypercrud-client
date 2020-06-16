@@ -88,13 +88,7 @@
   (api-routes [domain] R/domain-routes)
   (resolve-fiddle [domain fiddle-ident] (resolve-fiddle fiddle-ident))
   #?(:clj (connect [domain dbname] (d/dyna-connect (hf/database domain dbname) ?datomic-client)))
-  #?(:clj (connect [domain dbname on-created!] (d/dyna-connect (hf/database domain dbname) ?datomic-client on-created!)))
-  (memoize [domain f]
-    (if-let [f (get @memoize-cache f)]
-      f
-      (let [ret (clojure.core/memoize f)]
-        (swap! memoize-cache assoc f ret)
-        ret))))
+  #?(:clj (connect [domain dbname on-created!] (d/dyna-connect (hf/database domain dbname) ?datomic-client on-created!))))
 
 (defrecord BidiDomain [config basis fiddle-dbname databases environment router ?datomic-client memoize-cache]
   hf/Domain
@@ -110,13 +104,7 @@
       identity))
   (url-encode [domain route] (router-bidi/encode router route))
   (api-routes [domain] (R/domain-routes config))
-  #?(:clj (connect [domain dbname] (d/dyna-connect (hf/database domain dbname) ?datomic-client)))
-  (memoize [domain f]
-    (if-let [f (get @memoize-cache f)]
-      f
-      (let [ret (clojure.core/memoize f)]
-        (swap! memoize-cache assoc f ret)
-        ret))))
+  #?(:clj (connect [domain dbname] (d/dyna-connect (hf/database domain dbname) ?datomic-client))))
 
 (hypercrud.transit/register-handlers
   EdnishDomain

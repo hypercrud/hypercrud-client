@@ -33,34 +33,8 @@
                 tags/*cljs-data-readers*]
         (eval form)))))
 
-(defn eval-statement-str! [eval-in-ns code-str]
-  {:pre [(string? code-str)]}
-  (binding [ana/*cljs-warning-handlers* []
-            tags/*cljs-data-readers* (merge tags/*cljs-data-readers*
-                                       hyperfiddle.readers/hf-edn-readers
-                                       clj-readers)]
-    (let [r (atom nil)]
-      (when-not (contains? (::ana/namespaces @compile-state-ref) eval-in-ns)
-        (cljs/eval-str compile-state-ref
-                       (str "(ns " eval-in-ns ")")
-                       nil
-                       {:eval cljs/js-eval
-                        :ns eval-in-ns
-                        :context :statement}
-                       (partial reset! r))
-        (when-let [error (:error @r)]
-          (throw error)))
-      (cljs/eval-str compile-state-ref
-                     code-str
-                     nil
-                     {:eval cljs/js-eval
-                      :ns eval-in-ns
-                      :context :statement}
-                     (partial reset! r))
-      (when-let [error (:error @r)]
-        (throw error)))))
-
 (defn eval-expr-str! [code-str]
+  ;; (js/console.warn code-str)
   (binding [ana/*cljs-warning-handlers* []
             tags/*cljs-data-readers* (merge tags/*cljs-data-readers*
                                        hyperfiddle.readers/hf-edn-readers
