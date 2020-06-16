@@ -229,11 +229,11 @@ a speculative db/id."
                    (conj (some-> link :link/fiddle :fiddle/ident))
 
                    ; fast way to name a button without a fiddle
-                   (conj (some-> link :link/tx-fn (subs 1) keyword))
+                   (conj (:link/tx-fn link))
 
                    ; link/a is probably not useful except for narrowing, maybe
                    ; nil path is no longer defined, use fiddle-ident instead
-                   (conj (some-> link :link/path last))
+                   (conj (some-> link :link/path hyperfiddle.fiddle/path))
 
                    ; nil #{txfn linkpath fiddleident} is not meaningful
                    (disj nil))]                             ; Preserve set type
@@ -1087,7 +1087,7 @@ a speculative db/id."
   [ctx link-ref]
   {:pre [(s/assert :hypercrud/context ctx)]
    :post [(s/assert either? %)]}
-  (->> (last @(r/cursor link-ref [:link/path]))
+  (->> (hyperfiddle.fiddle/path @(r/cursor link-ref [:link/path]))
        (refocus+ ctx)
        (cats/fmap #(assoc % :hypercrud.browser/link link-ref))))
 
@@ -1129,6 +1129,7 @@ a speculative db/id."
               (nil? %))]}
   (when-let [link-ref (:hypercrud.browser/link ctx)]
     (when-let [x @(r/cursor link-ref [:link/tx-fn])]
+      (assert (not (string? x)) (str `link/tx-fn " : The link/tx-fn should not be a string anymore"))
       (cond
         (keyword? x) x
         (string? x)  (some-> x blank->nil keywordize)
