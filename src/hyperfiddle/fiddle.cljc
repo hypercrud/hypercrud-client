@@ -41,7 +41,7 @@
 (s/def :link/class (s/coll-of keyword?))                    ; hf/new is not allowed on FindScalar at the top (no parent)
 (s/def :link/fiddle (comp not nil?))
 (s/def :link/path keyword?)
-(s/def :link/formula (some-fn string? coll?))
+(s/def :link/formula qualified-keyword?)
 (s/def :link/tx-fn keyword?)
 
 (s/def :hyperfiddle/owners (s/coll-of uuid?))
@@ -102,26 +102,24 @@
     (last xorxs)
     xorxs))
 
+(defmethod hf/formula :default [ctx {:keys [link/formula link/class link/fiddle]} value]
+  (cond
+    (some #{:hf/new} class) (hyperfiddle.api/tempid! ctx)
+    ;; If there is a fiddle-target, infer the expected :in shape
+    fiddle                  (case (get fiddle :fiddle/type ((:fiddle/type fiddle-defaults) fiddle))
+                              (:query :entity :eval) value
+                              ;; this is the case where the v is inferred but we
+                              ;; don't actually want it, like a toplevel iframe
+                              ;; for a FindScalar. Update: can use :db/id for
+                              ;; the dependent iframe, use :fiddleident for a
+                              ;; standalone iframe ? or naked (no :link/attr)
+                              :blank                 nil)
+    ;; TODO: What if :txfn is combined with :target-fiddle :blank, or
+    ;; :target-fiddle :FindTuple?
+    :else                   value))
+
 (def link-defaults
-  {:link/formula (fn [link]
-                   (cond
-
-                     (some #{:hf/new} (:link/class link)) "(constantly (hyperfiddle.api/tempid! ctx))"
-
-                     (:link/fiddle link)                    ; If there is a fiddle-target, infer the expected :in shape
-                     (case (get-in link [:link/fiddle :fiddle/type] ((:fiddle/type fiddle-defaults) (:link/fiddle link)))
-                       :query "identity" #_(infer-query-formula (get-in link [:link/fiddle :fiddle/query] ((:fiddle/query fiddle-defaults) (:link/fiddle link))))
-                       :entity "identity"
-                       :eval "identity"
-
-                       ; this is the case where the v is inferred but we don't actually want it, like a toplevel iframe for a FindScalar.
-                       ; Update: can use :db/id for the dependent iframe, use :fiddleident for a standalone iframe ? or naked (no :link/attr)
-                       :blank nil)
-
-                     ; TODO: What if :txfn is combined with :target-fiddle :blank, or :target-fiddle :FindTuple?
-                     :else-txfn "identity"))
-
-   :link/tx-fn (fn [schemas qin link]
+  {:link/tx-fn (fn [schemas qin link]
                  ; Auto parent-child management for eav ref contexts
                  (condp some (:link/class link)
                    #{:hf/new} (let [[src-db a] (read-a (contrib.string/blank->nil (:link/path link)) qin)
@@ -191,14 +189,18 @@
     link))
 
 (defn auto-link+ [schemas qin link]
-  (try-either                                               ; link/txfn could throw, todo wrap tighter
-    (let [formula (or-str (:link/formula link) ((:link/formula link-defaults) link))
-          tx-fn (keywordize (or (:link/tx-fn link) ((:link/tx-fn link-defaults) schemas qin link)))]
-      (-> (update-existing link :link/fiddle apply-defaults)
-          (update-existing :link/path parse-link)
-          (cond->
-            formula (assoc :link/formula formula)
-            tx-fn (assoc :link/tx-fn tx-fn))))))
+  (try-either                         ; link/txfn could throw, todo wrap tighter
+   (let [formula (:link/formula link)
+         tx-fn   (keywordize (or (:link/tx-fn link) ((:link/tx-fn link-defaults) schemas qin link)))]
+     (when (string? formula)
+       (timbre/warn "A legacy eval-based formula is used for this link. It's been ignored. Please migrate to static code."
+                    {:formula formula, :link link}))
+     (-> link
+         (update-existing :link/fiddle apply-defaults)
+         (update-existing :link/path   parse-link)
+         (cond->
+             (string? formula) (dissoc :link/formula)
+             tx-fn             (assoc :link/tx-fn tx-fn))))))
 
 (defn apply-defaults "Fiddle-level defaults but not links.
   Links need the qfind, but qfind needs the fiddle defaults.

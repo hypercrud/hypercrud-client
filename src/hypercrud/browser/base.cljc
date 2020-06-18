@@ -339,7 +339,7 @@
       (expr/unquote-via x
         (fn eval-expr [x]
 
-          (cond (qualified-keyword? x) {:fiddle/ident (str x)}
+          (cond (qualified-keyword? x) {:fiddle/ident (do (prn x) (str x))}
 
                 (expr/form? x)
                 (cond (qualified-keyword? (first x))
@@ -395,4 +395,4 @@
 
     (cond-> val
       ((-> key name keyword) #{:code :cljs-ns :renderer :markdown :css
-                               :query :pull :eval :formula}) str)))
+                               :query :pull :eval}) str)))

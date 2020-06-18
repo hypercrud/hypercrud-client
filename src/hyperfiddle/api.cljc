@@ -174,6 +174,8 @@
 
 (defmulti render-fiddle (fn [_val ctx _props] (fiddle ctx)))
 
+(defmulti formula (fn [_ctx link _value] (:link/formula link)))
+
 (defmethod tx :default [ctx eav props]
   nil)
 

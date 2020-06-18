@@ -295,7 +295,7 @@
           {k (cond
                (and (= type :fiddle)
                     (= (hyperfiddle.fiddle/kind acc) :fn)) (map-val v)
-               (-> k name keyword #{:query :pull :formula}) (map-expr v)
+               (-> k name keyword #{:query :pull}) (map-expr v)
                (-> k name keyword #{:code :cljs-ns :renderer :markdown :css}) (repr-val v)
                () v)}))
       {})
