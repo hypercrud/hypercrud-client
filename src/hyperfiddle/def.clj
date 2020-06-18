@@ -103,7 +103,7 @@
 
 (s/def ::link-key
   (s/or :attribute keyword?
-        :db-attribute (s/cat :db #{'$} :attribute keyword?)))
+        :db-attribute (s/cat :db symbol? :attribute keyword?)))
 
 (s/def ::links
   (s/map-of
