@@ -1045,27 +1045,22 @@ a speculative db/id."
       v)))
 
 (defn build-args+ "Params are EAV-typed (uncolored)"
-  ;There is a ctx per argument if we are element-level tuple.
+  ;; There is a ctx per argument if we are element-level tuple.
   [ctx link]
   {:post [(s/assert either? %)]}
-  ; if at element level, zip with the find-elements, so do this N times.
-  ; That assumes the target query is a query of one arg. If it takes N args, we can apply as tuple.
-  ; If they misalign thats an error. Return the tuple of args.
-  (mlet [formula-ctx-closure (if-let [formula-str (contrib.string/blank->nil (:link/formula link))]
-                               (eval/eval-expr-str!+ (str "(fn [ctx] \n" formula-str "\n)"))
-                               (either/right (constantly (constantly nil))))
-         formula-fn (try-either (formula-ctx-closure ctx))
-
-         ; V legacy is tuple, it should be scalar by here (tuple the ctx, not the v)
-         :let [[e a v] (eav ctx)]
-
-         ; Documented behavior is v in, tuple out, no colors.
-         arg (try-either (formula-fn v))]
-    ; Don't normalize, must handle tuple dimension properly.
-    ; For now assume no tuple.
-    (return
-      ; !link[⬅︎ Slack Storm](:dustingetz.storm/view)
-      (if arg [arg]))))
+  ;; if at element level, zip with the find-elements, so do this N times. That
+  ;; assumes the target query is a query of one arg. If it takes N args, we can
+  ;; apply as tuple. If they misalign thats an error. Return the tuple of args.
+  (let [;; V legacy is tuple, it should be scalar by here (tuple the ctx, not
+        ;; the v)
+        [e a v]    (eav ctx)
+        ;; Documented behavior is v in, tuple out, no colors.
+        arg        (hf/formula ctx link v)]
+    ;; Don't normalize, must handle tuple dimension properly. For now assume no
+    ;; tuple.
+    (either/right
+     ;; !link[⬅︎ Slack Storm](:dustingetz.storm/view)
+     (if arg [arg]))))
 
 (defn ^:export build-route+ "There may not be a route! Fiddle is sometimes optional" ; build-route+
   [args ctx]
