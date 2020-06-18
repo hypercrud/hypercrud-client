@@ -3,6 +3,7 @@
   (:require [cats.core :as cats]
             [clojure.spec.alpha :as s]
             [contrib.data :as util]
+            #?(:clj [taoensso.timbre :as log])
     #?(:cljs [reagent.core :as reagent])
     #?(:cljs [reagent.ratom :refer [IReactiveAtom]]))
   #?(:cljs (:require-macros [contrib.reactive]))
@@ -131,7 +132,13 @@
 
 (defn track [f & args]
   ; todo support more than just IDeref
-  #?(:clj  (delay (clojure.core/apply f args))
+  #?(:clj  (delay (try
+                    (clojure.core/apply f args)
+                    (catch Exception e
+                      (log/error (ex-info "FIXME: An exception was thrown in a Delay body. Usage of lazy seqs might prevent it to get propagated up the stack. Please note it could cause delay/promises to never fulfill nor reject, leading to a starvation of the underlying CompletableFuture thread pool."
+                                          {:thrown-by f}
+                                          e))
+                      (throw e))))
      :cljs (clojure.core/apply reagent/track f args)))
 
 (let [f (fn [rvs]
