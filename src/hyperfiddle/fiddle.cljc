@@ -9,7 +9,7 @@
     [cats.monad.either :as either :refer [right]]
     [clojure.spec.alpha :as s]
     [contrib.ct :refer [unwrap]]
-    [contrib.data :refer [orf update-existing keywordize]]
+    [contrib.data :refer [orf update-existing keywordize apply-to]]
     [contrib.reader]
     [contrib.string :refer [or-str]]
     [contrib.template :refer [load-resource]]
@@ -165,18 +165,36 @@
    :fiddle/eval (constantly "(->> \n  (datomic.api/q\n   '[:in $ \n     :find [(pull ?e [:db/ident]) ...]     ; Final value must match FindColl pattern as here\n     :where [?e :db/ident]]\n   hyperfiddle.api/*$*)\n  (sort-by :db/ident)\n  (take 20))\n")
    :fiddle/type (constantly :blank)})                       ; Toggling default to :query degrades perf in ide
 
-(defn- keywordize-link
-  "TODO: support [$db path] shape. For now we are assuming all link paths are
-  keywords."
-  [x]
-  (keywordize x))
+(defn- composite-link?
+  "See `:hyperfiddle.def/link-key` spec"
+  [link]
+  (and (string? link)
+       (re-matches #"\[(.*) (.*)\]" link)))
+
+(defn- parse-composite-link
+  "Accept a regexp group matched by `composite-link?`"
+  [[_ db path]]
+  [(symbol db) (keywordize path)])
+
+;; Copied from `:hyperfiddle.def/link-key` to make it available in cljs.
+(s/def ::link-key (s/or :attribute keyword? :db-attribute (s/cat :db symbol? :attribute keyword?)))
+
+(defn- parse-link
+  [link]
+  {:post [(s/valid? ::link-key %)]}
+  (condp apply-to link
+    keyword?        link ;; identity
+    composite-link? :>> parse-composite-link ;; parse  "[$ :path]" shape
+    string?         (keywordize link) ;; just transform it to keyword
+    ;; else return the link as-is and let spec validate it
+    link))
 
 (defn auto-link+ [schemas qin link]
   (try-either                                               ; link/txfn could throw, todo wrap tighter
     (let [formula (or-str (:link/formula link) ((:link/formula link-defaults) link))
           tx-fn (keywordize (or (:link/tx-fn link) ((:link/tx-fn link-defaults) schemas qin link)))]
       (-> (update-existing link :link/fiddle apply-defaults)
-          (update-existing :link/path keywordize-link)
+          (update-existing :link/path parse-link)
           (cond->
             formula (assoc :link/formula formula)
             tx-fn (assoc :link/tx-fn tx-fn))))))

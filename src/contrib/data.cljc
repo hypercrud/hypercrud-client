@@ -1,4 +1,5 @@
 (ns contrib.data
+  (:refer-clojure :exclude [apply-to])
   (:require
    [clojure.string :as str])
   #?(:cljs (:require-macros [contrib.data])))
@@ -298,3 +299,12 @@
   (if-let [indent (some-> (re-find #"(\n +)\S" s) second)]
     (str/trim (str/replace s indent "\n"))
     (str/trim s)))
+
+(defn apply-to
+  "To be used with `condp`. Makes it more explicit when using predicates as conditions.
+  (condp apply-to x
+    odd?         :odd
+    even?        :even
+    identity :>> inc)"
+  [f x]
+  (f x))
