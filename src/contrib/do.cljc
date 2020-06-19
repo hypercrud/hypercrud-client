@@ -81,25 +81,26 @@
 (defprotocol Do-via
   (resolver-for [H]))
 
-(def ^:dynamic *stack [])
-(def ^:dynamic *resolve {})
-(def ^:dynamic *state)
+(def ^:dynamic *stack [])                                   ; each via* layer has its own mutable state
+(def ^:dynamic *resolve {})                                 ; methods available in this dynamic scope
+(def ^:dynamic *this)                                       ; points to the active state record in a ! frame
 
 (defmacro via* [R & body]
-  `(let [R# ~R
-         fns# (resolver-for R#)]
+  `(let [R# ~R                                              ; R is the user defined state instance, e.g. a defrecord
+         fns# (resolver-for R#)]                            ; This is a protocol to allow for user defined state type
 
-     (assert (every? typed-tag? (keys fns#)))
+     (assert (every? typed-tag? (keys fns#)))               ; An action-type identifies a set of methods available on an object "of that action-type"
 
      (let [n# (count *stack)
            resolvers#
            (->> fns#
-                (group-by (comp tag-type key))
-                (reduce-kv (fn [m# k# v#]
-                             (assoc m# k# (into {::nth n#} v#))) {}))]
+                (group-by (comp tag-type key))              ; Override resolver methods as a single unit (no inheritance)
+                (reduce-kv (fn [m# action-type# methods#]
+                             (assoc m# action-type# (into {::nth n#} methods#))) ; ?
+                  {}))]
 
-       (binding [*stack (conj *stack R#)
-                 *resolve (merge *resolve resolvers#)]
+       (binding [*stack (conj *stack R#)                    ; save the state pointer
+                 *resolve (merge *resolve resolvers#)]      ; methods for an action-type
 
          ~@body
          ))))
@@ -110,13 +111,13 @@
     (assert (typed-action? action))
 
     (let [R (get *resolve (action-type action))]
-      (binding [*state (nth *stack (::nth R))]
+      (binding [*this (nth *stack (::nth R))]               ; for backtracking state, let these unwind
 
-        (as-> ((get R (action-tag action)) action) result
-          (do (set! *stack (assoc *stack (::nth R) *state))
+        (as-> ((get R (action-tag action)) action) result   ; for state monad, computation can continue forward by going deeper into this frame with re-entrant !
+          (do (set! *stack (assoc *stack (::nth R) *this))  ; *this may be mutated by actions
               result))
         ))))
 
 (defn get-state []
-  (or *state
-      (last *stack)))
+  (or *this
+      (last *stack)))                                       ; ?

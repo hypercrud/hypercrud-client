@@ -1,6 +1,6 @@
 (ns contrib.match
   (:require
-    [contrib.do :refer [! *state via*] :as do]
+    [contrib.do :refer [! *this via*] :as do]
     [clojure.walk :as walk]))
 
 (declare -matches?)
@@ -11,22 +11,22 @@
   (resolver-for
     [H]
     {:Environment.whole
-     (fn [_] *state)
+     (fn [_] *this)
      :Environment.init
      (fn [_]
-       (set! *state {}))
+       (set! *this {}))
      :Environment.contains?
      (fn [[_ n]]
-       (contains? *state n))
+       (contains? *this n))
      :Environment.get
      (fn [[_ n]]
-       (get *state n))
+       (get *this n))
      :Environment.set
      (fn [[_ n v]]
-       (set! *state (assoc *state n v)))
+       (set! *this (assoc *this n v)))
      :Environment.swap!
      (fn [[_ n f & args]]
-       (set! *state (assoc *state n (apply f (get *state n) args))))}))
+       (set! *this (assoc *this n (apply f (get *this n) args))))}))
 
 (def ReturnBoolean
   (reify

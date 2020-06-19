@@ -105,14 +105,14 @@
   do/Do-via
   (resolver-for [h]
     {:Eval.fiddle
-     (fn [_] (:fiddle do/*state))
+     (fn [_] (:fiddle do/*this))
      :Eval.scope
-     (fn [_] (:scope do/*state))
+     (fn [_] (:scope do/*this))
      :Eval.get-var
-     (fn [[_ name]] (get (:scope do/*state) name))
+     (fn [[_ name]] (get (:scope do/*this) name))
      :Eval.set-var!
      (fn [[_ name val]]
-       (set! do/*state (update do/*state assoc name val)))}))
+       (set! do/*this (update do/*this assoc name val)))}))
 
 (defn eval-fiddle+ [fiddle {:keys [domain route ctx] :as env}]
   (do/scope (into [`eval-fiddle+ (:fiddle/ident fiddle)] (seq (:fiddle/apply fiddle)))
