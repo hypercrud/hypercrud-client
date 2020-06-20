@@ -5,3 +5,4 @@
 /project.clj
 /node_modules
 .cpcache
+/cljs-test-runner-out
