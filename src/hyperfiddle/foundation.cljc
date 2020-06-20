@@ -16,7 +16,6 @@
     #?(:cljs [hyperfiddle.view.keyboard :as k])
     #?(:cljs [hyperfiddle.view.keyboard.combos :as combos])
     [hyperfiddle.view.controller :as view]
-    hyperfiddle.blocks.account
     ))
 
 ; Old source tree, before removal of IDE:
@@ -43,21 +42,22 @@
         {:keys [domain]} (get-in (hf/environment domain) [:auth0 ide-domain])]
     (some? domain)))
 
-(defn stateless-login-url
-  ([ctx]
-   (stateless-login-url ctx (hf/url-encode (hf/domain (:runtime ctx)) (runtime/get-route (:runtime ctx) "root"))))
-  ([ctx state]
-   (let [{:keys [hyperfiddle.ide.directory/service-uri hyperfiddle.ide.directory/ide-domain] :as domain} (hf/domain (:runtime ctx))
-         {:keys [domain client-id]} (get-in (hf/environment domain) [:auth0 ide-domain])
-         redirect-uri               (str service-uri (domain/api-path-for (hf/domain (:runtime ctx))
-                                                       :hyperfiddle.ide/auth0-redirect))]
-     (assert domain "auth not configured, see `auth-configured?")
-     (str "https://" domain "/"
-       "login?"
-       "client=" client-id
-       "&scope=" "openid email profile"
-       "&state=" (base64-url-safe/encode state)
-       "&redirect_uri=" redirect-uri))))
+#?(:cljs
+   (defn stateless-login-url
+     ([ctx]
+      (stateless-login-url ctx (hf/url-encode (hf/domain (:runtime ctx)) (runtime/get-route (:runtime ctx) "root"))))
+     ([ctx state]
+      (let [{:keys [hyperfiddle.ide.directory/service-uri hyperfiddle.ide.directory/ide-domain] :as domain} (hf/domain (:runtime ctx))
+            {:keys [domain client-id]} (get-in (hf/environment domain) [:auth0 ide-domain])
+            redirect-uri (str service-uri (domain/api-path-for (hf/domain (:runtime ctx))
+                                            :hyperfiddle.ide/auth0-redirect))]
+        (assert domain "auth not configured, see `auth-configured?")
+        (str "https://" domain "/"
+          "login?"
+          "client=" client-id
+          "&scope=" "openid email profile"
+          "&state=" (base64-url-safe/encode state)
+          "&redirect_uri=" redirect-uri)))))
 
 #?(:cljs
    (defn TopNav [{:keys [ctx]}]
@@ -140,11 +140,79 @@
            (fn [_]
              [Main ctx])))]))
 
+
+(hf-def/fiddle ::account
+  :query
+  '[:in $users
+    :find
+    (pull $users ?user
+      [:db/id
+       :user/name
+       :user/email
+       :user/last-seen
+       :user/sub
+       :user/picture
+       :user/user-id
+       *])
+    .
+    :where
+    [(ground hyperfiddle.api/*subject*) ?user-id]
+    [$users ?user :user/user-id ?user-id]]
+
+  :renderer (hyperfiddle.blocks.account/Account val ctx props)
+
+  :code
+  (defmethod hyperfiddle.api/render #{:user/user-id
+                                      :hyperfiddle.blocks/account}
+    [ctx props]
+    [:div.hyperfiddle-input-group
+     [:div.input
+      (pr-str (hypercrud.browser.context/data ctx))]])
+
+  :css "
+    img.avatar { border: 1px solid lightgray; border-radius: 50%; width: 80px; }
+    img.avatar { float: left; margin-top: 1rem; margin-right: 1rem; }
+    .-hyperfiddle-ide-user-settings h3 { margin-top: 1rem; }
+   "
+  )
+
+(defmethod hf/render #{:user/user-id
+                       :hyperfiddle.blocks/account}
+  [ctx props]
+  #?(:cljs
+     [:div.hyperfiddle-input-group
+      [:div.input (pr-str (hf/data ctx))]]))
+
+#?(:cljs
+   (defn Account [_ ctx props]
+     (let [user @(:hypercrud.browser/result ctx)]
+       [:div.container-fluid props
+        [:div.p
+         [ui/img (:user/picture user) ctx {:class "avatar"}]]
+
+        [:h3 "Hello, " (:user/name user) "!"]
+
+        [:div.p
+         [:form {:action "/logout" :method "post"}
+          (str "Last login was " (or (some-> (:user/last-seen user) .toLocaleDateString) "–") ".")
+
+          [:button.btn.btn-link {:type  "submit"
+                                 :style {:display        "inline"
+                                         :padding        "0"
+                                         :margin-left    ".25em"
+                                         :font-size      "inherit"
+                                         :vertical-align "inherit"}}
+           "logout"]]
+         ]
+
+        [:div.p [:div {:style {:margin-bottom "1em"}}]]
+        [ui/field [:user/user-id] ctx]])))
+
 (hf-def/fiddle :hyperfiddle.ide/please-login
   :renderer
   (let [tunneled-route (first (:hyperfiddle.route/datomic-args @(:hypercrud.browser/route ctx)))
-        state          (hyperfiddle.api/url-encode (hyperfiddle.api/domain (:runtime ctx)) tunneled-route)
-        href           (hyperfiddle.foundation/stateless-login-url ctx state)]
+        state (hyperfiddle.api/url-encode (hyperfiddle.api/domain (:runtime ctx)) tunneled-route)
+        href (hyperfiddle.foundation/stateless-login-url ctx state)]
     [:div
      [:br]
      [:center [:h3 "Please " [:a {:href href} "login"]]]]))
