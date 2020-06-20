@@ -13,7 +13,6 @@
     #?(:cljs [hyperfiddle.view.keyboard.actions :as actions])
     #?(:cljs [hyperfiddle.view.keyboard.combos :as combos])
     [contrib.reactive :as r]
-    [hyperfiddle.blocks.view-mode-selector :refer [ViewModeSelector]]
     [hyperfiddle.runtime]
     [hyperfiddle.view.controller :as view]))
 
@@ -21,6 +20,20 @@
 
 ; Old source tree, before removal of IDE:
 ; https://github.com/hyperfiddle/hyperfiddle/tree/aa11ec7ce636cf5554334974a575821710947cb2
+
+(defn set-view-mode! [mode _]
+  (view/set-mode! mode))
+
+(defn ViewModeSelector [{:keys [mode]}]
+  [RadioGroup {:name      "view"
+               :options   [{:key :hypercrud.browser.browser-ui/api, :text "edn"}
+                           {:key :hypercrud.browser.browser-ui/xray, :text "data"}
+                           {:key :hypercrud.browser.browser-ui/user, :text "view"}]
+               :value     mode
+               :on-change (r/partial set-view-mode!)
+               :props     {:style {:display        :inline-grid
+                                   :grid-auto-flow :column
+                                   :grid-gap       "0.75rem"}}}])
 
 (defn TopNav [{:keys [ctx]}]
   [:nav {:role  :navigation

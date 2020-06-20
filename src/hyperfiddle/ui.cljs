@@ -19,7 +19,6 @@
     [hypercrud.browser.base :as base]
     [hypercrud.browser.context :as context]
     [hyperfiddle.api :as hf]
-    [hyperfiddle.blocks.view-mode-selector :refer [ViewModeSelector]]
     [hyperfiddle.data :as data]
     [hyperfiddle.domain :as domain]
     [hyperfiddle.route :as route]
