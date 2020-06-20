@@ -45,7 +45,7 @@
 #?(:cljs
    (defn stateless-login-url
      ([ctx]
-      (stateless-login-url ctx (hf/url-encode (hf/domain (:runtime ctx)) (runtime/get-route (:runtime ctx) "root"))))
+      (stateless-login-url ctx (hf/url-encode (hf/domain (:runtime ctx)) (runtime/get-route (:runtime ctx) hf/root-pid))))
      ([ctx state]
       (let [{:keys [hyperfiddle.ide.directory/service-uri hyperfiddle.ide.directory/ide-domain] :as domain} (hf/domain (:runtime ctx))
             {:keys [domain client-id]} (get-in (hf/environment domain) [:auth0 ide-domain])
@@ -69,7 +69,7 @@
       [ViewModeSelector {:mode (:hyperfiddle.ui/display-mode ctx)}]
       [:div {:style {:flex 1}}]
       (if (hf/subject ctx)
-        [:a {:href  "/:hyperfiddle.blocks.account!account"
+        [:a {:href  (hf/url-encode (hf/domain (:runtime ctx)) {:hyperfiddle.route/fiddle :hyperfiddle/account})
              :style {:text-transform :capitalize}}
          (str "👤Account")]
         (if (auth-configured? ctx)
@@ -141,7 +141,7 @@
              [Main ctx])))]))
 
 
-(hf-def/fiddle ::account
+(hf-def/fiddle :hyperfiddle/account
   :query
   '[:in $users
     :find
@@ -159,15 +159,7 @@
     [(ground hyperfiddle.api/*subject*) ?user-id]
     [$users ?user :user/user-id ?user-id]]
 
-  :renderer (hyperfiddle.blocks.account/Account val ctx props)
-
-  :code
-  (defmethod hyperfiddle.api/render #{:user/user-id
-                                      :hyperfiddle.blocks/account}
-    [ctx props]
-    [:div.hyperfiddle-input-group
-     [:div.input
-      (pr-str (hypercrud.browser.context/data ctx))]])
+  :renderer (hyperfiddle.foundation/Account val ctx props)
 
   :css "
     img.avatar { border: 1px solid lightgray; border-radius: 50%; width: 80px; }
