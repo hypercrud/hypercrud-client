@@ -5,15 +5,14 @@
     [clojure.test :refer [deftest is testing use-fixtures]]
     [contrib.reader :as reader]
     [contrib.uri :refer [->URI]]
+    [hyperfiddle.api :as hf]
     [hyperfiddle.database.fixtures :as fixtures]
-    [hyperfiddle.foundation :as foundation]
     [hyperfiddle.io.datomic.hydrate-route :as hydrate-route]
     [hyperfiddle.io.datomic.peer :as peer]                  ; todo run tests for client as well
     [hyperfiddle.io.datomic.sync :as datomic-sync]
     [hyperfiddle.route :as route]
     [promesa.core :as p]
-    [taoensso.timbre :as timbre]
-    [hyperfiddle.api :as hf])
+    [taoensso.timbre :as timbre])
   (:import
     (clojure.lang ExceptionInfo)
     (java.util.regex Pattern)))
@@ -53,11 +52,11 @@
 
 (deftest duplicate-datoms []
   (testing "non source db"
-    (let [pid foundation/root-pid
+    (let [pid hf/root-pid
           response (timbre/with-config {:enabled? false}
                      (let [local-basis (datomic-sync/sync test-domain ["$" "$src"])
                            route {::route/fiddle :persons}
-                           partitions {foundation/root-pid {:is-branched true
+                           partitions {hf/root-pid {:is-branched true
                                                             :stage {"$" [[:db/add [:person/name "Bob"] :person/age 41]
                                                                          [:db/add [:person/name "Bob"] :person/age 42]]}}}
                            subject nil]
@@ -69,8 +68,8 @@
     (let [response+ (timbre/with-config {:enabled? false}
                       (let [local-basis (datomic-sync/sync test-domain ["$" "$src"])
                             route {::route/fiddle :persons}
-                            pid foundation/root-pid
-                            partitions {foundation/root-pid {:is-branched true
+                            pid hf/root-pid
+                            partitions {hf/root-pid {:is-branched true
                                                              :stage {"$src" [[:db/add [:fiddle/ident :persons] :db/doc "foo"]
                                                                              [:db/add [:fiddle/ident :persons] :db/doc "bar"]]}}}
                             subject nil]

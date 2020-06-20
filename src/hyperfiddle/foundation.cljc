@@ -19,8 +19,6 @@
     hyperfiddle.blocks.account
     ))
 
-(def root-pid "root")
-
 ; Old source tree, before removal of IDE:
 ; https://github.com/hyperfiddle/hyperfiddle/tree/aa11ec7ce636cf5554334974a575821710947cb2
 

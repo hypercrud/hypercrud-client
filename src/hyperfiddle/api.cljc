@@ -232,3 +232,5 @@
     :else                 (either/left (ex-info "Not a domain"
                                                 {:value x
                                                  :type  (type x)}))))
+
+(def root-pid "root")

@@ -6,8 +6,8 @@
     #?(:cljs [goog.object :as object])
     [hypercrud.types.DbRef :refer [->DbRef]]
     [hypercrud.types.EntityRequest :refer [map->EntityRequest]]
+    [hyperfiddle.api :as hf]
     [hyperfiddle.domain :as domain]
-    [hyperfiddle.foundation :as foundation]
     [hyperfiddle.io.core :as io]
     [hyperfiddle.service.jwt :as jwt]
     [promesa.core :as p]
@@ -51,9 +51,9 @@
                     (p/do* (verify encoded-id-token)))
          basis (io/sync io #{"$users"})
          user-record (->> (map->EntityRequest {:e [:user/sub (:sub id-token)]
-                                               :db (->DbRef "$users" foundation/root-pid)
+                                               :db (->DbRef "$users" hf/root-pid)
                                                :pull-exp [:db/id :user/user-id :user/created-date]})
-                          (io/hydrate-one! io basis {foundation/root-pid {:is-branched true}}))
+                          (io/hydrate-one! io basis {hf/root-pid {:is-branched true}}))
          :let [user-id (:user/user-id user-record #?(:clj (UUID/randomUUID) :cljs (random-uuid)))
                now #?(:clj (Date.) :cljs (js/Date.))]
          _ (io/transact! io {"$users" [(cond-> {:user/name (:nickname id-token)

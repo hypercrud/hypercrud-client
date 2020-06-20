@@ -13,7 +13,6 @@
     [hyperfiddle.api :as hf]
     [hyperfiddle.data]
     [hyperfiddle.fiddle :as fiddle]
-    [hyperfiddle.foundation :as foundation]
     [hyperfiddle.route :as route]
     [hyperfiddle.runtime]
     [hyperfiddle.state :as state]
@@ -44,9 +43,9 @@
    (let [[fiddle result] (-> fiddles ident)
          fiddle (fiddle/apply-defaults fiddle)]
      (-> (context/map->Context
-           {:partition-id foundation/root-pid
+           {:partition-id hf/root-pid
             :hypercrud.browser/route nil
-            :runtime (mock-peer foundation/root-pid schemas)})
+            :runtime (mock-peer hf/root-pid schemas)})
          (context/fiddle+ (r/pure fiddle))
          (either/branch (fn [e] (throw e)) identity)
          (context/result (r/pure result))))))
