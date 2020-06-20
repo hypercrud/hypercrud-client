@@ -9,7 +9,6 @@
     [fixtures.domains]
     [fixtures.tank]
     [hypercrud.browser.context :as context]
-    [hyperfiddle.core]                                      ; avoid cycle hyperfiddle.api
     [hyperfiddle.api :as hf]
     [hyperfiddle.data]
     [hyperfiddle.fiddle :as fiddle]
