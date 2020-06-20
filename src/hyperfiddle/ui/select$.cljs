@@ -1,7 +1,7 @@
 (ns hyperfiddle.ui.select$                                  ; Namespace clashes with var hyperfiddle.ui/select
   (:require-macros [contrib.do :refer [do-result from-result]])
   (:require
-    ["react-bootstrap-typeahead" :refer [Typeahead AsyncTypeahead]]
+    ["react-bootstrap-typeahead" :refer [Typeahead AsyncTypeahead #_TypeaheadInputSingle]]
     [cats.core :as cats :refer [mlet return]]
     [cats.monad.either :as either :refer [left right]]
     [contrib.ct :refer [unwrap]]
@@ -233,6 +233,14 @@
    ^{:key :async-typeahead}
    [:> AsyncTypeahead
     (assoc common-props
+      #_#_                                                  ; Todo, add invalid css
+      "renderInput" (fn [jsInputProps]
+                      ; https://github.com/ericgio/react-bootstrap-typeahead/blob/master/docs/Rendering.md#renderinput-gotchas
+                      ; https://github.com/ericgio/react-bootstrap-typeahead/blob/e80cf3b73c6996cf03ee60836cb79bf5b064c4eb/src/Typeahead.react.js#L110-L115
+                      (reagent.core/create-element
+                        TypeaheadInputSingle
+                        jsInputProps                        ; add hyperfiddle-invalid
+                        ))
       ; widget requires the option records, not ids
       "options" (->> (condp some [(unqualify (contrib.datomic/parser-type (hf/qfind ctx)))]
                        #{:find-coll :find-scalar} (hf/data ctx)
