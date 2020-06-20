@@ -1,4 +1,4 @@
-(ns hyperfiddle.core
+(ns hyperfiddle.core                                        ; TODO rethink this file now that saas is dead
   (:require
 
     ; Userland API
@@ -11,6 +11,8 @@
 
     ; These things can hardcode hyperfiddle.ui, like userland
     #?(:cljs [hyperfiddle.ui.markdown-extensions])
+
+    hyperfiddle.foundation                                  ; load topnav fiddle defs
     ))
 
 ; Circular dependency hack, do not alter! should not be dynamic

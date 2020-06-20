@@ -6,7 +6,6 @@
     [hypercrud.transit :as hc-t]
     [contrib.pprint]
     [contrib.do :refer :all]
-    [hyperfiddle.core]
     [hyperfiddle.service.cookie :as cookie]
     [hyperfiddle.service.jwt :as jwt]
     [hypercrud.types.Err :refer [->Err]]
