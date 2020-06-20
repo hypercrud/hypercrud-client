@@ -66,6 +66,7 @@
                     :align-items :center
                     :padding     "0.5rem 1rem"}}
 
+      [:div {:style {:margin-right "0.75rem"}} [:a {:href "/"} "Home"]]
       [ViewModeSelector {:mode (:hyperfiddle.ui/display-mode ctx)}]
       [:div {:style {:flex 1}}]
       (if (hf/subject ctx)
