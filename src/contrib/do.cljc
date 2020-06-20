@@ -92,20 +92,21 @@
      (assert (every? typed-tag? (keys fns#)))               ; An action-type identifies a set of methods available on an object "of that action-type"
 
      (let [n# (count *stack)
-           resolvers#
+           resolvers#                                       ; methods for an action-type (no inheritance, )
            (->> fns#
-                (group-by (comp tag-type key))              ; Override resolver methods as a single unit (no inheritance)
+                (group-by (comp tag-type key))              ; Override resolver methods as a single unit (no inheritance, via* must provide complete impl). GT said this is an optimization?
                 (reduce-kv (fn [m# action-type# methods#]
                              (assoc m# action-type# (into {::nth n#} methods#))) ; ?
                   {}))]
 
        (binding [*stack (conj *stack R#)                    ; save the state pointer
-                 *resolve (merge *resolve resolvers#)]      ; methods for an action-type
+                 *resolve (merge *resolve resolvers#)]      ; other action types are still available in dynamic scope
 
          ~@body
          ))))
 
-(defn ! [& action]
+(defn ! "call methods on object from stack variable"
+  [& action]
   (let [action (vec action)]
 
     (assert (typed-action? action))
