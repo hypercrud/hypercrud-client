@@ -235,3 +235,4 @@
                                                  :type  (type x)}))))
 
 (def root-pid "root")
+(def browser-query-limit 50)

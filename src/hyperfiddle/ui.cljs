@@ -381,7 +381,7 @@ User renderers should not be exposed to the reaction."
   {:pre [(s/assert :hypercrud/context ctx)]}
   ; Need backwards compat arity
   (let [sort-col (r/atom (::sort/initial-sort props))
-        page-size (if (> 0 base/browser-query-limit) 20 base/browser-query-limit)
+        page-size (if (> 0 hf/browser-query-limit) 20 hf/browser-query-limit)
         page (r/atom 0)]
     (fn [columns ctx & [props]]
       {:pre [(s/assert :hypercrud/context ctx)]}
@@ -478,10 +478,10 @@ User renderers should not be exposed to the reaction."
     :entity (when (empty? val)
               [:div.hyperfiddle.alert.alert-warning "Warning: invalid route (d/pull requires an entity argument). To add a tempid entity to the URL, click here: "
                [:a {:href "~entity('$','tempid')"} [:code "~entity('$','tempid')"]] "."])
-    :query (when (= base/browser-query-limit (count val))
+    :query (when (= hf/browser-query-limit (count val))
              [:div.hyperfiddle.alert.alert-warning
               (str/format "Warning: Query resultset has been truncated to %s records."
-                          base/browser-query-limit)])
+                          hf/browser-query-limit)])
     :blank nil
     :eval nil
     ))

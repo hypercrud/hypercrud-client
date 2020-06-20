@@ -141,8 +141,8 @@
 
 (defn- truncated-options [n]
   ; todo this destroys table cells
-  #_(when (= base/browser-query-limit n)
-      [:div.alert.alert-warning (str/format "Warning: Options resultset has been truncated to %s records. Please add additional filters" base/browser-query-limit)]))
+  #_(when (= hf/browser-query-limit n)
+      [:div.alert.alert-warning (str/format "Warning: Options resultset has been truncated to %s records. Please add additional filters" hf/browser-query-limit)]))
 
 (defn label-key
   "Given a `select-props` and a `record`, will generate a label key suitable for

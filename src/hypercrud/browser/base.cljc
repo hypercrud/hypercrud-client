@@ -34,8 +34,6 @@
 (declare request-for-fiddle+)
 (declare nil-or-hydrate+)
 
-(def browser-query-limit 50)
-
 ; internal bs abstraction to support hydrate-result-as-fiddle
 (defn- internal-browse-route+ [{rt :runtime pid :partition-id :as ctx} route]
   (do-result
@@ -273,7 +271,7 @@
                                                              (query/append-inputs q '?hf-needle))))
 
                                (seq (::route/where route)) ((partial apply query/append-where-clauses) (::route/where route)))]
-                       (return (->QueryRequest q query-args {:limit browser-query-limit})))))
+                       (return (->QueryRequest q query-args {:limit hf/browser-query-limit})))))
 
     :eval                                                   ; '(datomic.api/pull $ [:db/ident '*] :db/ident)
     (let [#_#_form (-> #_(memoized-read-edn-string+ (:fiddle/eval fiddle))
