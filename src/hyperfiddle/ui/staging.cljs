@@ -70,7 +70,11 @@
                     (binding [*print-namespace-maps* true]
                       (let [s (->> v
                                    reverse
-                                   (map (fn [x] (if (vector? x) (str x) (pprint-str x))))
+                                   (map (fn [x]
+                                          (cond (vector? x) (str x)
+                                                (list? x) (pr-str x)
+                                                (map? x) (pr-str x)
+                                                () (pprint-str x)))) ; what else?
                                    (interpose \newline))]
                         (str \[ (first s)
                                 (apply str (map #(str \space %) (rest s)))
