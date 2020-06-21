@@ -200,6 +200,7 @@
              (instance? EvalRequest request))]}
   (binding [hf/*subject* ?subject]
     (either/branch-left
+      ; Force exceptions here. How?
       (try-either (hydrate-request* request domain (comp exception/extract get-secure-db-with+)))
       (fn [e] (either/left (error-cleaner e request))))))
 
