@@ -50,16 +50,7 @@
     (cond
       (nil? e) nil                                          ; This is probably an error, report it? Datomic says: (d/pull $ [:db/id] nil) => #:db{:id nil}
       (contrib.datomic/tempid? e) {:db/id e}                ; This introduces sloppy thinking about time!   https://github.com/hyperfiddle/hyperfiddle/issues/584
-      ()
-      (or
-        (when (and (seqable? e)
-                   (= (first e) :fiddle/ident))
-          (hf/resolve-fiddle domain (second e)))
-        ;
-        ;(when (seqable? e)
-        ;  (get (resolve-map) (second e)))
-
-        (hf/pull pull-db {:selector pull-exp :eid e})))))
+      :else (hf/pull pull-db {:selector pull-exp :eid e}))))
 
 (defmethod hydrate-request* QueryRequest [{:keys [query params opts]} domain get-secure-db-with]
   (assert query "hydrate: missing query")

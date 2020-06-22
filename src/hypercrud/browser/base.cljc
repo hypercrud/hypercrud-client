@@ -23,7 +23,8 @@
     [hyperfiddle.route :as route]
     [hyperfiddle.runtime :as runtime]
     [taoensso.timbre :as timbre]
-    [contrib.expr :as expr])
+    [contrib.expr :as expr]
+    [hyperfiddle.def :as hf-def])
   #?(:clj
      (:import
        (hypercrud.types.DbName DbName)
@@ -48,7 +49,7 @@
           ;_ (timbre/debug "route " route)
           route (from-result (route/invert-route route (partial runtime/tempid->id! rt pid)))
           ;_ (timbre/debug "route " route)
-          r-fiddle (from-result @(r/apply-inner-r (r/track resolve-fiddle+ rt pid route ctx))) ; inline query
+          r-fiddle (from-result @(r/apply-inner-r (r/track resolve-fiddle+ route ctx))) ; inline query
           ;_ (timbre/debug "fiddle" @r-fiddle)
           r-request (from-result @(r/apply-inner-r (r/fmap->> r-fiddle (request-for-fiddle+ rt pid route))))
           ;_ (timbre/debug "request" @r-request)
@@ -195,28 +196,24 @@
                   #_*                                                ; For hyperblog, so we can access :hyperblog.post/title etc from the fiddle renderer
                   ])
 
-(defn- resolve-fiddle+ [rt pid route ctx]
+(defn- resolve-fiddle+ [route ctx]
   (do-result
+   (let [route  (resolve-route route)
+         ident  (::route/fiddle route)
+         record (get-in @hf-def/*defs [:fiddle ident])]
 
-    (let [route (resolve-route route)
-          fiddle-ident (::route/fiddle route)
-          db (runtime/db rt pid (hf/fiddle-dbname (hf/domain rt)))
-          request (->EntityRequest (legacy-fiddle-ident->lookup-ref fiddle-ident) db fiddle-pull)
-          record (from-result @(hf/request rt pid request))]
+     (when-not (or (:db/id record) (:fiddle/source record))
+       (throw (ex-info (str :hyperfiddle.error/fiddle-not-found)
+                       {:ident        :hyperfiddle.error/fiddle-not-found
+                        :fiddle/ident ident
+                        :fiddle       record
+                        :error-msg    (str "Fiddle not found (" ident ")")
+                        :human-hint   "Did you just edit :fiddle/ident?"})))
 
-      (when-not (or (:db/id record) (:fiddle/source record))
-        (throw (ex-info (str :hyperfiddle.error/fiddle-not-found)
-                 {:ident        :hyperfiddle.error/fiddle-not-found
-                  :fiddle/ident fiddle-ident
-                  :fiddle       record
-                  :error-msg    (str "Fiddle not found (" fiddle-ident ")")
-                  :human-hint   "Did you just edit :fiddle/ident?"})))
-
-      (eval-fiddle+ (fiddle/apply-defaults record)
-        {:ctx    ctx
-         :route  route
-         :domain (hf/domain (:runtime ctx))})
-      )))
+     (eval-fiddle+ (fiddle/apply-defaults record)
+                   {:ctx    ctx
+                    :route  route
+                    :domain (hf/domain (:runtime ctx))}))))
 
 ; This factoring is legacy, can the whole thing can be inlined right above the datomic IO?
 ; UI runs it as validation for tooltip warnings (does the query match the params)
