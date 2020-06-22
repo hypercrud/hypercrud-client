@@ -68,8 +68,8 @@
 
 (defn flatten-map-stmt
   "Flatten a single Datomic map-form statement into equivalent vector-form statements. Recursive. See test case."
-  [schema {e :db/id :as m}]
-  (let [e (or e (str (hash m) #_(gensym)))]                 ; gensym tempids are unstable for unit tests
+  [schema m]
+  (let [e (or (:db/id m) (str (hash m) #_(gensym)))]                 ; gensym tempids are unstable for unit tests
     (->> (seq m)                                            ; iterate as seq for compatibility with #Entity
          (filter (fn [[a v]] (not= :db/id a)))              ; db/id is virtual attribute, not a statement
          ; Don't need to suupport (id, ident, lookup-ref) because transactor will unify the tempid
