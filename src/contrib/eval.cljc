@@ -1,12 +1,9 @@
 (ns contrib.eval
   (:require
     [cats.monad.either :as either]
-    #?(:cljs [contrib.eval-cljs :as eval-cljs])
     [contrib.try$ :refer [try-either]]))
 
-
-(def eval-expr-str! #?(:clj  load-string
-                       :cljs eval-cljs/eval-expr-str!))
+(def eval-expr-str! load-string)
 
 (defn eval-expr-str!+ [code-str]
   (try-either (eval-expr-str! code-str)))

@@ -4,7 +4,6 @@
     [cats.monad.either :as either]
     [contrib.css :refer [css]]
     [contrib.ct :refer [unwrap]]
-    [contrib.eval :as eval]
     [contrib.reactive :as r]
     [contrib.reader :refer [memoized-read-edn-string+]]
     [contrib.string :refer [blank->nil or-str]]
@@ -17,9 +16,12 @@
 
 
 (defn memoized-safe-eval [_ctx code-str]
-  (if (blank->nil code-str)
-    (eval/eval-expr-str!+ code-str)
-    (either/left nil)))
+  ;; This is stubbed. If you need to evaluate code, please re-enable self-hosted
+  ;; clojurescript eval.
+  (either/left nil)
+  #_(if (blank->nil code-str)
+      (eval/eval-expr-str!+ code-str)
+      (either/left nil)))
 
 (declare markdown)                                          ; mutual recursion, it would be letfn if wasn't react components
 
@@ -132,7 +134,10 @@
         ?f (some->> content (memoized-safe-eval ctx) (unwrap #(timbre/warn %)))]
     (hyperfiddle.ui/field path ctx ?f (-> props
                                           (update :class css "unp")
-                                          (update :label-fn contrib.eval/eval-apply)))))
+                                          ;; If you need to evaluate code, please
+                                          ;; re-enable self-hosted clojurescript
+                                          ;; eval
+                                          #_(update :label-fn eval/eval-apply)))))
 
 (letfn [(fields [content props ctx]
           [[markdown content (assoc ctx ::unp true)]])]

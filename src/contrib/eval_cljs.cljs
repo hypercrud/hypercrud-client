@@ -1,6 +1,5 @@
 (ns contrib.eval-cljs
   (:require
-    [cljs.analyzer :as ana]
     [cljs.js :as cljs]
     [cljs.env :as env]
     [shadow.cljs.bootstrap.browser :as boot]
@@ -33,20 +32,3 @@
                 tags/*cljs-data-readers*]
         (eval form)))))
 
-(defn eval-expr-str! [code-str]
-  ;; (js/console.warn code-str)
-  (binding [ana/*cljs-warning-handlers* []
-            tags/*cljs-data-readers* (merge tags/*cljs-data-readers*
-                                       hyperfiddle.readers/hf-edn-readers
-                                       clj-readers)]
-    (let [r (atom nil)
-          _ (cljs/eval-str compile-state-ref
-                           code-str
-                           nil
-                           {:eval cljs/js-eval
-                            :context :expr}
-                           (partial reset! r))
-          {value :value error :error :as eval-result} @r]
-      (if error
-        (throw (ex-info "cljs eval failed" {:cljs-input code-str :cljs-result eval-result}))
-        value))))
