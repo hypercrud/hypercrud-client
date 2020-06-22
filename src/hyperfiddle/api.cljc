@@ -66,7 +66,6 @@
   (url-decode [domain s])
   (url-encode [domain route])
   (api-routes [domain])
-  (resolve-fiddle [domain fiddle-ident])
   #?(:clj (connect [domain dbname] [domain dbname on-created!])))
 
 (defprotocol State

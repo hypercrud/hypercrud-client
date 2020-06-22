@@ -57,10 +57,6 @@
     "$ (default)"
     dbname))
 
-(defn resolve-fiddle [fiddle-ident]
-  (when (find-ns 'hyperfiddle.def)
-    (@(resolve 'hyperfiddle.def/get-fiddle) fiddle-ident)))
-
 (s/def ::home-route (s/spec :hyperfiddle/route))
 
 (s/def ::domain-core (s/keys :req-un [:hyperfiddle.config/config
@@ -86,7 +82,6 @@
   (url-decode [domain s] (route/url-decode s home-route))
   (url-encode [domain route] (route/url-encode route home-route))
   (api-routes [domain] R/domain-routes)
-  (resolve-fiddle [domain fiddle-ident] (resolve-fiddle fiddle-ident))
   #?(:clj (connect [domain dbname] (d/dyna-connect (hf/database domain dbname) ?datomic-client)))
   #?(:clj (connect [domain dbname on-created!] (d/dyna-connect (hf/database domain dbname) ?datomic-client on-created!))))
 
