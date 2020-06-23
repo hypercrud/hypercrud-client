@@ -3,7 +3,7 @@
     [clojure.walk :as walk]
     [clojure.set :as set]
     [contrib.data :refer [update-existing update-in-existing deep-merge dissoc-nils]]
-    [contrib.datomic.schema :refer [ref? identity? component?]]
+    [contrib.datomic.schema :refer [ref? identity? component?] :as schema]
     [contrib.datomic :refer [tempid? ref-one? ref-many? scalar-one? scalar-many? isComponent unique]]))
 
 
@@ -168,7 +168,9 @@
        (when (or tempid (string? id))
          {:tempid (or tempid id)})
        (when (number? id)
-         {:db/id id})))))
+         {:db/id id})
+       (when (vector? id)
+         (conj {} id))))))
 
 (defn unified-identifier
   [id0 id1]
@@ -203,25 +205,29 @@
 
 (defmethod absorb :map
   [schema id ideal stmt]
-  [(merge id (identifier schema stmt))
-   (reduce
-     (fn [ideal [a v]]
-       (-> ideal
-           (update-existing :- dissoc a)
-           (update-in [:+ a] deep-merge v)))
-     ideal
-     stmt)])
+  (reduce
+    (fn [[id ideal] [a v]]
+      (absorb schema id ideal [:db/add nil a v]))
+    [id ideal]
+    stmt))
 
 (defmethod absorb :db/add
   [schema identifier ideal [_ _ a v]]
   [(if (identity? schema a)
      (assoc identifier a v)
      identifier)
-   (if (contains? (get ideal :-) a)
-     (if (= (get-in ideal [:- a]) v)
-       (update-existing ideal :- dissoc a)
-       (assoc-in ideal [:+ a] v))
-     (assoc-in ideal [:+ a] v))])
+   (if (schema/many? schema a)
+     (update-in ideal [:+ a]
+       (fn [coll]
+         (let [coll (or coll #{})]
+           (if (seqable? v)
+             (into coll v)
+             (conj coll v)))))
+     (if (contains? (get ideal :-) a)
+       (if (= (get-in ideal [:- a]) v)
+         (update-existing ideal :- dissoc a)
+         (assoc-in ideal [:+ a] v))
+       (assoc-in ideal [:+ a] v)))])
 
 (defn retract-munge-value
   [schema v]
@@ -232,15 +238,28 @@
         e))
     v))
 
+(defn- -disj
+  [coll v]
+  (cond
+    (or (vector? coll) (list? coll) (seq? coll))
+    (into (empty coll) (complement (partial = v)) coll)
+
+    (set? coll) (disj coll v)))
+
+
 (defmethod absorb :db/retract
   [schema identifier ideal [_ _ a v]]
   (let [v (retract-munge-value schema v)]
     [identifier
-     (if (= v (get-in ideal [:+ a]))
-       (-> ideal
-           (update-existing :+ dissoc a))
-       (-> ideal
-           (update :- assoc a v)))]))
+     (if (schema/many? schema a)
+       (if (contains? (get-in ideal [:+ a]) v)
+         (update-in ideal [:+ a] -disj v)
+         (update-in ideal [:- a] conj a))
+       (if (= v (get-in ideal [:+ a]))
+         (-> ideal
+             (update-existing :+ dissoc a))
+         (-> ideal
+             (update :- assoc a v))))]))
 
 (defmethod absorb :db/retractEntity
   [schema identifier ideal _]
@@ -272,7 +291,7 @@
    (reduce (partial absorb-stmt schema) ideals tx)))
 
 (defn invalid?
-  [tx]
+  [schema [txfn e a v :as tx]]
   (or (nil? tx)
       (and (map? tx) (<= (count tx) 1))
       (and (vector? tx)
@@ -280,7 +299,10 @@
              (= :db/id (nth tx 2 nil))
              (let [[_ e a v] tx]
                (and (vector? e)
-                    (= e [a v])))))))
+                    (= e [a v])))))
+      (and (= :db/add txfn)
+           (schema/many? schema a)
+           (empty? v))))
 
 (defn deconstruct-ideal
   [schema identifier {adds :+ retracts :- :keys [retracted cas mutations]}]
@@ -301,7 +323,7 @@
     ideals
     (map (partial apply deconstruct-ideal schema))
     (reduce into [])
-    (filterv (complement invalid?))))
+    (filterv (complement (partial invalid? schema)))))
 
 (defn remove-dangling-ids
   [schema tx]
@@ -321,18 +343,21 @@
        (remove-dangling-ids schema)))
 
 (defn mappify-add-statements
-  [adds]
+  [schema adds]
   (let [add-groups (group-by second adds)]
     (mapv
       (fn [[id group]]
-        (into
+        (reduce
+          (fn [acc [_ _ a v]]
+            (assoc acc a v))
           (cond
             (string? id) {:db/id id}
 
             (vector? id) (let [[a v] id]
-                           {a v}))
-
-          (map (comp vec nnext) group)))
+                           (if (= a :db/id)
+                             {:db/id v}
+                             {:db/id [a v]})))
+          group))
       add-groups)))
 
 (defn mappify
@@ -340,13 +365,9 @@
   (reduce
     into
     []
-    (vals (update (group-by first tx) :db/add mappify-add-statements))))
+    (vals (update (group-by first tx) :db/add (partial mappify-add-statements schema)))))
 
 (defn into-tx [schema tx more-statements]
-  "We don't care about the cardinality (schema) because the UI code is always
-  retracting values before adding new value, even in cardinality one case. This is a very
-  convenient feature and makes the local datoms cancel out properly always to not cause
-  us to re-assert datoms needlessly in datomic"
   (mappify schema (deconstruct schema (construct schema (construct schema tx) more-statements))))
 
 (comment
