@@ -187,17 +187,21 @@
          (apply css))))
 
 (defn writable-entity? [ctx]
-  (and
-    ; If the db/id was not pulled, we cannot write through to the entity
-    (boolean (hf/e ctx))
-    @(r/track hf/subject-may-edit-entity? (:hypercrud.browser/parent ctx))))
+  ; If we have a component that's empty, we need to be able to write to it
+  ; If the db/id was not pulled, we cannot write through to the entity
+  (or
+    (and (context/component? (:hypercrud.browser/parent ctx))
+         (writable-entity? (:hypercrud.browser/parent ctx)))
+    (boolean (hf/e ctx))                                    ; you have some sort of entity identity (db/id, lookup ref, etc)
+    ))
 
 (defn- value-props [props ctx]
   (let [r-validation-hints (r/track context/validation-hints-here ctx)]
     (as-> props props
           (update props :disabled #(or %
-                                     (not @(r/track writable-entity? ctx))
-                                     (not @(r/track hf/subject-may-edit-attr? ctx))))
+                                     (not @(r/track writable-entity? ctx)) ; either the entity is readonly due to the fiddle query
+                                     (not @(r/track hf/subject-may-edit-entity? (:hypercrud.browser/parent ctx)))
+                                     (not @(r/track hf/subject-may-edit-attr? ctx)))) ; or you failed security
           (assoc props ::hf/invalid-messages r-validation-hints) ; why would this be null
           (assoc props ::hf/is-invalid (boolean (seq @r-validation-hints)))
           (update props :class css (if (:disabled props) "disabled")))))
