@@ -220,7 +220,7 @@
      (update-in ideal [:+ a]
        (fn [coll]
          (let [coll (or coll #{})]
-           (if (seqable? v)
+           (if (and (not (string? v)) (seqable? v))
              (into coll v)
              (conj coll v)))))
      (if (contains? (get ideal :-) a)
