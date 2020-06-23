@@ -808,23 +808,23 @@
   (testing "link primitives"
     (is (= (->> (hyperfiddle.data/spread-links-here ctx-blog-slug) (map first))
            #?(:cljs (list 1222716828 -2118701331)
-              :cljs (list 152027927 -754968947))))
-    (is (= (->> (hyperfiddle.data/spread-links-here ctx-blog-slug) (map (comp :link/path deref second)))
-           [":dustingetz.post/slug" ":dustingetz.post/slug"]))
+              :clj (list 241938331 -335169619))))
+    (is (= (->> (hyperfiddle.data/spread-links-here ctx-blog-slug) (mapv (comp :link/path deref second)))
+           [:dustingetz.post/slug :dustingetz.post/slug]))
 
-    (is (= (->> (hyperfiddle.data/spread-links-here ctx-blog-slug :hf/new) (map (comp :link/path deref second)))
-           [":dustingetz.post/slug"]))
+    (is (= (->> (hyperfiddle.data/spread-links-here ctx-blog-slug :hf/new) (mapv (comp :link/path deref second)))
+           [:dustingetz.post/slug]))
 
     (is (= (->> (hyperfiddle.data/spread-links-here ctx-blog-slug :dustingetz.tutorial/view-post)
-                (map (comp :link/path deref second)))
-           [":dustingetz.post/slug"]))
+                (mapv (comp :link/path deref second)))
+           [:dustingetz.post/slug]))
 
     (is (= (mlet [r-link (hyperfiddle.data/select-here+ ctx-blog-slug :hf/new1)]
              (return 42))
            (left "no match for class: :hf/new1")))
 
     (is (= (->> (hyperfiddle.data/select-here+ ctx-blog-slug :hf/new) (unwrap (constantly nil)) deref :link/path)
-           ":dustingetz.post/slug")))
+           :dustingetz.post/slug)))
 
   )
 
@@ -1292,9 +1292,9 @@
                   (context/attribute :fiddle/links)
                   (context/row 17592186061848)
                   (context/attribute :link/path))]
-        (is (= (context/eav a) [17592186061849 :link/path ":fiddle/links"]))
+        (is (= (context/eav a) [17592186061849 :link/path :fiddle/links]))
         (is (= (context/leaf-invalid? a) false))
-        (is (= (context/eav b) [17592186061848 :link/path ":fiddle/ident"]))
+        (is (= (context/eav b) [17592186061848 :link/path :fiddle/ident]))
         (is (= (context/leaf-invalid? b) false))
         (is (= (context/leaf-invalid? (context/attribute b :db/id)) false))))))
 
