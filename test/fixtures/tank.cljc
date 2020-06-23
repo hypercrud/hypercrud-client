@@ -286,7 +286,7 @@
      :fiddle/markdown
      "#### new-link\n\n!field(:link/path){placeholder=\":district/region\"}",
      :fiddle/ident :hyperfiddle.ide/new-link}
-    {:db/id 17592186062067, :link/path ":woo"}]
+    {:db/id 17592186062067, :link/path :woo}]
 
    ::test-links-table-validation
    [{:db/id 17592186061847,
@@ -295,10 +295,10 @@
      :fiddle/links
      [{:db/id 17592186061848,
        :link/class [:hf/remove]
-       :link/path ":fiddle/ident"}
+       :link/path :fiddle/ident}
       {:db/id 17592186061849,
        :link/class [:hf/remove],
-       :link/path ":fiddle/links"}
+       :link/path :fiddle/links}
       {:db/id 17592186061850,
        :link/class [:hf/iframe],
        :link/fiddle
@@ -337,10 +337,10 @@
      :fiddle/links
      [{:db/id 17592186061848,
        :link/class [:hf/remove]
-       :link/path ":fiddle/ident"}
+       :link/path :fiddle/ident}
       {:db/id 17592186061849,
        :link/class [:hf/remove],
-       :link/path ":fiddle/links"}
+       :link/path :fiddle/links}
       {:db/id 17592186061850,
        :link/class [:hf/iframe],
        :link/fiddle
@@ -350,21 +350,21 @@
         :fiddle/query
         "[:find [(pull ?link [:db/id :fiddle/ident]) ...]\n #_(pull ?link [:db/id :fiddle/ident])\n :where \n (or [?link :fiddle/ident] \n     [?link :fiddle/type])]",
         :fiddle/type :query},
-       :link/path ":hyperfiddle/ide"}
+       :link/path :hyperfiddle/ide}
       {:db/id 17592186061851,
        :link/class [:hf/new],
        :link/fiddle
        {:db/id 17592186056398,
         :fiddle/ident :hyperfiddle.ide/new-fiddle,
         :fiddle/type :entity},
-       :link/path ":link/fiddle"}
+       :link/path :link/fiddle}
       {:db/id 17592186061852,
        :link/class [:hf/new],
        :link/fiddle
        {:db/id 17592186058175,
         :fiddle/ident :hyperfiddle.ide/new-link,
         :fiddle/type :entity},
-       :link/path ":fiddle/links"}],
+       :link/path :fiddle/links}],
      :fiddle/type :entity,
      :fiddle/pull
      "; synchronized with hyperfiddle.fiddle/browser-pull\n[:db/id\n :fiddle/css\n :fiddle/ident\n {:fiddle/links [:db/id\n                 :link/class\n                 {:link/fiddle [:db/id\n                                :fiddle/ident               ; routing\n                                :fiddle/query               ; validation\n                                :fiddle/type                ; validation\n                                ]}\n                 :link/formula\n                 :link/path\n                 :link/rel\n                 :link/tx-fn]}\n :fiddle/markdown\n :fiddle/pull\n :fiddle/pull-database\n :fiddle/query\n :fiddle/cljs-ns\n :fiddle/renderer\n :fiddle/type\n :fiddle/hydrate-result-as-fiddle\n *                                                          ; For hyperblog, so we can access :hyperblog.post/title etc from the fiddle renderer\n ]",
