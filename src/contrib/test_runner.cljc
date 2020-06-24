@@ -16,9 +16,17 @@
     (-> args
         (update-existing :ns-regex #(java.util.regex.Pattern/compile %)))))
 
+(defn run-clj-tests
+  [failed? namespaces]
+  (let [{:keys [fail error] :as result} (apply clj-test/run-tests namespaces)]
+    (println result)
+    (when-not (and (or (nil? fail) (zero? fail))
+                   (or (nil? error) (zero? error)))
+      (deliver failed? true))))
+
 (defn test-clj
   [args]
-  (let [{:keys [output test ns-regex]
+  (let [{:keys [output test ns-regex output-format]
          :or {ns-regex #".*"}
          :as args}
         (parse-args args)]
@@ -34,11 +42,12 @@
                       (io/writer output :append false)
                       (io/writer *out* :append true))]
         (binding [clojure.test/*test-out* w]
-          (let [failed? (atom false)]
-            (junit/with-junit-output
-              (let [{:keys [fail]} (apply clj-test/run-tests namespaces)]
-                (when-not (or (nil? fail) (zero? fail))
-                  (reset! failed? true))))
+          (let [failed? (promise)]
+            (condp = output-format
+              :junit (junit/with-junit-output
+                       (run-clj-tests failed? namespaces))
+               (run-clj-tests failed? namespaces))
+            (println @failed?)
             (when @failed?
               (System/exit 1))))))))
 
