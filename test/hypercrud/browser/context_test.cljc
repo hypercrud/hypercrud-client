@@ -807,7 +807,7 @@
 
   (testing "link primitives"
     (is (= (->> (hyperfiddle.data/spread-links-here ctx-blog-slug) (map first))
-           #?(:cljs (list 1222716828 -2118701331)
+           #?(:cljs (list 467960113 -64354382)
               :clj (list 241938331 -335169619))))
     (is (= (->> (hyperfiddle.data/spread-links-here ctx-blog-slug) (mapv (comp :link/path deref second)))
            [:dustingetz.post/slug :dustingetz.post/slug]))
