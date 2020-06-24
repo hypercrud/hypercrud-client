@@ -19,9 +19,8 @@
 (defn run-clj-tests
   [failed? namespaces]
   (let [{:keys [fail error] :as result} (apply clj-test/run-tests namespaces)]
-    (when-not (and (or (nil? fail) (zero? fail))
-                   (or (nil? error) (zero? error)))
-      (deliver failed? true))))
+    (deliver failed? (and (or (nil? fail) (zero? fail))
+                          (or (nil? error) (zero? error))))))
 
 (defn test-clj
   [args]
@@ -40,14 +39,16 @@
       (with-open [w (if output
                       (io/writer output :append false)
                       (io/writer *out* :append true))]
-        (binding [clojure.test/*test-out* w]
-          (let [failed? (promise)]
+        (let [failed? (promise)]
+          (binding [clojure.test/*test-out* w]
             (condp = output-format
               :junit (junit/with-junit-output
                        (run-clj-tests failed? namespaces))
-               (run-clj-tests failed? namespaces))
-            (when @failed?
-              (System/exit 1))))))))
+              (run-clj-tests failed? namespaces))
+            (.flush w))
+          (if @failed?
+            (System/exit 1)
+            (System/exit 0)))))))
 
 ; -namespace-regex "hyper.*|contrib.*" --env node
 ; [env dir out watch ns-symbols ns-regexs var include exclude verbose compile-opts doo-opts]
