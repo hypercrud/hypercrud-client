@@ -554,10 +554,11 @@
            (identifier->e schema {:x/y "z" :neighborhood/name "qwer"})))))
 
 (deftest test|invalid?
-  (is (invalid? nil))
-  (is (invalid? {:singlekey :map}))
-  (is (invalid? [:some/tx "some-id" :db/id "some-value"]))
-  (is (invalid? [:some/tx [:a :v] :a :v])))
+  (let [schema seattle-schema]
+    (is (invalid? schema nil))
+    (is (invalid? schema {:singlekey :map}))
+    (is (invalid? schema [:some/tx "some-id" :db/id "some-value"]))
+    (is (invalid? schema [:some/tx [:a :v] :a :v]))))
 
 (deftest test|remove-dangling-ids
   (let [schema (map-by :db/ident seattle-schema-tx)]
