@@ -36,5 +36,6 @@
                       {com.datomic/datomic-free {:mvn/version "0.9.5656" :exclusions [org.slf4j/slf4j-nop]}
                        olical/cljs-test-runner {:mvn/version "3.7.0"}}
                       :main-opts ["-m" "contrib.test-runner" "clj"]}
-           :test-cljs {:extra-deps {olical/cljs-test-runner {:mvn/version "3.7.0"}}
-                       :main-opts ["-m" "contrib.test-runner" "cljs"]}}}
+           :test-cljs {:extra-deps    {olical/cljs-test-runner {:mvn/version "3.7.0"}}
+                       :override-deps {reagent {:mvn/version "0.9.1"}}
+                       :main-opts     ["-m" "contrib.test-runner" "cljs"]}}}
