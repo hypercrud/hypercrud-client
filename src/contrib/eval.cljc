@@ -3,7 +3,7 @@
     [cats.monad.either :as either]
     [contrib.try$ :refer [try-either]]))
 
-(def eval-expr-str! load-string)
+(def eval-expr-str! #?(:clj load-string))
 
 (defn eval-expr-str!+ [code-str]
   (try-either (eval-expr-str! code-str)))
