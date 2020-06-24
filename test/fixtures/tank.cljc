@@ -611,7 +611,7 @@
        {:db/id 17592186047002,
         :fiddle/ident :dustingetz.storm/view,
         :fiddle/type :entity},
-       :link/path ":dustingetz.post/slug",
+       :link/path :dustingetz.post/slug,
        :link/rel :hf/rel}
       {:db/id 17592186047120,
        :link/fiddle
@@ -620,7 +620,7 @@
         :fiddle/type :entity},
        :link/formula
        "(constantly (hyperfiddle.api/tempid-detached \"$\" ctx))",
-       :link/path ":dustingetz/slack-storm",
+       :link/path :dustingetz/slack-storm,
        :link/rel :hf/self}],
      :fiddle/markdown
      "# Slack Storm\n\n!span[Create documentation from Slack logs]{.lead}",
