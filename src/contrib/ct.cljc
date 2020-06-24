@@ -14,11 +14,11 @@
     (just v)
     (nothing)))
 
-(defn maybe-branch [mv lf rf]
-  {:pre [(maybe? mv)]}
-  (if (nothing? mv)
-    (lf)
-    (rf (extract mv))))
-
-(defn maybe->either [err mv]
-  (maybe-branch mv #(left err) right))
+;(defn maybe-branch [mv lf rf]
+;  {:pre [(maybe? mv)]}
+;  (if (nothing? mv)
+;    (lf)
+;    (rf (extract mv))))
+;
+;(defn maybe->either [err mv]
+;  (maybe-branch mv #(left err) right))
