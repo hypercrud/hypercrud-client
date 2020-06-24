@@ -584,7 +584,7 @@
 (deftest test|mappify
   (let [schema (map-by :db/ident seattle-schema-tx)]
     (is (= [{:db/id "0" :a 1 :b 2}] (mappify schema [[:db/add "0" :a 1] [:db/add "0" :b 2]])))
-    (is (= [{:db/id "0" :a 1} {:db/id "1" :b 2}] (mappify schema [[:db/add "0" :a 1] [:db/add "1" :b 2]])))
+    (is (= [{:db/id 0 :a 1} {:db/id 1 :b 2}] (mappify schema [[:db/add 0 :a 1] [:db/add 1 :b 2]])))
     (is (= [{:db/id "0" :a 1} {:db/id "1":b 2} [:db/retract "0" :a 2] [:db/cas "0" :a inc]]
            (mappify schema [[:db/add "0" :a 1] [:db/add "1" :b 2] [:db/retract "0" :a 2] [:db/cas "0" :a inc]])))))
 

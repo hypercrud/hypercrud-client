@@ -351,7 +351,7 @@
           (fn [acc [_ _ a v]]
             (assoc acc a v))
           (cond
-            (string? id) {:db/id id}
+            (or (string? id) (number? id)) {:db/id id}
 
             (vector? id) (let [[a v] id]
                            (if (= a :db/id)
