@@ -291,18 +291,18 @@
    (reduce (partial absorb-stmt schema) ideals tx)))
 
 (defn invalid?
-  [schema [txfn e a v :as tx]]
+  [schema tx]
   (or (nil? tx)
       (and (map? tx) (<= (count tx) 1))
       (and (vector? tx)
            (or
              (= :db/id (nth tx 2 nil))
-             (let [[_ e a v] tx]
-               (and (vector? e)
-                    (= e [a v])))))
-      (and (= :db/add txfn)
-           (schema/many? schema a)
-           (empty? v))))
+             (let [[txfn e a v] tx]
+               (or (= e [a v])
+                   (and (= :db/add txfn)
+                        (schema/many? schema a)
+                        (empty? v))))))))
+
 
 (defn deconstruct-ideal
   [schema identifier {adds :+ retracts :- :keys [retracted cas mutations]}]
