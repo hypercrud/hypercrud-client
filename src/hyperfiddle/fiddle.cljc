@@ -9,7 +9,7 @@
     [cats.monad.either :as either :refer [right]]
     [clojure.spec.alpha :as s]
     [contrib.ct :refer [unwrap]]
-    [contrib.data :refer [orf update-existing keywordize apply-to]]
+    [contrib.data :refer [orf update-existing keywordize]]
     [contrib.reader]
     [contrib.string :refer [or-str]]
     [contrib.template :refer [load-resource]]
@@ -181,7 +181,7 @@
 (defn- parse-link
   [link]
   {:post [(s/valid? ::link-key %)]}
-  (condp apply-to link
+  (condp apply [link]
     keyword?        link ;; identity
     composite-link? :>> parse-composite-link ;; parse  "[$ :path]" shape
     string?         (keywordize link) ;; just transform it to keyword
