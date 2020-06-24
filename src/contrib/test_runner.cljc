@@ -19,7 +19,6 @@
 (defn run-clj-tests
   [failed? namespaces]
   (let [{:keys [fail error] :as result} (apply clj-test/run-tests namespaces)]
-    (println result)
     (when-not (and (or (nil? fail) (zero? fail))
                    (or (nil? error) (zero? error)))
       (deliver failed? true))))
@@ -47,7 +46,6 @@
               :junit (junit/with-junit-output
                        (run-clj-tests failed? namespaces))
                (run-clj-tests failed? namespaces))
-            (println @failed?)
             (when @failed?
               (System/exit 1))))))))
 
