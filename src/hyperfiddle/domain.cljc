@@ -39,7 +39,8 @@
 (s/def ::environment map?)
 
 (defn database-color [domain dbname]
-  (or (:database/color (hf/database domain dbname)) (color/color-for-name dbname)))
+  (color/color-for-name "$")                                ; hack for Rosie, so gray relations don't stand out. Todo rethink color
+  #_(or (:database/color (hf/database domain dbname)) (color/color-for-name dbname)))
 
 (defn api-path-for [domain handler & {:as params}]
   (apply bidi/path-for (hf/api-routes domain) handler (apply concat params)))
