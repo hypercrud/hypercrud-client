@@ -132,7 +132,6 @@
 #?(:cljs
    (defn view [ctx]
      [:div {:style {:height "100%"}}
-      [:style {:dangerouslySetInnerHTML {:__html (:project/css (hyperfiddle.runtime/get-project (:runtime ctx) (:partition-id ctx)))}}]
       [Main ctx]]))
 
 
@@ -154,14 +153,7 @@
     [(ground hyperfiddle.api/*subject*) ?user-id]
     [$users ?user :user/user-id ?user-id]]
 
-  :renderer (hyperfiddle.foundation/Account val ctx props)
-
-  :css "
-    img.avatar { border: 1px solid lightgray; border-radius: 50%; width: 80px; }
-    img.avatar { float: left; margin-top: 1rem; margin-right: 1rem; }
-    .-hyperfiddle-ide-user-settings h3 { margin-top: 1rem; }
-   "
-  )
+  :renderer (hyperfiddle.foundation/Account val ctx props))
 
 (defmethod hf/render #{:user/user-id
                        :hyperfiddle.blocks/account}

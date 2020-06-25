@@ -39,7 +39,7 @@
 (defn resolve-map []
   (->>
     (hf-def/get-def)
-    (select-keys [:project :attribute])
+    (select-keys [:attribute])
     (reduce-kv
       (fn [defs k v]
         (merge defs v))

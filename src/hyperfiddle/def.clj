@@ -47,7 +47,7 @@
 (defn get-fiddle [id] (get-in @*defs [:fiddle id]))
 
 (defn def! [type ident form val]
-  {:pre [(#{:schema :attribute :fiddle :project} type)
+  {:pre [(#{:schema :attribute :fiddle} type)
          (qualified-keyword? ident)
          form
          val]}
@@ -68,10 +68,6 @@
 (defmacro fiddle [ident & attrs]
   (def! :fiddle ident &form
         (read-def :fiddle ident attrs)))
-
-(defmacro project [ident & attrs]
-  (def! :project ident &form
-    (read-def :project ident attrs)))
 
 (s/def ::schema
   (s/cat
@@ -206,14 +202,13 @@
   )
 
 (defn map-attr [type k v]
-  (s/assert #{:project :fiddle :attribute :link} type)
+  (s/assert #{:fiddle :attribute :link} type)
   (s/assert keyword? k)
   (s/assert (comp not nil?) v)
 
   (let
     [kv
      (case (qualify type k)
-       :project/ident  :db/ident
 
        :fiddle/pull
        (let [[db q] (->> v map-expr (split-with (some-fn string? seq?)))]
@@ -294,7 +289,7 @@
                (and (= type :fiddle)
                     (= (hyperfiddle.fiddle/kind acc) :fn)) (map-val v)
                (-> k name keyword #{:query :pull}) (map-expr v)
-               (-> k name keyword #{:renderer :markdown :css}) (repr-val v)
+               (-> k name keyword #{:renderer :markdown}) (repr-val v)
                () v)}))
       {})
     (adjust-type)))

@@ -37,9 +37,6 @@
   {:pre [(domain/valid-dbname? (hf/domain rt) dbname)]}
   (state/dispatch! rt [:update-auto-transact dbname auto-tx]))
 
-; todo remove pid requirement
-(defn get-project [rt pid] @(state-ref rt [::partitions pid :project]))
-
 (defn get-partition [rt pid] @(state-ref rt [::partitions pid]))
 
 (defn any-partition-loading? [rt]

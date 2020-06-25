@@ -6,20 +6,7 @@
       :doc "Entity owners uuids, used by ACLs"}
  #:db{:ident :hyperfiddle/starred :valueType :db.type/boolean :cardinality :db.cardinality/one}
 
- ; project
- #:db{:ident :hyperfiddle/project}
- #:db{:ident :project/code :valueType :db.type/string :cardinality :db.cardinality/one
-      :doc "a ClojureScript form for storing view functions, evaluated on page load"}
- #:db{:ident :project/css :valueType :db.type/string :cardinality :db.cardinality/one}
-
- #:db{:ident :attribute/ident :valueType :db.type/keyword :cardinality :db.cardinality/one :unique :db.unique/identity
-      :doc "FK to schema, they can't be directly on $ schema because attribute renderers are a \"source code\" concern."}
- #:db{:ident :attribute/renderer :valueType :db.type/string :cardinality :db.cardinality/one
-      :doc "Default attribute renderer, a CLJS var like `hyperfiddle.ui.controls/code`."}
-
  ; fiddle
- #:db{:ident :fiddle/css :valueType :db.type/string :cardinality :db.cardinality/one
-      :doc "Fiddle CSS. \n\nWarning: CSS is not scoped, please write targetted CSS"}
  #:db{:ident :fiddle/hydrate-result-as-fiddle :valueType :db.type/boolean :cardinality :db.cardinality/one
       :doc "Experimental. When set, data-sync will interpret this fiddle's result as a fiddle - like a higher order fiddle - this is a recursion mechanic."}
  #:db{:ident :fiddle/ident :valueType :db.type/keyword :cardinality :db.cardinality/one :unique :db.unique/identity

@@ -23,7 +23,6 @@
           (css-slugify ident)]
          (apply css))))
 
-(defn- fiddle-css-renderer [s] [:style {:dangerouslySetInnerHTML {:__html @s}}])
 
 (defn- render-fiddle
   "Proxy to the `hf/render-fiddle` multimethod. Since `hf/render-fiddle` is a
@@ -41,8 +40,7 @@
       [:<>
        (if-let [user-renderer (:user-renderer props)] ; validate qfind and stuff?
          [user-renderer value ctx props]
-         [render-fiddle value ctx props])
-       [fiddle-css-renderer (r/cursor (:hypercrud.browser/fiddle ctx) [:fiddle/css])]]
+         [render-fiddle value ctx props])]
 
       :hypercrud.browser.browser-ui/xray
       [:<>
@@ -50,8 +48,7 @@
                                         ; don't use r/partial with user-renderer, r/partial useful for args, not components
                                         ; Select user-renderer is valid in xray mode now
          [user-renderer value ctx props]
-         [hyperfiddle.ui/fiddle-xray value ctx props])
-       [fiddle-css-renderer (r/cursor (:hypercrud.browser/fiddle ctx) [:fiddle/css])]]
+         [hyperfiddle.ui/fiddle-xray value ctx props])]
 
       :hypercrud.browser.browser-ui/api
       [hyperfiddle.ui/fiddle-api value ctx props])))

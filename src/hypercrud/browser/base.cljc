@@ -171,7 +171,6 @@
       route)))
 
 (def fiddle-pull [:db/id
-                  :fiddle/css
                   :fiddle/ident
                   {:fiddle/links [:db/id
                                   :link/class
@@ -390,4 +389,4 @@
           () val)
 
     (cond-> val
-      ((-> key name keyword) #{:renderer :markdown :css :query :pull :eval}) str)))
+      ((-> key name keyword) #{:renderer :markdown :query :pull :eval}) str)))

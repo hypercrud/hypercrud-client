@@ -19,13 +19,3 @@
   (-> (io/hydrate-one! (hf/io rt) local-basis partitions (attrs-request rt pid))
       (p/then #(into {} %))))
 
-(defn project-request [rt pid]
-  (->EntityRequest
-    :hyperfiddle/project
-    (runtime/db rt pid (hf/fiddle-dbname (hf/domain rt)))
-    [:project/code
-     :project/css]))
-
-(defn hydrate-project-record [rt pid local-basis partitions]
-  (io/hydrate-one! (hf/io rt) local-basis partitions (project-request rt pid)))
-

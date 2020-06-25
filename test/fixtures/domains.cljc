@@ -8,8 +8,6 @@
 (def fiddles
   {:hyperfiddle.ide/domain
    [{:fiddle/pull-database "$domains",
-     :fiddle/css
-     "div.hyperfiddle.ui div.hyperfiddle.field.-domain-router,\ndiv.hyperfiddle.ui div.hyperfiddle.field.-domain-environment,\ndiv.hyperfiddle.ui div.hyperfiddle.field.-domain-code,\ndiv.hyperfiddle.ui div.hyperfiddle.field.-domain-css\n{ display: block; }\n\n.hyperfiddle-ide table.hyperfiddle { table-layout: fixed; }\n.hyperfiddle-ide th.-db-id { width: 60px; }\n.hyperfiddle-ide th.-domain-database-name { width: 200px; }\n.hyperfiddle-ide td.-db-id button { padding: 0px; }\n.hyperfiddle-ide td.-database-uri > div { padding: 4px 5px; }",
      :fiddle/pull
      "[:db/id\n :domain/ident\n :domain/environment\n :domain/aliases\n :domain/disable-javascript\n :domain/home-route\n #_ :domain/router\n :domain/code\n :domain/css\n {:domain/databases [:db/id \n                     :domain.database/name \n                     {:domain.database/record [:db/id \n                                               :database/uri\n                                               #_#_#_:hyperfiddle/owners\n                                               {:database/write-security [:db/ident]}\n                                               :database.custom-security/client\n                                               :database.custom-security/server]}]}\n {:domain/fiddle-database [:database/uri\n                           #_#_#_#_:hyperfiddle/owners\n                           {:database/write-security [:db/ident]}\n                           :database.custom-security/client\n                           :database.custom-security/server]}\n :hyperfiddle/owners]",
      :fiddle/ident :hyperfiddle.ide/domain,
@@ -74,8 +72,6 @@
      :fiddle/query
      "[:find \n (pull $domains ?e [:db/id :database/uri]) \n ?name\n :in $domains \n :where \n [$domains ?e :database/uri ?uri]\n [(str ?uri) ?suri]\n [(.substring ?suri 28) ?name]]",
      :fiddle/type :query,
-     :fiddle/css
-     "table.hyperfiddle {table-layout: fixed;}",
      :fiddle/ident :database/options-list}
     [[{:db/id 17592186046713, :database/uri #uri "datomic:free://datomic:4334/mbrainz"} "mbrainz"]
      [{:db/id 17592186046090, :database/uri #uri "datomic:free://datomic:4334/root"} "root"]
@@ -109,7 +105,6 @@
        {:db/ident :domain/router, :db/valueType {:db/ident :db.type/string}, :db/cardinality {:db/ident :db.cardinality/one}, :db/doc "Experimental and undocumented userland router definition"}
        {:db/ident :domain.database/name, :db/valueType {:db/ident :db.type/string}, :db/cardinality {:db/ident :db.cardinality/one}, :db/doc "Name of this database in Datomic query :in clause"}
        {:db/ident :domain.database/record, :db/valueType {:db/ident :db.type/ref}, :db/cardinality {:db/ident :db.cardinality/one}}
-       {:db/ident :fiddle/css, :db/valueType {:db/ident :db.type/string}, :db/cardinality {:db/ident :db.cardinality/one}, :db/doc "CSS for this fiddle which is in the document only when this fiddle is visible. The default form renderers insert automatic css classes based on :fiddle/ident, :link/rel, :db.valueType, etc. CSS is not scoped, so be careful to write targetted CSS for this fiddle."}
        {:db/ident :fiddle/hydrate-result-as-fiddle, :db/valueType {:db/ident :db.type/boolean}, :db/cardinality {:db/ident :db.cardinality/one}, :db/doc "Experimental flag for higher-order fiddles. When set, data-sync will interpret this fiddle's arguments as a fiddle, which is a recursion mechanic. We're not sure if this is a good idea, but the docs site uses it for embedding examples."}
        {:db/ident :fiddle/ident, :db/valueType {:db/ident :db.type/keyword}, :db/cardinality {:db/ident :db.cardinality/one}, :db/unique {:db/ident :db.unique/identity}, :db/doc "Fiddle identifier used in default URL router"}
        {:db/ident :fiddle/links, :db/valueType {:db/ident :db.type/ref}, :db/cardinality {:db/ident :db.cardinality/many}, :db/isComponent true, :db/doc "Links to other fiddles, used for data-sync, automatic UI and business logic."}
@@ -134,7 +129,6 @@
          (contrib.datomic/indexed-schema
            [{:db/ident :attribute/ident, :db/valueType {:db/ident :db.type/keyword}, :db/cardinality {:db/ident :db.cardinality/one}, :db/unique {:db/ident :db.unique/identity}, :db/doc "FK to schema, they can't be directly on $ schema because attribute renderers are a \"source code\" concern. TODO: move these off domain and into the fiddle repo."}
             {:db/ident :attribute/renderer, :db/valueType {:db/ident :db.type/string}, :db/cardinality {:db/ident :db.cardinality/one}, :db/doc "Default attribute renderer, a CLJS var like `hyperfiddle.ui.controls/code`."}
-            {:db/ident :fiddle/css, :db/valueType {:db/ident :db.type/string}, :db/cardinality {:db/ident :db.cardinality/one}, :db/doc "Fiddle CSS. \n\nWarning: CSS is not scoped, please write targetted CSS"}
             {:db/ident :fiddle/hydrate-result-as-fiddle, :db/valueType {:db/ident :db.type/boolean}, :db/cardinality {:db/ident :db.cardinality/one}, :db/doc "Experimental. When set, data-sync will interpret this fiddle's arguments as a fiddle, which is a recursion mechanic."}
             {:db/ident :fiddle/ident, :db/valueType {:db/ident :db.type/keyword}, :db/cardinality {:db/ident :db.cardinality/one}, :db/unique {:db/ident :db.unique/identity}, :db/doc "Fiddle identifier used in fiddle URLs.\n\nWarning: changing this breaks fiddle URLs."}
             {:db/ident :fiddle/links, :db/valueType {:db/ident :db.type/ref}, :db/cardinality {:db/ident :db.cardinality/many}, :db/isComponent true, :db/doc "Links to other fiddles. Like HTML there are anchors, buttons, and iframes."}
