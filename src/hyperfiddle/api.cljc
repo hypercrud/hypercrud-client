@@ -30,6 +30,7 @@
 (defprotocol Browser
   (a [ctx])
   (attr [ctx] [ctx a])
+  (attr? [ctx corcs] [ctx a corcs])
   (browse-element [ctx i])
   (data [ctx])
   (dbname [ctx])
@@ -160,9 +161,9 @@
     ; Legacy compat - options by fiddle/renderer explicit props route to select via ref renderer
     (if (:options props)
       (extract-set (hyperfiddle.api/attr ctx) :db/valueType :db/cardinality))
-    (let [[pe pa pv] @(:hypercrud.browser/eav (:hypercrud.browser/parent ctx))
-          component? (-> ctx :hypercrud.browser/schema deref (get pa) :db/isComponent)]
-      (if (and (not component?) (hyperfiddle.api/identity? ctx))
+    (let [?parent-a (some-> (:hypercrud.browser/parent ctx) (hyperfiddle.api/a))
+          is-component (boolean (if ?parent-a (hyperfiddle.api/attr? ctx ?parent-a :db/isComponent)))]
+      (if (and (not is-component) (hyperfiddle.api/identity? ctx))
         #{:db.unique/identity}))
     (if-let [attr (hyperfiddle.api/attr ctx)]
       (extract-set attr :db/valueType :db/cardinality))

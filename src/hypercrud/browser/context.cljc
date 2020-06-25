@@ -425,12 +425,11 @@ a speculative db/id."
 (defn element-type [ctx]
   (some-> ctx element contrib.datomic/parser-type))
 
-(defn component?
-  [ctx]
-  (let [[_ a _] @(:hypercrud.browser/eav ctx)]
-    (-> ctx
-        :hypercrud.browser/parent
-        (attr? a :db/isComponent))))
+(defn component? [ctx]
+  {:pre [ctx]}
+  (let [a (hf/a ctx)]
+    (some-> (:hypercrud.browser/parent ctx)
+      (attr? a :db/isComponent))))
 
 (defn qfind [ctx]
   (some-> (:hypercrud.browser/qfind ctx) deref))
@@ -1218,6 +1217,10 @@ a speculative db/id."
     (attr ctx))
   (attr [ctx a]
     (attr ctx a))
+  (attr? [ctx corcs]
+    (attr? ctx corcs))
+  (attr? [ctx a corcs]
+    (attr? ctx a corcs))
   (element [ctx]
     (element ctx))
   (identity? [ctx]

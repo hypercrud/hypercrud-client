@@ -190,7 +190,7 @@
   ; If we have a component that's empty, we need to be able to write to it
   ; If the db/id was not pulled, we cannot write through to the entity
   (or
-    (and (context/component? (:hypercrud.browser/parent ctx))
+    (and (context/component? ctx)
          (writable-entity? (:hypercrud.browser/parent ctx)))
     (boolean (hf/e ctx))                                    ; you have some sort of entity identity (db/id, lookup ref, etc)
     ))
