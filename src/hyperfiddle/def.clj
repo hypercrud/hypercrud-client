@@ -236,8 +236,6 @@
        :fiddle/shape
        {:fiddle/shape (-> v one map-expr)}
 
-       :fiddle/code :fiddle/cljs-ns ;; DEPRECATED
-
        :fiddle/links
        {:fiddle/links
         (->> v (mapv (fn [link]
@@ -296,7 +294,7 @@
                (and (= type :fiddle)
                     (= (hyperfiddle.fiddle/kind acc) :fn)) (map-val v)
                (-> k name keyword #{:query :pull}) (map-expr v)
-               (-> k name keyword #{:code :cljs-ns :renderer :markdown :css}) (repr-val v)
+               (-> k name keyword #{:renderer :markdown :css}) (repr-val v)
                () v)}))
       {})
     (adjust-type)))

@@ -189,7 +189,6 @@
                   :fiddle/pull
                   :fiddle/pull-database
                   :fiddle/query
-                  :fiddle/cljs-ns
                   :fiddle/renderer
                   :fiddle/type
                   :fiddle/hydrate-result-as-fiddle
@@ -391,5 +390,4 @@
           () val)
 
     (cond-> val
-      ((-> key name keyword) #{:code :cljs-ns :renderer :markdown :css
-                               :query :pull :eval}) str)))
+      ((-> key name keyword) #{:renderer :markdown :css :query :pull :eval}) str)))

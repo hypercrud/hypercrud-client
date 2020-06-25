@@ -27,7 +27,7 @@
   (set! *eval*
     (fn [form]
       (binding [cljs.env/*compiler* compile-state-ref
-                *ns* (find-ns 'user #_cljs.analyzer/*cljs-ns*) ; shadow cljs repl creates 'cljs.user, not available in prod
+                *ns* (find-ns 'user) ; shadow cljs repl creates 'cljs.user, not available in prod
                 cljs.js/*eval-fn* cljs.js/js-eval
                 tags/*cljs-data-readers*]
         (eval form)))))

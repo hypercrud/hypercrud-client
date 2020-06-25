@@ -26,7 +26,6 @@
        :pull-database [:string "Argument to `datomic.api/pull`, defaults to $"]
        :links         [:ref* :isComponent "Links to other fiddles that are available from this fiddle"]
        :renderer      [:string "Reagent expression for the fiddle view"]
-       :cljs-ns       [:string "ClojureScript `user` namespace, available in :fiddle/renderer."]
        :css           [:string
                        "Fiddle CSS.
 
@@ -100,7 +99,6 @@
     /* Not th – that hits fiddle shortcuts */
     div.hyperfiddle.ui div.hyperfiddle.field.-fiddle-pull,
     div.hyperfiddle.ui div.hyperfiddle.field.-fiddle-query,
-    div.hyperfiddle.ui div.hyperfiddle.field.-fiddle-cljs-ns,
     div.hyperfiddle.ui div.hyperfiddle.field.-fiddle-renderer,
     div.hyperfiddle.ui div.hyperfiddle.field.-fiddle-css,
     div.hyperfiddle.ui div.hyperfiddle.field.-fiddle-markdown { display: block !important; }
@@ -121,10 +119,6 @@
   :markdown "## Credentials invalid or stale. Please login again.")
 
 (hf-def/attr
-  #:project
-      {:code {:renderer hyperfiddle.ui.controls/code}
-       :css  {:renderer hyperfiddle.ui.controls/css}}
-
   #:domain
       {:router {:renderer hyperfiddle.ui.controls/code}
        :home-route
@@ -143,8 +137,7 @@
                                     (update :mode #(or % "clojure")))]
                       [contrib.ui/debounced props contrib.ui/validated-cmp parse-string to-string contrib.ui.codemirror/-codemirror])))}
        :css                      {:renderer hyperfiddle.ui.controls/css}
-       :environment              {:renderer hyperfiddle.ui.controls/code}
-       :code                     {:renderer hyperfiddle.ui.controls/code}}
+       :environment              {:renderer hyperfiddle.ui.controls/code}}
 
   {:attribute/renderer              {:renderer hyperfiddle.ui.controls/code}
    :database.custom-security/client {:renderer hyperfiddle.ui.controls/code}

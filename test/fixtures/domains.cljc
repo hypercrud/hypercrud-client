@@ -65,7 +65,7 @@
      :hyperfiddle/owners [#uuid "87108fa3-e7d5-4ed5-a87a-81a6eb6e1aae" #uuid "acd054a8-4e36-4d6c-a9ec-95bdc47f0d39" #uuid "ca192cc8-4ccb-48c6-853f-6fc7dcdd1810"],
      :domain/fiddle-database {:database/uri #uri "datomic:free://datomic:4334/root"},
      :domain/css
-     "/* Not th – that hits fiddle shortcuts */\ndiv.hyperfiddle.ui div.hyperfiddle.field.-fiddle-pull,\ndiv.hyperfiddle.ui div.hyperfiddle.field.-fiddle-query,\ndiv.hyperfiddle.ui div.hyperfiddle.field.-fiddle-cljs-ns,\ndiv.hyperfiddle.ui div.hyperfiddle.field.-fiddle-renderer,\ndiv.hyperfiddle.ui div.hyperfiddle.field.-fiddle-css,\ndiv.hyperfiddle.ui div.hyperfiddle.field.-fiddle-markdown { display: block !important; }",
+     "/* Not th – that hits fiddle shortcuts */\ndiv.hyperfiddle.ui div.hyperfiddle.field.-fiddle-pull,\ndiv.hyperfiddle.ui div.hyperfiddle.field.-fiddle-query,\ndiv.hyperfiddle.ui div.hyperfiddle.field.-fiddle-renderer,\ndiv.hyperfiddle.ui div.hyperfiddle.field.-fiddle-css,\ndiv.hyperfiddle.ui div.hyperfiddle.field.-fiddle-markdown { display: block !important; }",
      :domain/ident "hyperfiddle",
      :domain/environment ""}]
 
@@ -109,7 +109,6 @@
        {:db/ident :domain/router, :db/valueType {:db/ident :db.type/string}, :db/cardinality {:db/ident :db.cardinality/one}, :db/doc "Experimental and undocumented userland router definition"}
        {:db/ident :domain.database/name, :db/valueType {:db/ident :db.type/string}, :db/cardinality {:db/ident :db.cardinality/one}, :db/doc "Name of this database in Datomic query :in clause"}
        {:db/ident :domain.database/record, :db/valueType {:db/ident :db.type/ref}, :db/cardinality {:db/ident :db.cardinality/one}}
-       {:db/ident :fiddle/cljs-ns, :db/valueType {:db/ident :db.type/string}, :db/cardinality {:db/ident :db.cardinality/one}, :db/doc "Undocumented, pending cleanup"}
        {:db/ident :fiddle/css, :db/valueType {:db/ident :db.type/string}, :db/cardinality {:db/ident :db.cardinality/one}, :db/doc "CSS for this fiddle which is in the document only when this fiddle is visible. The default form renderers insert automatic css classes based on :fiddle/ident, :link/rel, :db.valueType, etc. CSS is not scoped, so be careful to write targetted CSS for this fiddle."}
        {:db/ident :fiddle/hydrate-result-as-fiddle, :db/valueType {:db/ident :db.type/boolean}, :db/cardinality {:db/ident :db.cardinality/one}, :db/doc "Experimental flag for higher-order fiddles. When set, data-sync will interpret this fiddle's arguments as a fiddle, which is a recursion mechanic. We're not sure if this is a good idea, but the docs site uses it for embedding examples."}
        {:db/ident :fiddle/ident, :db/valueType {:db/ident :db.type/keyword}, :db/cardinality {:db/ident :db.cardinality/one}, :db/unique {:db/ident :db.unique/identity}, :db/doc "Fiddle identifier used in default URL router"}
@@ -135,7 +134,6 @@
          (contrib.datomic/indexed-schema
            [{:db/ident :attribute/ident, :db/valueType {:db/ident :db.type/keyword}, :db/cardinality {:db/ident :db.cardinality/one}, :db/unique {:db/ident :db.unique/identity}, :db/doc "FK to schema, they can't be directly on $ schema because attribute renderers are a \"source code\" concern. TODO: move these off domain and into the fiddle repo."}
             {:db/ident :attribute/renderer, :db/valueType {:db/ident :db.type/string}, :db/cardinality {:db/ident :db.cardinality/one}, :db/doc "Default attribute renderer, a CLJS var like `hyperfiddle.ui.controls/code`."}
-            {:db/ident :fiddle/cljs-ns, :db/valueType {:db/ident :db.type/string}, :db/cardinality {:db/ident :db.cardinality/one}, :db/doc "ClojureScript `user` namespace, available in :fiddle/renderer.\n\nWarning: No `(ns foo (:require ...))` yet, for now it is always called `user`."}
             {:db/ident :fiddle/css, :db/valueType {:db/ident :db.type/string}, :db/cardinality {:db/ident :db.cardinality/one}, :db/doc "Fiddle CSS. \n\nWarning: CSS is not scoped, please write targetted CSS"}
             {:db/ident :fiddle/hydrate-result-as-fiddle, :db/valueType {:db/ident :db.type/boolean}, :db/cardinality {:db/ident :db.cardinality/one}, :db/doc "Experimental. When set, data-sync will interpret this fiddle's arguments as a fiddle, which is a recursion mechanic."}
             {:db/ident :fiddle/ident, :db/valueType {:db/ident :db.type/keyword}, :db/cardinality {:db/ident :db.cardinality/one}, :db/unique {:db/ident :db.unique/identity}, :db/doc "Fiddle identifier used in fiddle URLs.\n\nWarning: changing this breaks fiddle URLs."}

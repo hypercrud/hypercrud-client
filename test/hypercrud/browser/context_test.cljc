@@ -1054,7 +1054,7 @@
 
     (is (= (count (for [[_ ctx] (context/spread-rows ctx-schema)]
                     nil))
-           99))))
+           98))))
 
 (deftest findcoll-ident-card-many
   (is (-> (let [ctx (mock-fiddle! :dustingetz.test/findcoll-ident-cardinality-many)]
