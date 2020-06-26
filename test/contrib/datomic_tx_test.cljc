@@ -39,6 +39,8 @@
    {:db/ident :community/category, :db/valueType :db.type/string, :db/cardinality :db.cardinality/many, :db/fulltext true, :db/doc "All community categories"}
    {:db/ident :community/orgtype, :db/valueType :db.type/ref, :db/cardinality :db.cardinality/one, :db/doc "A community orgtype enum value"}
    {:db/ident :community/type, :db/valueType :db.type/ref, :db/cardinality :db.cardinality/many, :db/doc "Community type enum values"}
+   {:db/ident :community/board :db/valueType :db.type/ref :db/cardinality :db.cardinality/many :db/doc "People who sit on the community board"}
+   {:db/ident :person/name :db/valueType :db.type/string :db/cardinality :db.cardinality/one :db/doc "A person's full name"}
    {:db/ident :neighborhood/name, :db/valueType :db.type/string, :db/cardinality :db.cardinality/one, :db/unique :db.unique/identity, :db/doc "A unique neighborhood name (upsertable)"}
    {:db/ident :neighborhood/district, :db/valueType :db.type/ref, :db/cardinality :db.cardinality/one, :db/doc "A neighborhood's district"}
    {:db/ident :district/name, :db/valueType :db.type/string, :db/cardinality :db.cardinality/one, :db/unique :db.unique/identity, :db/doc "A unique district name (upsertable)"}
@@ -213,6 +215,31 @@
                 [[:db/retractEntity 1]])
       [[:db/retractEntity 1]])
 
+    (= (into-tx seattle-schema []
+                [[:db/add 1 :community/name "asdf"]
+                 [:db/add [:community/name "asdf"] :a 1]
+                 [:db/retract 1 :b 1]
+                 [:db/retract [:community/name "asdf"] :c 1]
+                 [:db/cas 1 :x 1 2]
+                 [:db/cas [:community/name "asdf"] :y 2 1]])
+       [{:db/id 1 :community/name "asdf"}
+        [:db/retract 1 :b 1]
+        [:db/retract 1 :c 1]
+        [:db/cas 1 :x 1 2]
+        [:db/cas 1 :y 2 1]])
+
+    (= (into-tx seattle-schema []
+                [[:db/add 1 :community/name "asdf"]
+                 [:db/add [:community/name "asdf"] :a 1]
+                 [:db/retractEntity [:community/name "asdf"]]])
+       [[:db/retractEntity 1]])
+
+    (= (into-tx seattle-schema []
+                [[:db/add 1 :community/name "asdf"]
+                 [:db/add [:community/name "asdf"] :a 1]
+                 [:db/retractEntity 1]])
+       [[:db/retractEntity 1]])
+
     (testing "remove parent entity"
       (= (into-tx seattle-schema
                   [[:db/add 1 :foo "asdf"]
@@ -324,7 +351,43 @@
                    [:db/add "-3" :ref 4]
                    [:db/add 4 :foo "asdf"]]
                   [[:db/retractEntity 4]])
-        [[:db/retractEntity 4]]))))
+        [[:db/retractEntity 4]]))
+
+    (testing "Components"
+      (is (= [{:db/id "0" :person/name "Frodo Baggins"}
+              {:db/id "1" :person/name "Paragrin Took"}
+              {:db/id "2" :person/name "Tom Bombadill"}
+              {:db/id 1234 :community/board #{"0" "1" "2"}}]
+             (into-tx seattle-schema []
+                      [[:db/add "0" :person/name "Frodo Baggins"]
+                       [:db/add "1" :person/name "Paragrin Took"]
+                       [:db/add "2" :person/name "Tom Bombadill"]
+                       [:db/add 1234 :community/board "0"]
+                       [:db/add 1234 :community/board "1"]
+                       [:db/add 1234 :community/board "2"]]))))
+
+    (is (= [{:db/id "0" :a 1 :b 2}]
+           (into-tx seattle-schema []
+                              [[:db/add "0" :a 1]
+                               [:db/add "0" :b 2]])))
+
+    (is (= []
+           (into-tx seattle-schema []
+                              [[:db/add "0" :a 1]
+                               [:db/retract "0" :a 1]])))
+
+    (is (= [{:db/id 2 :neighborhood/name "qwer" :x 1}
+            {:db/id [:neighborhood/name "asdf"] :a 1}
+            {:db/id "1" :b 2}
+            [:db/retract "0" :a 2]
+            [:db/cas "0" :a 0 2]]
+           (into-tx seattle-schema []
+                           [[:db/add [:neighborhood/name "qwer"] :x 1]
+                            [:db/add 2 :neighborhood/name "qwer"]
+                            [:db/add [:neighborhood/name "asdf"] :a 1]
+                            [:db/add "1" :b 2]
+                            [:db/retract "0" :a 2]
+                            [:db/cas "0" :a 0 2]])))))
 
 (def datomic-schema
   (indexed-schema
@@ -364,6 +427,14 @@
             [:db/add "1352154034" :db/valueType :db.type/ref]
             [:db/add "1352154034" :db/cardinality :db.cardinality/many]
             [:db/add "1352154034" :db/doc "Community type enum values"]
+            [:db/add "-358122211" :db/ident :community/board]
+            [:db/add "-358122211" :db/valueType :db.type/ref]
+            [:db/add "-358122211" :db/cardinality :db.cardinality/many]
+            [:db/add "-358122211" :db/doc "People who sit on the community board"]
+            [:db/add "-1599439536" :db/ident :person/name]
+            [:db/add "-1599439536" :db/valueType :db.type/string]
+            [:db/add "-1599439536" :db/cardinality :db.cardinality/one]
+            [:db/add "-1599439536" :db/doc "A person's full name"]
             [:db/add "1955030477" :db/ident :neighborhood/name]
             [:db/add "1955030477" :db/valueType :db.type/string]
             [:db/add "1955030477" :db/cardinality :db.cardinality/one]
@@ -539,8 +610,8 @@
            [{:db/id 1} {:+ {:community/name "qwer"}}]))
     (is (= (absorb schema {:db/id 1} {:+ {:community/name "name"}} [:db/retract 1 :community/name "name"])
            [{:db/id 1} {:+ {}}]))
-    (is (= (absorb schema {:db/id 1} {} [:db/cas inc])
-           [{:db/id 1} {:cas inc}]))
+    (is (= (absorb schema {:db/id 1} {} [:db/cas "e" :community/name "asdf" "qwer"])
+           [{:db/id 1} {:cas {:community/name ["asdf" "qwer"]}}]))
     (is (= (absorb schema {:db/id 1} {} [:db/retractEntity 1])
            [{:db/id 1} {:retracted true}]))))
 
@@ -574,20 +645,14 @@
 
 (deftest test|deconstruct
   (let [schema (map-by :db/ident seattle-schema-tx)]
-    (is (= (deconstruct schema [[{:db/id 1} {:+ {:attr0 1} :- {:attr1 2} :cas {:attr2 inc}}]])
+    (is (= (deconstruct schema [[{:db/id 1} {:+ {:attr0 1} :- {:attr1 2} :cas {:attr2 ["v0" "v1"]}}]])
            [[:db/add 1 :attr0 1]
             [:db/retract 1 :attr1 2]
-            [:db/cas 1 :attr2 inc]]))
-    (is (= (deconstruct schema [[{:db/id 1} {:+ {:attr0 1} :- {:attr1 2} :cas {:attr2 inc} :retracted true}]])
+            [:db/cas 1 :attr2 "v0" "v1"]]))
+    (is (= (deconstruct schema [[{:db/id 1} {:+ {:attr0 1} :- {:attr1 2} :cas {:attr2 ["v0" "v1"]} :retracted true}]])
            [[:db/retractEntity 1]]))))
 
 (deftest test|mappify
   (let [schema (map-by :db/ident seattle-schema-tx)]
     (is (= [{:db/id "0" :a 1 :b 2}] (mappify schema [[:db/add "0" :a 1] [:db/add "0" :b 2]])))
-    (is (= [{:db/id 0 :a 1} {:db/id 1 :b 2}] (mappify schema [[:db/add 0 :a 1] [:db/add 1 :b 2]])))
-    (is (= [{:db/id "0" :a 1} {:db/id "1":b 2} [:db/retract "0" :a 2] [:db/cas "0" :a inc]]
-           (mappify schema [[:db/add "0" :a 1] [:db/add "1" :b 2] [:db/retract "0" :a 2] [:db/cas "0" :a inc]])))))
-
-(deftest test|into-tx
-  (is (= [{:db/id "0" :a 1 :b 2}] (into-tx schema [] [[:db/add "0" :a 1] [:db/add "0" :b 2]])))
-  (is (= [] (into-tx schema [] [[:db/add "0" :a 1] [:db/retract "0" :a 1]]))))
+    (is (= [{:db/id 0 :a 1} {:db/id 1 :b 2}] (mappify schema [[:db/add 0 :a 1] [:db/add 1 :b 2]])))))
