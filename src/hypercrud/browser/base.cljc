@@ -36,6 +36,7 @@
 
 ; internal bs abstraction to support hydrate-result-as-fiddle
 (defn- internal-browse-route+ [{rt :runtime pid :partition-id :as ctx} route]
+  {:pre [route]}
   (do-result
 
     (when-let [e (runtime/get-error rt pid)]
@@ -67,7 +68,9 @@
         r-result))))
 
 (defn browse-partition+ [ctx]
-  (internal-browse-route+ ctx (runtime/get-route (:runtime ctx) (:partition-id ctx))))
+  (let [route (runtime/get-route (:runtime ctx) (:partition-id ctx))]
+    (assert route (str "route not found for pid: " (:partition-id ctx)))
+    (internal-browse-route+ ctx route)))
 
 (defn browse-result-as-fiddle+ [{rt :runtime pid :partition-id :as ctx}]
   (timbre/warn "legacy invocation; browse-route+ is deprecated")

@@ -162,8 +162,11 @@
   @(state-ref rt [::partitions (get-branch-pid rt pid) :local-basis]))
 
 (defn get-route [rt pid]
-  {:pre [pid]}
-  @(state-ref rt [::partitions pid :route]))
+  {:pre [pid]
+   #_#_:post [%]}
+  (doto
+    @(state-ref rt [::partitions pid :route])
+    #_(assert (str "route not found for pid: " pid))))
 
 (defn get-pending-route [rt pid]
   {:pre [pid]}

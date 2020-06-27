@@ -126,4 +126,5 @@
   [:<> {:key (:partition-id ctx)}
    (when-not (= :hypercrud.browser.browser-ui/user (:hyperfiddle.ui/display-mode ctx))
      [route-editor ctx])
+   ; Route is related from pid lookup in rt internals
    [stale-browse ctx browse-error browse-success props]])

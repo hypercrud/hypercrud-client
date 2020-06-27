@@ -322,7 +322,7 @@ User renderers should not be exposed to the reaction."
     (fn [link-ref]
       [ui-from-link link-ref ctx props ?label])))
 
-(defn ^:export browse "Relation level browse. Works in forms and lists but not tables."
+(defn ^:export browse "Relation level browse. Works in forms and lists but not tables." ; Unused?
   [corcs ctx & [?user-renderer props]]
   {:pre [ctx]}
   (let [props (if ?user-renderer
