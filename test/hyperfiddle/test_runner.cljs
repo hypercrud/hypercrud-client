@@ -17,6 +17,7 @@
     contrib.rfc3986-test
     contrib.string-test
     hypercrud.browser.context-test
+    ;hypercrud.browser.base-test
     hypercrud.browser.router-bidi-test
     hyperfiddle.fiddle-test
     hyperfiddle.io.basis-test
@@ -41,6 +42,7 @@
     'contrib.rfc3986-test
     'contrib.string-test
     'hypercrud.browser.context-test
+    ;'hypercrud.browser.base-test
     'hypercrud.browser.router-bidi-test
     'hyperfiddle.fiddle-test
     'hyperfiddle.io.basis-test
