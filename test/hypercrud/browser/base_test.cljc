@@ -25,7 +25,7 @@
 
      (def fiddle (hf-def/get-fiddle ::submission-master))
      (def route {:hyperfiddle.route/fiddle ::submission-master})
-     (def o (from-result (hypercrud.browser.base/eval-fiddle+ fiddle route)))
+     (def o (from-result (eval-fiddle+ fiddle route)))
 
      (is (= (select-keys o [:fiddle/type :fiddle/ident])
            {:fiddle/type  :eval
@@ -33,21 +33,21 @@
 
      (is (= (:fiddle/links o)
            [{:link/fiddle #:fiddle{:ident :hypercrud.browser.base-test/submission-detail},
-             :link/path   ":dustingetz/email",
-             :db/id       0}
-            {:link/tx-fn  ":user.hello-world/new-submission",
+             :link/path ":dustingetz/email",
+             :db/id -1966238227}
+            {:link/tx-fn ":user.hello-world/new-submission",
              :link/fiddle #:fiddle{:ident :hypercrud.browser.base-test/submission-detail},
-             :link/path   ":dustingetz/email",
-             :link/class  [:hf/new],
-             :db/id       0}
+             :link/path ":dustingetz/email",
+             :link/class [:hf/new],
+             :db/id -1966238227}
             {:link/fiddle #:fiddle{:ident :hypercrud.browser.base-test/genders},
-             :link/path   ":hypercrud.browser.base-test/submission-master",
-             :link/class  [:hf/iframe],
-             :db/id       0}
+             :link/path ":hypercrud.browser.base-test/submission-master",
+             :link/class [:hf/iframe],
+             :db/id 53395112}
             {:link/fiddle #:fiddle{:ident :hypercrud.browser.base-test/shirt-sizes},
-             :link/path   ":dustingetz/gender",
-             :link/class  [:hf/iframe],
-             :db/id       0}]))
+             :link/path ":dustingetz/gender",
+             :link/class [:hf/iframe],
+             :db/id -584055403}]))
      ))
 
 (deftest evaluator|1

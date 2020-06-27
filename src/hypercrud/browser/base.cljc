@@ -365,10 +365,11 @@
             (-> (reduce-kv
                   (fn [kv k v] (assoc kv k (normalize k v)))
                   {} link)
-                (assoc :db/id
-                  ; hack for https://github.com/hyperfiddle/hyperfiddle/issues/1022
-                  ; :db/id must be `long? if Datomic specs are in the spec registry
-                  (-> (do/! :Eval.get-var :eval/env) :route :hyperfiddle.route/fiddle hash))))
+                (as-> %
+                  (assoc % :db/id
+                    ; hack for https://github.com/hyperfiddle/hyperfiddle/issues/1022
+                    ; :db/id must be `long? if Datomic specs are in the spec registry
+                    (-> % :link/fiddle :fiddle/ident (doto println) hash)))))
           val)
 
     :link/fiddle
