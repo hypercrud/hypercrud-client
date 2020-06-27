@@ -231,7 +231,12 @@
 
        :fiddle/links
        {:fiddle/links
-        (mapv (fn [link] (reduce-kv (fn [x k v] (merge x (map-attr :link k v))) {} link)) v)}
+        (->> v (mapv (fn [link]
+                       (->
+                         (reduce-kv (fn [x k v] (merge x (map-attr :link k v))) {} link)
+                         ; hack for https://github.com/hyperfiddle/hyperfiddle/issues/1022
+                         ; :db/id must be `long? if Datomic specs are in the spec registry
+                         (as-> link (assoc link :db/id (-> link :link/fiddle :fiddle/ident hash)))))))}
 
        :fiddle/with {:fiddle/with (one v)}
 

@@ -362,14 +362,10 @@
   (case key
     :fiddle/links
     (mapv (fn [link]
-            (-> (reduce-kv
-                  (fn [kv k v] (assoc kv k (normalize k v)))
-                  {} link)
-                (as-> %
-                  (assoc % :db/id
-                    ; hack for https://github.com/hyperfiddle/hyperfiddle/issues/1022
-                    ; :db/id must be `long? if Datomic specs are in the spec registry
-                    (-> % :link/fiddle :fiddle/ident (doto println) hash)))))
+            (reduce-kv
+              (fn [kv k v]
+                (assoc kv k (normalize k v)))
+              {} link))
           val)
 
     :link/fiddle
