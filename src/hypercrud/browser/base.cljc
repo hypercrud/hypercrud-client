@@ -110,7 +110,7 @@
      (fn [[_ name]] (get (:scope do/*this) name))
      :Eval.set-var!
      (fn [[_ name val]]
-       (set! do/*this (update do/*this assoc name val)))}))
+       (set! do/*this (assoc-in do/*this [:scope name] val)))}))
 
 (defn eval-fiddle+ [fiddle {:keys [domain route ctx] :as env}]
   (do/scope (into [`eval-fiddle+ (:fiddle/ident fiddle)] (seq (:fiddle/apply fiddle)))

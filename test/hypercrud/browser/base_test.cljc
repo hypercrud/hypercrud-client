@@ -3,7 +3,8 @@
     [clojure.test :refer [deftest is]]
     [contrib.do :refer [! via* *this Do-via from-result]]
     [hyperfiddle.def :as hf-def]
-    [hypercrud.browser.base :refer [eval-fiddle+]]))
+    [hypercrud.browser.base :refer [eval-fiddle+ ->Eval]]
+    [contrib.do :as do]))
 
 #?(:clj
    ; Crashes in test-cljs
@@ -48,3 +49,12 @@
              :link/class  [:hf/iframe],
              :db/id       0}]))
      ))
+
+(deftest evaluator|1
+  (via* (->Eval nil {::foo 42})
+    (is (= (! :Eval.get-var 'a) nil))
+    (! :Eval.set-var! 'a 10)
+    (is (= (! :Eval.get-var 'a) 10))
+    (is (= (! :Eval.get-var ::foo) 42))
+    (is (= (! :Eval.scope) {::foo 42, 'a 10})))
+  )
