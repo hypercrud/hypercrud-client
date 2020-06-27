@@ -191,6 +191,10 @@
   (let [props (assoc props :value val :on-change ((::hf/view-change! ctx) ctx))]
     [:<> [recom-date props] [recom-time props]]))
 
+(defn ^:export date [val ctx & [props]]                     ; unused by default
+  (let [props (assoc props :value val :on-change ((::hf/view-change! ctx) ctx))]
+    [:<> [recom-date props]]))
+
 (defn- code-comp [ctx]
   (case (:hyperfiddle.ui/layout ctx :hyperfiddle.ui.layout/block)
     :hyperfiddle.ui.layout/block contrib.ui/code
@@ -339,9 +343,9 @@
   (defn ^:export string [val ctx & [props]]
     [:div.hyperfiddle-input-group
      [invalid-message-popup (select-keys props [::hf/invalid-messages]) ; accounted for by ::hf/is-invalid
-      (let [
-            props' (-> props
-                     (assoc :value val :on-change (r/partial on-change ctx))
+      (let [props' (-> props
+                     (assoc :value val
+                            :on-change #_(r/partial on-change ctx) ((::hf/view-change! ctx) ctx))
                      (dissoc ::hf/invalid-messages ::hf/is-invalid)
                      (cond-> (::hf/is-invalid props) (update :class contrib.css/css "invalid")))]
         [debounced props' contrib.ui/text #_contrib.ui/textarea])]
