@@ -35,8 +35,8 @@
         typedoc (some->> (attribute-schema-human attr) (interpose " ") (apply str))
         help-hiccup [:<>
                      ; Use path over a because it could have flattened the nesting and attr is ambiguous
-                     (if typedoc [:code (:db/ident attr) " " typedoc])
-                     (or doc-override (-> attr :db/doc blank->nil))]]
+                     (if typedoc [:code (str (:db/ident attr)) " " typedoc])
+                     [:div (or doc-override (-> attr :db/doc blank->nil))]]]
     help-hiccup))
 
 (defn label-with-docs [label help-md props]
