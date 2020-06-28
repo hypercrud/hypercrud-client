@@ -6,7 +6,7 @@
     [contrib.pprint :refer [pprint-str]]
     [contrib.reactive :as r]
     [contrib.reader :as reader]
-    [contrib.string :refer [empty->nil]]
+    [contrib.string :refer [blank->nil empty->nil]]
     [contrib.ui :refer [debounced]]                         ; avoid collisions
     [contrib.ui.recom-date :refer [recom-date recom-time]]
     [contrib.ui.tooltip :refer [tooltip-thick]]
@@ -16,13 +16,31 @@
     [hyperfiddle.data]
     [hyperfiddle.runtime :as runtime]
     #_[hyperfiddle.ui]
-    [hyperfiddle.ui.docstring :refer [semantic-docstring]]
     [hyperfiddle.ui.select$ :refer [select]]
     [hyperfiddle.ui.util :refer [entity-change->tx ]]
     [taoensso.timbre :as timbre]))
 
+
+(defn attribute-schema-human [attr]
+  ((juxt
+     #_:db/ident
+     #(some-> % :db/valueType name)
+     #(some-> % :db/cardinality name)
+     #(some-> % :db/isComponent (if :component) name)
+     #(some-> % :db/unique name))
+   attr))
+
+(defn semantic-docstring [ctx & [doc-override]]
+  (let [attr (hf/attr ctx)
+        typedoc (some->> (attribute-schema-human attr) (interpose " ") (apply str))
+        help-hiccup [:<>
+                     ; Use path over a because it could have flattened the nesting and attr is ambiguous
+                     (if typedoc [:code (:db/ident attr) " " typedoc])
+                     (or doc-override (-> attr :db/doc blank->nil))]]
+    help-hiccup))
+
 (defn label-with-docs [label help-md props]
-  [tooltip-thick (if help-md [:div.hyperfiddle.docstring [contrib.ui/markdown help-md]])
+  [tooltip-thick (if help-md [:div.hyperfiddle.docstring help-md])
    (let [label-props (select-keys props [:on-click :class])] ; https://github.com/hyperfiddle/hyperfiddle/issues/511
      [:label.hyperfiddle label-props label (if help-md [:sup "†"])])])
 
@@ -219,17 +237,6 @@
                       :value val
                       :on-change (r/partial on-change ctx))
                     (update :mode #(or % "css")))]
-      [debounced props (code-comp ctx)])))
-
-(let [on-change (fn [ctx o n]
-                  (->> (entity-change->tx ctx (empty->nil o) (empty->nil n))
-                       (runtime/with-tx (:runtime ctx) (:partition-id ctx) (context/dbname ctx))))]
-  (defn ^:export markdown-editor [val ctx & [props]]        ; This is legacy; :mode=markdown should be bound in userland
-    (let [props (-> (assoc props
-                      :value val
-                      :on-change (r/partial on-change ctx)
-                      :mode "markdown"
-                      :lineWrapping true))]
       [debounced props (code-comp ctx)])))
 
 (defn value-validator [ctx]

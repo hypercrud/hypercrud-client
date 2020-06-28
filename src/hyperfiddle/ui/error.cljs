@@ -2,7 +2,6 @@
   (:require
     [contrib.pprint :refer [pprint-str]]
     [contrib.reactive :as r]
-    [contrib.ui :refer [markdown]]
     [hypercrud.types.Err :as Err]
     [hyperfiddle.ui.staging :as staging]))
 
@@ -29,9 +28,8 @@
   (let [{:keys [cause data message]} (e->map e)]            ; we don't always return an error with a message
     [:div props
      [:h3 message]
-     [markdown (str "```\n" (ex-data->human-detail data) "\n```\n")]
-     (if (:human-hint data) [markdown (:human-hint data)])
-     #_(if (:query data) [markdown (str "```\n" (:query data) "\n```")])]))
+     [:pre (str (ex-data->human-detail data))]
+     (if (:human-hint data) [:p (:human-hint data)])]))
 
 (defn error-block-with-stage [ctx e & [props]]
   (let [selected-dbname (r/atom nil)]

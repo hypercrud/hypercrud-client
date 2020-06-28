@@ -156,11 +156,12 @@
   (-> "
 (let [{:keys [:hypercrud.browser/fiddle]} ctx]
   [:div.container-fluid props
-   [hyperfiddle.ui/markdown (:fiddle/markdown @fiddle) ctx]
+   [:h1 (str (:fiddle/ident @fiddle))]
    [hyperfiddle.ui/result val ctx {}]])"
       (str/ltrim "\n")))
 
 (def fiddle-defaults
+  ; touching this is sensitive to build-pid-from-link and can cause deepbugs in the rt
   {:fiddle/markdown (fn [fiddle] (str/fmt "### %s" (some-> fiddle :fiddle/ident str)))
    :fiddle/pull (constantly "[:db/id\n *]")
    :fiddle/pull-database (constantly "$")
@@ -181,6 +182,7 @@
   Links need the qfind, but qfind needs the fiddle defaults.
   Don't depend on ctx, this function runs in many situations including in datalog"
   [fiddle]
+  ; touching this is sensitive to build-pid-from-link and can cause deepbugs in the rt
   (as-> fiddle fiddle
     (update fiddle :fiddle/type #(or % ((:fiddle/type fiddle-defaults) fiddle)))
     (case (:fiddle/type fiddle)

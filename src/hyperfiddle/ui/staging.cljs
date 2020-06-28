@@ -121,54 +121,6 @@
        :on-change (r/partial reset! selected-dbname)]
       [tab-content rt pid selected-dbname' child]])))
 
-(defn- tooltip-content [rt dbname-labels]
-  [:div {:style {:text-align "left"}}
-   [hyperfiddle.ui/markdown
-    (->> (sort-by :label dbname-labels)
-         (mapv (fn [{:keys [id] s-label :label}]
-                 (let [prefix (if (runtime/get-auto-transact rt id)
-                                "- [x] "
-                                "- [ ] ")]
-                   (str prefix s-label))))
-         (string/join "\n")
-         (str "##### Auto-transact:\n\n"))
-    {:hyperfiddle.ui.markdown-extensions/unp true}]])
-
-(defn ^:export popover-button [rt pid dbname-labels & {:keys [show-auto-tx]}]
-  (let [show-tooltip (r/atom false)
-        show-stage (r/atom false)
-        selected-dbname (r/cursor (hf/state rt) [:staging/selected-uri])]
-    (fn [rt pid dbname-labels & {:keys [show-auto-tx]}]
-      (let [maybe-tooltip-wrapper (fn [button-cmp]
-                                    (if show-auto-tx
-                                      [re-com/popover-tooltip
-                                       :showing? (r/atom (and @show-tooltip (not @show-stage)))
-                                       :label [tooltip-content rt dbname-labels]
-                                       :anchor button-cmp]
-                                      button-cmp))]
-        [:div.hyperfiddle-staging-popover-button
-         (maybe-tooltip-wrapper
-           [re-com/popover-anchor-wrapper
-            :showing? show-stage
-            :position :below-center
-            :anchor (let [stage-is-dirty (not @(r/fmap empty? (r/track runtime/get-stage rt pid)))]
-                      [:button (cond-> {:on-click #(reset! show-stage true)
-                                        :class (cond-> "hyperfiddle btn-default"
-                                                 stage-is-dirty (css "stage-dirty"))}
-                                 show-auto-tx (assoc :on-mouse-over #(do (reset! show-tooltip true) nil)
-                                                     :on-mouse-out #(do (reset! show-tooltip false) nil)))
-                       "stage▾"])
-            :popover [re-com/popover-content-wrapper
-                      :no-clip? true?
-                      :body (let [selected-dbname' (r/fmap-> selected-dbname (default-tab-model (mapv :id dbname-labels)))]
-                              [:div.hyperfiddle-popover-body
-                               [editor-cmp selected-dbname rt pid dbname-labels
-                                [:<>
-                                 [transact-button rt pid selected-dbname']
-                                 (when show-auto-tx
-                                   [auto-transact-control rt pid selected-dbname'])
-                                 [:button.close-popover {:on-click (r/partial reset! show-stage false)} "close"]]]])]])]))))
-
 (defn inline-stage
   ([ctx] (inline-stage (:runtime ctx) (:partition-id ctx)))
   ([rt pid] (inline-stage rt pid (default-dbname-labels rt)))

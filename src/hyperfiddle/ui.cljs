@@ -570,13 +570,11 @@ nil. call site must wrap with a Reagent component"          ; is this just hyper
 ;   (hint val ctx props)
 ;   [form table-column-product val ctx props]])
 
-(def ^:dynamic markdown)                                    ; this should be hf-contrib or something
-
 ; to be manually kept in sync with hf.fiddle/default-renderer-str
 (defn ^:export fiddle [val ctx props]
   (let [{:keys [:hypercrud.browser/fiddle]} ctx]
     [:div.container-fluid props
-     [hyperfiddle.ui/markdown (:fiddle/markdown @fiddle) ctx]
+     [:h1 (str (:fiddle/ident @fiddle))]
      [hyperfiddle.ui/result val ctx {}]]))
 
 (defn ^:export fiddle-xray [val ctx & [props]]

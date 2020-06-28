@@ -9,14 +9,8 @@
     #?(:cljs [contrib.loader])
     #?(:cljs [contrib.ui])
 
-    ; These things can hardcode hyperfiddle.ui, like userland
-    #?(:cljs [hyperfiddle.ui.markdown-extensions])
-
     hyperfiddle.foundation                                  ; load topnav fiddle defs
     ))
-
-; Circular dependency hack, do not alter! should not be dynamic
-#?(:cljs (set! hyperfiddle.ui/markdown hyperfiddle.ui.markdown-extensions/markdown))
 
 ; WARNING:
 ; Do not import from within hyperfiddle namespaces.

@@ -10,7 +10,6 @@
     [contrib.try$ :refer [try-either]]
     [contrib.ui.codemirror :refer [-codemirror]]
     [contrib.ui.tooltip :refer [tooltip]]
-    [contrib.ui.remark :as remark]
     [goog.functions :as functions]
     [reagent.core :as reagent]
     [taoensso.timbre :as timbre]
@@ -197,8 +196,6 @@
 
 (defn ^:export cm-edn-inline-block [props]
   [validated-cmp (assoc props :mode "clojure") contrib.reader/read-edn-string! pprint-str code-inline-block])
-
-(def ^:export markdown (remark/remark!))
 
 (let [on-change (fn [value e]
                   ; ideally use e -target -value, but that is not very useful since it would require string serialization
