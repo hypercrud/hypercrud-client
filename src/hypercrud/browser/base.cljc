@@ -131,8 +131,7 @@
                 (let [[_ system-fiddle db] (re-find #"([^\$]*)(\$.*)" (name (:fiddle/ident fiddle)))]
                   (when system-fiddle
                     {'domain       domain
-                     'db           db
-                     'user-db->ide (:hyperfiddle.ide.domain/user-dbname->ide domain)}))))
+                     'db           db}))))
 
             (doseq [[name x]
                     (merge
