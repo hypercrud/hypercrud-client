@@ -807,9 +807,41 @@
     )
 
   (testing "link primitives"
-    (is (= (->> (hyperfiddle.data/spread-links-here ctx-blog-slug) (map first))
-           #?(:cljs (list 1222716828 -2118701331)
-              :cljs (list 152027927 -754968947))))
+
+    (let [xx (hyperfiddle.data/spread-links-here ctx-blog-slug)]
+      (is (= (map first xx)
+            ; Hash is not cross platform here. The vals are proven equal below. Problem?
+            #?(:cljs [-840647061 -2124158436]
+               :clj  [-462986083 87910038])))
+
+      (is (= (map (comp deref second) xx)
+            ; Test passes both clj and cljs, proving the values are equal on both platforms,
+            ; it is the hashing in spread-links-here causing above divergence
+            [{:db/id 17592186047370,
+              :link/fiddle {:db/id 17592186047371,
+                            :fiddle/ident :dustingetz.tutorial/view-post,
+                            :fiddle/type :entity,
+                            :fiddle/pull-database "$",
+                            :fiddle/pull "[:db/id\n *]",
+                            :fiddle/markdown "### :dustingetz.tutorial/view-post",
+                            :fiddle/renderer "(let [{:keys [:hypercrud.browser/fiddle]} ctx]\n  [:div.container-fluid props\n   [:h1 (str (:fiddle/ident @fiddle))]\n   [hyperfiddle.ui/result val ctx {}]])"},
+              :link/path ":dustingetz.post/slug",
+              :link/rel :hf/self,
+              :link/formula "identity"}
+             {:db/id 17592186047372,
+              :link/class [:hf/new],
+              :link/fiddle {:db/id 17592186047373,
+                            :fiddle/ident :dustingetz.tutorial.blog/new-post,
+                            :fiddle/type :entity,
+                            :fiddle/pull-database "$",
+                            :fiddle/pull "[:db/id\n *]",
+                            :fiddle/markdown "### :dustingetz.tutorial.blog/new-post",
+                            :fiddle/renderer "(let [{:keys [:hypercrud.browser/fiddle]} ctx]\n  [:div.container-fluid props\n   [:h1 (str (:fiddle/ident @fiddle))]\n   [hyperfiddle.ui/result val ctx {}]])"},
+              :link/path ":dustingetz.post/slug",
+              :link/rel :hf/new,
+              :link/tx-fn ":user/new-post",
+              :link/formula "(constantly (hyperfiddle.api/tempid! ctx))"}])))
+
     (is (= (->> (hyperfiddle.data/spread-links-here ctx-blog-slug) (map (comp :link/path deref second)))
            [":dustingetz.post/slug" ":dustingetz.post/slug"]))
 
