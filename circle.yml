@@ -105,11 +105,11 @@ workflows:
           requires:
             - test-cljs-yarn
       - build
-      - publish:
-          requires:
-            - test-clj
-            - test-cljs
-            - build
-          filters:
-            branches:
-              only: master
+#      - publish:      # broken, see https://github.com/hyperfiddle/hyperfiddle/issues/1052
+#          requires:
+#            - test-clj
+#            - test-cljs
+#            - build
+#          filters:
+#            branches:
+#              only: master
