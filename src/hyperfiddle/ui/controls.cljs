@@ -371,7 +371,7 @@
                   :checked (clojure.core/boolean val)
                   :on-change (fn [v]
                                (js/console.log `boolean v)
-                               (((::hf/view-change! ctx) ctx) v)))]
+                               (((::hf/view-change! ctx) ctx) (not v) v)))]
       [contrib.ui/easy-checkbox
        (select-keys props [:class :style ::hf/is-invalid :checked :on-change :disabled])])] ; readonly?
    (render-related-links val ctx)])
