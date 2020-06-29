@@ -245,10 +245,10 @@
         (let [ctx (context/attribute ctx :fiddle/links)]
           (is (= (context/eav ctx) [[:fiddle/ident :hyperfiddle/ide] :fiddle/links nil]))
           (is (= (count (context/data ctx)) 5))
-          (is (= (first (context/data ctx)) {:db/id 17592186061848, :link/class [:hf/remove], :link/rel :hf/remove, :link/path ":fiddle/ident"}))
+          (is (= (first (context/data ctx)) {:db/id 17592186061848, :link/class [:hf/remove], :link/rel :hf/remove, :link/path :fiddle/ident}))
           (let [ctx (context/row ctx 17592186061848)]
             (is (= (context/eav ctx) [[:fiddle/ident :hyperfiddle/ide] :fiddle/links 17592186061848]))
-            (is (= (context/data ctx) {:db/id 17592186061848, :link/class [:hf/remove], :link/rel :hf/remove, :link/path ":fiddle/ident"})))))
+            (is (= (context/data ctx) {:db/id 17592186061848, :link/class [:hf/remove], :link/rel :hf/remove, :link/path :fiddle/ident})))))
 
       (testing "nested scalar many"
         (let [ctx (context/attribute ctx :hyperfiddle/owners)]
@@ -265,10 +265,10 @@
       (let [ctx (context/attribute ctx :fiddle/links)]
         (is (= (context/eav ctx) [[:fiddle/ident :hyperfiddle/ide] :fiddle/links nil]))
         (is (= (count (context/data ctx)) 5))
-        (is (= (first (context/data ctx)) {:db/id 17592186061848, :link/class [:hf/remove], :link/rel :hf/remove, :link/path ":fiddle/ident"}))
+        (is (= (first (context/data ctx)) {:db/id 17592186061848, :link/class [:hf/remove], :link/rel :hf/remove, :link/path :fiddle/ident}))
         (let [ctx (context/row ctx 17592186061848)]
           (is (= (context/eav ctx) [[:fiddle/ident :hyperfiddle/ide] :fiddle/links 17592186061848]))
-          (is (= (context/data ctx) {:db/id 17592186061848, :link/class [:hf/remove], :link/rel :hf/remove, :link/path ":fiddle/ident"}))))))
+          (is (= (context/data ctx) {:db/id 17592186061848, :link/class [:hf/remove], :link/rel :hf/remove, :link/path :fiddle/ident}))))))
 
   (testing "a is fiddle-ident if no element set"
     (is (= (for [[_ ctx] (context/spread-result ctx-genders)
@@ -810,8 +810,8 @@
     (let [xx (hyperfiddle.data/spread-links-here ctx-blog-slug)]
       (is (= (map first xx)
             ; Hash is not cross platform here. The vals are proven equal below. Problem?
-            #?(:cljs [-840647061 -2124158436]
-               :clj  [-462986083 87910038])))
+             #?(:cljs [467960113 -64354382]
+                :clj [241938331 -335169619])))
 
       (is (= (map (comp deref second) xx)
             ; Test passes both clj and cljs, proving the values are equal on both platforms,
@@ -822,11 +822,9 @@
                             :fiddle/type :entity,
                             :fiddle/pull-database "$",
                             :fiddle/pull "[:db/id\n *]",
-                            :fiddle/markdown "### :dustingetz.tutorial/view-post",
-                            :fiddle/renderer "(let [{:keys [:hypercrud.browser/fiddle]} ctx]\n  [:div.container-fluid props\n   [:h1 (str (:fiddle/ident @fiddle))]\n   [hyperfiddle.ui/result val ctx {}]])"},
-              :link/path ":dustingetz.post/slug",
-              :link/rel :hf/self,
-              :link/formula "identity"}
+                            :fiddle/markdown "### :dustingetz.tutorial/view-post"}
+              :link/path :dustingetz.post/slug,
+              :link/rel :hf/self}
              {:db/id 17592186047372,
               :link/class [:hf/new],
               :link/fiddle {:db/id 17592186047373,
@@ -834,15 +832,13 @@
                             :fiddle/type :entity,
                             :fiddle/pull-database "$",
                             :fiddle/pull "[:db/id\n *]",
-                            :fiddle/markdown "### :dustingetz.tutorial.blog/new-post",
-                            :fiddle/renderer "(let [{:keys [:hypercrud.browser/fiddle]} ctx]\n  [:div.container-fluid props\n   [:h1 (str (:fiddle/ident @fiddle))]\n   [hyperfiddle.ui/result val ctx {}]])"},
-              :link/path ":dustingetz.post/slug",
+                            :fiddle/markdown "### :dustingetz.tutorial.blog/new-post"}
+              :link/path :dustingetz.post/slug,
               :link/rel :hf/new,
-              :link/tx-fn ":user/new-post",
-              :link/formula "(constantly (hyperfiddle.api/tempid! ctx))"}])))
+              :link/tx-fn :user/new-post}])))
 
     (is (= (->> (hyperfiddle.data/spread-links-here ctx-blog-slug) (map (comp :link/path deref second)))
-           [":dustingetz.post/slug" ":dustingetz.post/slug"]))
+           [:dustingetz.post/slug :dustingetz.post/slug]))
 
     (is (= (->> (hyperfiddle.data/spread-links-here ctx-blog-slug :hf/new) (mapv (comp :link/path deref second)))
            [:dustingetz.post/slug]))

@@ -137,10 +137,10 @@
   (read-schema {::d [:string :identity :many "docstring"]})
   (read-schema {::e [:string* :identity :many :index]})
 
-  (read-links {":dustingetz/email" [[::submission-detail]
-                                    [:hf/new ::submission-detail :tx-fn ":user.hello-world/new-submission"]]
-               ":user.hello-world/submission-master" [:hf/iframe ::genders]
-               ":dustingetz/gender" [:hf/iframe ::shirt-sizes]})
+  (read-links {:dustingetz/email [[::submission-detail]
+                                    [:hf/new ::submission-detail :tx-fn :user.hello-world/new-submission]]
+               :user.hello-world/submission-master [:hf/iframe ::genders]
+               :dustingetz/gender [:hf/iframe ::shirt-sizes]})
   )
 
 (defn read-attrs [body]

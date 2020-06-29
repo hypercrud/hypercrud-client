@@ -26,7 +26,7 @@
         :fiddle/query
         "[:find \n [(pull ?e [:db/id :attribute/ident :attribute/renderer]) ...]\n :where [?e :attribute/ident]]",
         :fiddle/type :query},
-       :link/path ":hyperfiddle.ide/domain"}
+       :link/path :hyperfiddle.ide/domain}
       {:db/id 17592186061562,
        :link/class [:hf/remove],
        :link/path "$domains :domain/ident"}
@@ -48,7 +48,7 @@
         :fiddle/query
         "[:find \n (pull $domains ?e [:db/id :database/uri]) \n ?name\n :in $domains \n :where \n [$domains ?e :database/uri ?uri]\n [(str ?uri) ?suri]\n [(.substring ?suri 28) ?name]]",
         :fiddle/type :query},
-       :link/path ":hyperfiddle.ide/domain"}]}
+       :link/path :hyperfiddle.ide/domain}]}
     {:db/id 17592186045517,
      :domain/home-route "[:hyperfiddle/topnav [#entity[\"$\" \"tempid\"]]]",
      :domain/databases

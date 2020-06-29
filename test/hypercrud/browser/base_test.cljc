@@ -14,10 +14,10 @@
                                {:dustingetz/gender [:db/ident]}
                                {:dustingetz/shirt-size [:db/ident]}]) ...]
               :where [?e]]
-     :links {":dustingetz/email"                              [[~::submission-detail]
-                                                               [:hf/new ~::submission-detail :tx-fn ":user.hello-world/new-submission"]]
-             ":hypercrud.browser.base-test/submission-master" [:hf/iframe ~::genders]
-             ":dustingetz/gender"                             [:hf/iframe ~::shirt-sizes]}
+     :links {:dustingetz/email                              [[~::submission-detail]
+                                                               [:hf/new ~::submission-detail :tx-fn :user.hello-world/new-submission]]
+             :hypercrud.browser.base-test/submission-master [:hf/iframe ~::genders]
+             :dustingetz/gender                             [:hf/iframe ~::shirt-sizes]}
      :renderer user.hello-world/render-submission-master))
 
 #?(:clj
@@ -33,19 +33,19 @@
 
      (is (= (:fiddle/links o)
            [{:link/fiddle #:fiddle{:ident :hypercrud.browser.base-test/submission-detail},
-             :link/path ":dustingetz/email",
+             :link/path :dustingetz/email,
              :db/id -1966238227}
-            {:link/tx-fn ":user.hello-world/new-submission",
+            {:link/tx-fn :user.hello-world/new-submission,
              :link/fiddle #:fiddle{:ident :hypercrud.browser.base-test/submission-detail},
-             :link/path ":dustingetz/email",
+             :link/path :dustingetz/email,
              :link/class [:hf/new],
              :db/id -1966238227}
             {:link/fiddle #:fiddle{:ident :hypercrud.browser.base-test/genders},
-             :link/path ":hypercrud.browser.base-test/submission-master",
+             :link/path :hypercrud.browser.base-test/submission-master,
              :link/class [:hf/iframe],
              :db/id 53395112}
             {:link/fiddle #:fiddle{:ident :hypercrud.browser.base-test/shirt-sizes},
-             :link/path ":dustingetz/gender",
+             :link/path :dustingetz/gender,
              :link/class [:hf/iframe],
              :db/id -584055403}]))
      ))

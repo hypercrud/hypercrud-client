@@ -55,7 +55,7 @@
      :fiddle/links
      [{:db/id 17592186046199,
        :link/class [:hf/iframe],
-       :link/path ":tutorial.race/submission"
+       :link/path :tutorial.race/submission
        :link/fiddle
        {:db/id 17592186046200,
         :fiddle/ident :tutorial.race/genders,
@@ -71,7 +71,7 @@
         :fiddle/query
         "[:find\n [(pull ?e [:db/ident {:dustingetz.reg/gender [:db/ident]}]) ...]\n :in $ ?gender\n :where\n [?e :db/ident ?i]\n [?e :dustingetz.reg/gender ?gender]\n [(namespace ?i) ?ns]\n [(ground \"dustingetz.shirt-size\") ?ns]]",
         :fiddle/type :query},
-       :link/path ":dustingetz.reg/gender",
+       :link/path :dustingetz.reg/gender,
        :link/rel :hf/iframe}],
      :fiddle/markdown
      "### Registrant's submission\n\n!field[](:dustingetz.reg/email)\n!field[](:dustingetz.reg/name)\n!field[](:dustingetz.reg/age)\n!field[](:dustingetz.reg/birthdate)\n!field[](:dustingetz.reg/gender){options=\"tutorial.race/genders\" option-label=\":db/ident\"}\n\nWould you like a tee-shirt with that?\n\n!field[](:dustingetz.reg/shirt-size){options=\"tutorial.race/shirt-sizes\" option-label=\":db/ident\"}\n\n!block[Shirt-size options react to gender ☝️]{.alert .alert-info}"}
@@ -105,7 +105,7 @@
         :fiddle/query
         "[:find\n [(pull ?e [:db/ident]) ...]\n :where\n [?e :db/ident ?i]\n [(namespace ?i) ?ns]\n [(ground \"dustingetz.gender\") ?ns]]",
         :fiddle/type :query},
-       :link/path ":dustingetz.reg/gender",
+       :link/path :dustingetz.reg/gender,
        :link/rel :hf/iframe}],
      :fiddle/query
      "[:find\n [(pull ?e [:db/ident {:dustingetz.reg/gender [:db/ident]}]) ...]\n :in $ ?gender\n :where\n [?e :db/ident ?i]\n [?e :dustingetz.reg/gender ?gender]\n [(namespace ?i) ?ns]\n [(ground \"dustingetz.shirt-size\") ?ns]]",
@@ -130,7 +130,7 @@
        {:db/id 17592186047371,
         :fiddle/ident :dustingetz.tutorial/view-post,
         :fiddle/type :entity},
-       :link/path ":dustingetz.post/slug",
+       :link/path :dustingetz.post/slug,
        :link/rel :hf/self}
       {:db/id 17592186047372,
        :link/class [:hf/new],
@@ -139,9 +139,9 @@
         :fiddle/ident
         :dustingetz.tutorial.blog/new-post,
         :fiddle/type :entity},
-       :link/path ":dustingetz.post/slug",
+       :link/path :dustingetz.post/slug,
        :link/rel :hf/new,
-       :link/tx-fn ":user/new-post"}],
+       :link/tx-fn :user/new-post}],
      :fiddle/query
      "[:find\n (pull ?e [:dustingetz.post/published-date\n           :dustingetz.post/title\n           :dustingetz.post/slug\n           :db/id])\n :where\n [?e :dustingetz.post/slug]]"}
     [[{:db/id 17592186047105,
@@ -180,10 +180,10 @@
      [{:db/id 17592186061848,
        :link/class [:hf/remove],
        :link/rel :hf/remove
-       :link/path ":fiddle/ident"}
+       :link/path :fiddle/ident}
       {:db/id 17592186061849,
        :link/class [:hf/remove],
-       :link/path ":fiddle/links",
+       :link/path :fiddle/links,
        :link/rel :hf/remove}
       {:db/id 17592186061850,
        :link/class [:hf/iframe],
@@ -194,7 +194,7 @@
         :fiddle/query
         "[:find (pull ?link [:db/id :fiddle/ident])\n :where (or [?link :fiddle/ident] [?link :fiddle/type])]",
         :fiddle/type :query},
-       :link/path ":hyperfiddle/ide"
+       :link/path :hyperfiddle/ide
        :link/rel :hf/iframe}
       {:db/id 17592186061851,
        :link/class [:hf/new],
@@ -202,7 +202,7 @@
        {:db/id 17592186056398,
         :fiddle/ident :hyperfiddle.ide/new-fiddle,
         :fiddle/type :entity},
-       :link/path ":link/fiddle",
+       :link/path :link/fiddle,
        :link/rel :hf/affix}
       {:db/id 17592186061852,
        :link/class [:hf/new],
@@ -210,7 +210,7 @@
        {:db/id 17592186058175,
         :fiddle/ident :hyperfiddle.ide/new-link,
         :fiddle/type :entity},
-       :link/path ":fiddle/links",
+       :link/path :fiddle/links,
        :link/rel :hf/affix}],
      :fiddle/type :entity,
      :fiddle/pull
@@ -222,8 +222,8 @@
     {:db/id 17592186061847,
      :fiddle/renderer "hyperfiddle.ide.fiddles.fiddle-src/fiddle-src-renderer",
      :fiddle/links
-     [{:db/id 17592186061848, :link/class [:hf/remove], :link/rel :hf/remove :link/path ":fiddle/ident"}
-      {:db/id 17592186061849, :link/class [:hf/remove], :link/path ":fiddle/links", :link/rel :hf/remove}
+     [{:db/id 17592186061848, :link/class [:hf/remove], :link/rel :hf/remove :link/path :fiddle/ident}
+      {:db/id 17592186061849, :link/class [:hf/remove], :link/path :fiddle/links, :link/rel :hf/remove}
       {:db/id 17592186061850,
        :link/class [:hf/iframe],
        :link/fiddle
@@ -231,17 +231,17 @@
         :fiddle/ident :hyperfiddle.ide/fiddle-options,
         :fiddle/query "[:find (pull ?link [:db/id :fiddle/ident])\n :where (or [?link :fiddle/ident] [?link :fiddle/type])]",
         :fiddle/type :query},
-       :link/path ":hyperfiddle/ide"
+       :link/path :hyperfiddle/ide
        :link/rel :hf/iframe}
       {:db/id 17592186061851,
        :link/class [:hf/new],
        :link/fiddle {:db/id 17592186056398, :fiddle/ident :hyperfiddle.ide/new-fiddle, :fiddle/type :entity},
-       :link/path ":link/fiddle",
+       :link/path :link/fiddle,
        :link/rel :hf/affix}
       {:db/id 17592186061852,
        :link/class [:hf/new],
        :link/fiddle {:db/id 17592186058175, :fiddle/ident :hyperfiddle.ide/new-link, :fiddle/type :entity},
-       :link/path ":fiddle/links",
+       :link/path :fiddle/links,
        :link/rel :hf/affix}],
      :fiddle/type :entity,
      :fiddle/pull
@@ -292,21 +292,21 @@
         :fiddle/query
         "[:find [(pull ?link [:db/id :fiddle/ident]) ...]\n #_(pull ?link [:db/id :fiddle/ident])\n :where \n (or [?link :fiddle/ident] \n     [?link :fiddle/type])]",
         :fiddle/type :query},
-       :link/path ":hyperfiddle/ide"}
+       :link/path :hyperfiddle/ide}
       {:db/id 17592186061851,
        :link/class [:hf/new],
        :link/fiddle
        {:db/id 17592186056398,
         :fiddle/ident :hyperfiddle.ide/new-fiddle,
         :fiddle/type :entity},
-       :link/path ":link/fiddle"}
+       :link/path :link/fiddle}
       {:db/id 17592186061852,
        :link/class [:hf/new],
        :link/fiddle
        {:db/id 17592186058175,
         :fiddle/ident :hyperfiddle.ide/new-link,
         :fiddle/type :entity},
-       :link/path ":fiddle/links"}],
+       :link/path :fiddle/links}],
      :fiddle/type :entity,
      :fiddle/pull
      "; synchronized with hyperfiddle.fiddle/browser-pull\n[:db/id\n :fiddle/ident\n {:fiddle/links [:db/id\n                 :link/class\n                 {:link/fiddle [:db/id\n                                :fiddle/ident               ; routing\n                                :fiddle/query               ; validation\n                                :fiddle/type                ; validation\n                                ]}\n                 :link/formula\n                 :link/path\n                 :link/rel\n                 :link/tx-fn]}\n :fiddle/markdown\n :fiddle/pull\n :fiddle/pull-database\n :fiddle/query\n :fiddle/renderer\n :fiddle/type\n :fiddle/hydrate-result-as-fiddle\n *                                                          ; For hyperblog, so we can access :hyperblog.post/title etc from the fiddle renderer\n ]",
@@ -366,7 +366,7 @@
         :fiddle/query
         "[:find \n [(pull ?e [:district/name :db/id]) ...]\n :where \n [?e :district/name]]",
         :fiddle/type :query},
-       :link/path ":seattle/neighborhoods",
+       :link/path :seattle/neighborhoods,
        :link/rel :hf/iframe}
       {:db/id 17592186045752,
        :link/class [:hf/new],
@@ -374,21 +374,21 @@
        {:db/id 17592186045754,
         :fiddle/ident :seattle/neighborhood-new,
         :fiddle/type :entity},
-       :link/path ":seattle/neighborhoods",
+       :link/path :seattle/neighborhoods,
        :link/rel :hf/new}
       {:db/id 17592186045756,
        :link/fiddle
        {:db/id 17592186045758,
         :fiddle/ident :seattle/neighborhood-edit,
         :fiddle/type :entity},
-       :link/path ":seattle/neighborhoods",
+       :link/path :seattle/neighborhoods,
        :link/rel :hf/self}
       {:db/id 17592186045760,
        :link/fiddle
        {:db/id 17592186045762,
         :fiddle/ident :seattle/district,
         :fiddle/type :entity},
-       :link/path ":district/region",
+       :link/path :district/region,
        :link/rel :hf/self}],
      :fiddle/query
      "[:find \n [(pull ?e [:neighborhood/name \n            {:neighborhood/district \n             [:db/id \n              :district/name\n              {:district/region \n               [:db/ident]}]}\n            :db/id\n            :hyperfiddle/owners]) ...]\n :where \n [?e :neighborhood/name ?name]\n [(< ?name \"C\")]]",
@@ -452,7 +452,7 @@
         :fiddle/query
         "[:find \n [(pull ?e [:district/name :db/id]) ...]\n :where \n [?e :district/name]]",
         :fiddle/type :query},
-       :link/path ":district/region"}],
+       :link/path :district/region}],
      :fiddle/query
      "[:find \n [(pull ?e [*\n            \n            {:community/type [:db/ident]\n             :community/orgtype [:db/ident]\n             :community/neighborhood \n             [:neighborhood/name \n              {:neighborhood/district \n               [:db/id \n                :district/name\n                {:district/region \n                 [:db/ident]}]}\n              :db/id\n              :hyperfiddle/owners]}])\n  ...]\n :where \n [?e :community/name ?name]\n [(< ?name \"B\")]]\n\n",
      :fiddle/type :query,
@@ -559,9 +559,9 @@
      :fiddle/type :query,
      :fiddle/links
      [{:db/id 17592186047243,
-       :link/path ":dustingetz.reg/age",
+       :link/path :dustingetz.reg/age,
        :link/rel :hf/rel,
-       :link/tx-fn ":user/inc"}],
+       :link/tx-fn :user/inc}],
      :fiddle/markdown
      "### :dustingetz/counter\n\nExample of incrementing a value in Datomic (Make sure auto-transact is on!)\n",
      :fiddle/query
@@ -662,26 +662,26 @@
         :fiddle/query
         "[:find \n [(pull ?e [:district/name :db/id]) ...]\n :where \n [?e :district/name]]",
         :fiddle/type :query},
-       :link/path ":seattle/neighborhoods"}
+       :link/path :seattle/neighborhoods}
       {:db/id 17592186045752,
        :link/class [:hf/new],
        :link/fiddle
        {:db/id 17592186045754,
         :fiddle/ident :seattle/neighborhood-new,
         :fiddle/type :entity},
-       :link/path ":neighborhood/name"}
+       :link/path :neighborhood/name}
       {:db/id 17592186045756,
        :link/fiddle
        {:db/id 17592186045758,
         :fiddle/ident :seattle/neighborhood-edit,
         :fiddle/type :entity},
-       :link/path ":neighborhood/name"}
+       :link/path :neighborhood/name}
       {:db/id 17592186045760,
        :link/fiddle
        {:db/id 17592186045762,
         :fiddle/ident :seattle/district,
         :fiddle/type :entity},
-       :link/path ":district/region"}],
+       :link/path :district/region}],
      :fiddle/query
      "[:find\n [(pull ?e [:db/ident]) ...]\n :where\n [:db.part/db :db.install/attribute ?e]]",
      :fiddle/renderer
@@ -766,13 +766,13 @@
        {:db/id 17592186048014,
         :fiddle/ident :foo.clojurians/user-profile,
         :fiddle/type :entity},
-       :link/path ":channel/creator"}
+       :link/path :channel/creator}
       {:db/id 17592186048015,
        :link/fiddle
        {:db/id 17592186048016,
         :fiddle/ident :foo.clojurians/channel,
         :fiddle/type :entity},
-       :link/path ":channel/name"}],
+       :link/path :channel/name}],
      :fiddle/query
      "[:in $clojurians\n :find\n (count ?msg)\n (pull $clojurians ?chan \n       [:channel/name\n        {:channel/creator \n         [:user/name]}])\n :where\n [$clojurians ?msg :message/channel ?chan]\n [$clojurians ?chan :channel/name ?cname]\n [(< ?cname \"d\")]]",
      :fiddle/type :query}

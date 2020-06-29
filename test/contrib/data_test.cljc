@@ -106,12 +106,12 @@
   []
   (is (= (merge-by (juxt :link/rel (comp blank->nil :link/path))
                    [{:link/rel :hf/edit :link/path nil}
-                    {:link/rel :hf/edit :link/path ":reg/gender"}
-                    {:link/rel :hf/edit :link/path ":reg/gender :reg/shirt-size"}]
-                   [{:link/rel :hf/edit :link/path ":reg/gender" :link/extra-stuff true}])
+                    {:link/rel :hf/edit :link/path :reg/gender}
+                    {:link/rel :hf/edit :link/path :reg/shirt-size}]
+                   [{:link/rel :hf/edit :link/path :reg/gender :link/extra-stuff true}])
          '({:link/rel :hf/edit, :link/path nil}
-            {:link/rel :hf/edit, :link/path ":reg/gender", :link/extra-stuff true}
-            {:link/rel :hf/edit, :link/path ":reg/gender :reg/shirt-size"}))))
+            {:link/rel :hf/edit, :link/path :reg/gender, :link/extra-stuff true}
+            {:link/rel :hf/edit, :link/path :reg/shirt-size}))))
 
 (deftest collect-
   []
