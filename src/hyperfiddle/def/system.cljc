@@ -59,26 +59,3 @@
 (hf-def/fiddle :hyperfiddle.system/unauthorized []
   :markdown "## Credentials invalid or stale. Please login again.")
 
-(hf-def/attr
-  #:domain
-      {:router {:renderer hyperfiddle.ui.controls/code}
-       :home-route
-               {:renderer
-                (let [parse-string (fn [s]
-                                     (-> (contrib.reader/read-edn-string! s)
-                                         hyperfiddle.route/validate-route+
-                                         (cats.monad.either/branch (fn [e] (throw e)) (constantly s))))
-                      to-string identity]
-                  (fn [val ctx & [props]]
-                    (let [props (-> (assoc props
-                                      :value val
-                                      :on-change ((:hyperfiddle.api/view-change! ctx) ctx)
-                                      :mode "clojure"
-                                      :linkNumbers false)
-                                    (update :mode #(or % "clojure")))]
-                      [contrib.ui/debounced props contrib.ui/validated-cmp parse-string to-string contrib.ui.codemirror/-codemirror])))}
-       :environment              {:renderer hyperfiddle.ui.controls/code}}
-
-  {:attribute/renderer              {:renderer hyperfiddle.ui.controls/code}
-   :database.custom-security/client {:renderer hyperfiddle.ui.controls/code}
-   :database.custom-security/server {:renderer hyperfiddle.ui.controls/code}})

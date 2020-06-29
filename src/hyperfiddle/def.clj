@@ -41,13 +41,10 @@
            (assoc m k v)
            m))))))
 
-(defn get-attrs []
-  (into {} (map (fn [[k v]] {k (:renderer v)}) (@*defs :attribute))))
-
 (defn get-fiddle [id] (get-in @*defs [:fiddle id]))
 
 (defn def! [type ident form val]
-  {:pre [(#{:schema :attribute :fiddle} type)
+  {:pre [(#{:schema :fiddle} type)
          (qualified-keyword? ident)
          form
          val]}
@@ -60,10 +57,6 @@
 (defmacro schema [& attrs]
   (doseq [[_ attr] (read-schema (apply merge attrs))]
     (def! :schema (:db/ident attr) &form attr)))
-
-(defmacro attr [ident & attrs]
-  (doseq [[key attr] (apply merge attrs)]
-     (def! :attribute key &form (map-attrs :attribute attr))))
 
 (defmacro fiddle [ident & attrs]
   (def! :fiddle ident &form
@@ -202,7 +195,7 @@
   )
 
 (defn map-attr [type k v]
-  (s/assert #{:fiddle :attribute :link} type)
+  (s/assert #{:fiddle :link} type)
   (s/assert keyword? k)
   (s/assert (comp not nil?) v)
 
@@ -270,7 +263,8 @@
   "When a fiddle is of type :fiddle/eval we want to be able to infer the resultset
   schema from a static definition. Passing a :query parameter to a fiddle
   provides a way to infer a schema, but this doesn't make this fiddle a :query
-  fiddle, so it should stay of type :eval."
+  fiddle, so it should stay of type :eval.
+  FIXME: deprecated once :query and :pull are removed."
   [fiddle]
   (if (contains? fiddle :fiddle/eval)
     (assoc fiddle :fiddle/type :eval)

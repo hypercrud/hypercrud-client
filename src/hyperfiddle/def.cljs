@@ -10,7 +10,4 @@
 (defn get-schemas []
   (@*defs :schema))
 
-(defn get-attrs []
-  (into {} (map (fn [[k v]] {k (:renderer v)}) (@*defs :attr))))
-
 (defn get-fiddle [id] (get-in @*defs [:fiddle id]))
