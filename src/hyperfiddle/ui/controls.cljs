@@ -364,17 +364,19 @@
      [debounced props contrib.ui/long])
    (render-related-links val ctx)])
 
-(defn ^:export boolean [val ctx & [props]]
-  [:div.hyperfiddle-input-group
-   [:div (select-keys props [:class :style])
-    (let [props (assoc props
-                  :checked (clojure.core/boolean val)
-                  :on-change (fn [v]
-                               (js/console.log `boolean v)
-                               (((::hf/view-change! ctx) ctx) v)))]
-      [contrib.ui/easy-checkbox
-       (select-keys props [:class :style ::hf/is-invalid :checked :on-change :disabled])])] ; readonly?
-   (render-related-links val ctx)])
+
+(let [on-change (fn [ctx n]
+                  (->> (entity-change->tx ctx (not n) n)
+                       (runtime/with-tx (:runtime ctx) (:partition-id ctx) (context/dbname ctx))))]
+  (defn ^:export boolean [val ctx & [props]]
+    [:div.hyperfiddle-input-group
+     [:div (select-keys props [:class :style])
+      (let [props (assoc props
+                    :checked (clojure.core/boolean val)
+                    :on-change (r/partial on-change ctx))]
+        [contrib.ui/easy-checkbox
+         (select-keys props [:class :style ::hf/is-invalid :checked :on-change :disabled])])] ; readonly?
+     (render-related-links val ctx)]))
 
 (let [adapter (fn [e]
                 (case (.-target.value e)
