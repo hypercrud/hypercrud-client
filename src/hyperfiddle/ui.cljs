@@ -127,12 +127,12 @@
     :else
     [:pre (pr-str "render: no match for eav: " (context/eav ctx))]))
 
-(defn ^:export hyper-control "Val is for userland field renderers, our builtin controls use ctx and ignore val."
-  [_val ctx & [props]]
+(defn ^:export hyper-control
+  [ctx & [props]]
   {:post [%]}
   (hf/render ctx props))
 
-(defn ^:export hyper-label [_ ctx & [props]]                ; props has sort :on-click
+(defn ^:export hyper-label [ctx & [props]]                ; props has sort :on-click
   (let [?element (:hypercrud.browser/element ctx)
         element-type (if ?element (contrib.datomic/parser-type @?element))
         i (:hypercrud.browser/element-index ctx)
@@ -197,7 +197,7 @@ User renderers should not be exposed to the reaction."
   (let [ctx (context/focus ctx relative-path)
         props (-> (update props :class css (semantic-css ctx))
                   (value-props ctx))]
-    [(or ?f hyper-control) (hf/data ctx) ctx props]))
+    [(or ?f hyper-control) ctx props]))
 
 (defn ^:export anchor [ctx props & children]
   (let [route (route/legacy-route-adapter (:route props))   ; todo migrate fiddles and remove
@@ -324,24 +324,24 @@ User renderers should not be exposed to the reaction."
   (let []
     [:div {:class (css "field" (:class props))
            :style {:border-color (domain/database-color (hf/domain (:runtime ctx)) (context/dbname ctx))}}
-     [Head nil ctx props]                                   ; suppress ?v in head even if defined
-     [Body (hypercrud.browser.context/data ctx) ctx (value-props props ctx)]]))
+     [Head ctx props]                                   ; suppress ?v in head even if defined
+     [Body ctx (value-props props ctx)]]))
 
 (defn table-field "Form fields are label AND value. Table fields are label OR value."
   [ctx Body Head props]                                     ; Body :: (val props ctx) => DOM, invoked as component
   (case (if (:hypercrud.browser/head-sentinel ctx) :head :body) ; broken
     :head [:th {:class (css "field" (:class props))         ; hoist
                 :style {:background-color (domain/database-color (hf/domain (:runtime ctx)) (context/dbname ctx))}}
-           [Head nil ctx (-> props
-                             (update :class css (when (sort/sortable? ctx) "sortable")
-                                     (if-let [[p ?d] (sort/sort-directive ctx)]
-                                       (if ?d
-                                         (name ?d))))
-                             (assoc :on-click (r/partial sort/toggle-sort! ctx)))]]
+           [Head ctx (-> props
+                         (update :class css (when (sort/sortable? ctx) "sortable")
+                                 (if-let [[p ?d] (sort/sort-directive ctx)]
+                                   (if ?d
+                                     (name ?d))))
+                         (assoc :on-click (r/partial sort/toggle-sort! ctx)))]]
     ; Field omits [] but table does not, because we use it to specifically draw repeating anchors with a field renderer.
     :body [:td {:class (css "field" (:class props))
                 :style {:border-color (domain/database-color (hf/domain (:runtime ctx)) (context/dbname ctx))}}
-           [Body (hypercrud.browser.context/data ctx) ctx (value-props props ctx)]]))
+           [Body ctx (value-props props ctx)]]))
 
 (defn ^:export field "Works in a form or table context. Draws label and/or value."
   [relative-path ctx & [?f props]]
