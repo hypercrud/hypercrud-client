@@ -6,7 +6,6 @@
     [cats.monad.either :as either :refer [left right]]
     [contrib.ct :refer [unwrap]]
     [contrib.data :refer [unqualify]]
-    [contrib.eval]
     [contrib.reactive :as r]
     [contrib.reader]
     [contrib.string :refer [blank->nil]]
@@ -113,7 +112,7 @@
                                           #{:find-coll :find-scalar} (hf/row-key ctx val)
                                           #{:find-rel :find-tuple} (get (hf/row-key ctx val) option-element))))
                       :option-label (fn [val]
-                                      (let [option-label (contrib.eval/ensure-fn (:option-label props pr-str))]
+                                      (let [option-label (:option-label props pr-str)]
                                         (option-label val)))}
         ; The pulled v is always the select value, options must align
         ; There is always an attribute here because all widgets are attribute-centric

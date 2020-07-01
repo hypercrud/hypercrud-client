@@ -55,14 +55,12 @@
 
       (let [aux-io (reify io/IO
                      (hydrate-requests [io local-basis partitions requests]
-                       (p/do* (hydrate-requests/hydrate-requests domain local-basis requests partitions ?subject))))
+                       (p/do! (hydrate-requests/hydrate-requests domain local-basis requests partitions ?subject))))
             aux-rt (reify hf/HF-Runtime
                      (io [rt] aux-io)
                      (domain [rt] domain))
 
             schemas @(schema/hydrate-schemas aux-rt pid local-basis partitions)
-
-            project (hyperfiddle.def/get-def :project :hyperfiddle/project)
 
             attr-renderers
             (into {} (map (fn [[k v]] {k (:attribute/renderer v)}) (hyperfiddle.def/get-def :attribute)))
@@ -75,7 +73,6 @@
                            ::runtime/partitions (update partitions pid assoc
                                                   :attr-renderers attr-renderers
                                                   :local-basis local-basis
-                                                  :project project ; todo this is needed once total, not once per partition
                                                   :route route
                                                   :schemas schemas)}
             state-atom (r/atom (state/initialize initial-state))
@@ -113,5 +110,5 @@
                                                      :partition-children
                                                      :parent-pid
                                                      :route :local-basis
-                                                     :attr-renderers :error :project :ptm :schemas :tempid-lookups])]))
+                                                     :attr-renderers :error :ptm :schemas :tempid-lookups])]))
                  (into {})))))))

@@ -85,15 +85,15 @@
             io (reify io/IO
                  (hydrate-requests [io local-basis partitions requests]
                    ; todo who is this executed on behalf of? system/root or the end user?
-                   (p/do* (hydrate-requests domain local-basis requests partitions nil)))
+                   (p/do! (hydrate-requests domain local-basis requests partitions nil)))
 
                  (sync [io dbnames]
                    ; todo who is this executed on behalf of? system/root or the end user?
-                   (p/do* (sync domain dbnames)))
+                   (p/do! (sync domain dbnames)))
 
                  (transact! [io tx-groups]
                    ; todo who is this executed on behalf of? system/root or the end user?
-                   (p/do* (transact! domain nil tx-groups))))
+                   (p/do! (transact! domain nil tx-groups))))
 
             jwt (from-async (hyperfiddle.ide.authenticate/login
                               (:config (R/from context))

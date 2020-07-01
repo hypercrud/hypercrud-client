@@ -1,9 +1,27 @@
 (ns hyperfiddle.io.datomic.hfql-test
   (:require
-    [clojure.test :refer [deftest testing is]]
+    [clojure.test :as t :refer [deftest testing is]]
+    [clojure.walk :as walk]
     [hyperfiddle.io.datomic.hfql :as hfql]
     [hyperfiddle.api :as hf]
     [datomic.api :as d]))
+
+(defmethod t/assert-expr 'in-any-order [msg form]
+  `(let [op1#     ~(nth form 1)
+         op2#     ~(nth form 2)
+         rewrite# #(walk/postwalk (fn [x#] (if (and (sequential? x#)
+                                                   (not (map-entry? x#)))
+                                            (set (seq x#))
+                                            x#))
+                                  %)
+         result#  (= (rewrite# op1#) (rewrite# op2#))]
+     (t/do-report
+      {:type     (if result# :pass :fail)
+       :message  ~msg
+       :expected (format "%s should contain the same values as %s, in any order."
+                         op1# op2#)
+       :actual   result#})
+     result#))
 
 (defn ->mock-fn
   [{:keys [mapping expect] :as mock}]
@@ -115,8 +133,9 @@
 
 (deftest test|interpret
   (testing "Interpret"
-    (is (= (hfql/interpret $ (hfql/parse fiddle))
-           [{'hyperfiddle.io.datomic.hfql-test/submissions [#:scratch{:email "alice@example.com",
+    (is (in-any-order
+         (hfql/interpret $ (hfql/parse fiddle))
+         [{'hyperfiddle.io.datomic.hfql-test/submissions [#:scratch{:email "alice@example.com",
                                                                        :gender {:db/ident :scratch/female,
                                                                                 'hyperfiddle.io.datomic.hfql-test/shirt-sizes [#:db{:ident :scratch/womens-medium}
                                                                                                                                #:db{:ident :scratch/womens-large}

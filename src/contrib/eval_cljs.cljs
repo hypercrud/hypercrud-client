@@ -1,6 +1,5 @@
 (ns contrib.eval-cljs
   (:require
-    [cljs.analyzer :as ana]
     [cljs.js :as cljs]
     [cljs.env :as env]
     [shadow.cljs.bootstrap.browser :as boot]
@@ -28,51 +27,8 @@
   (set! *eval*
     (fn [form]
       (binding [cljs.env/*compiler* compile-state-ref
-                *ns* (find-ns 'user #_cljs.analyzer/*cljs-ns*) ; shadow cljs repl creates 'cljs.user, not available in prod
+                *ns* (find-ns 'user) ; shadow cljs repl creates 'cljs.user, not available in prod
                 cljs.js/*eval-fn* cljs.js/js-eval
                 tags/*cljs-data-readers*]
         (eval form)))))
 
-(defn eval-statement-str! [eval-in-ns code-str]
-  {:pre [(string? code-str)]}
-  (binding [ana/*cljs-warning-handlers* []
-            tags/*cljs-data-readers* (merge tags/*cljs-data-readers*
-                                       hyperfiddle.readers/hf-edn-readers
-                                       clj-readers)]
-    (let [r (atom nil)]
-      (when-not (contains? (::ana/namespaces @compile-state-ref) eval-in-ns)
-        (cljs/eval-str compile-state-ref
-                       (str "(ns " eval-in-ns ")")
-                       nil
-                       {:eval cljs/js-eval
-                        :ns eval-in-ns
-                        :context :statement}
-                       (partial reset! r))
-        (when-let [error (:error @r)]
-          (throw error)))
-      (cljs/eval-str compile-state-ref
-                     code-str
-                     nil
-                     {:eval cljs/js-eval
-                      :ns eval-in-ns
-                      :context :statement}
-                     (partial reset! r))
-      (when-let [error (:error @r)]
-        (throw error)))))
-
-(defn eval-expr-str! [code-str]
-  (binding [ana/*cljs-warning-handlers* []
-            tags/*cljs-data-readers* (merge tags/*cljs-data-readers*
-                                       hyperfiddle.readers/hf-edn-readers
-                                       clj-readers)]
-    (let [r (atom nil)
-          _ (cljs/eval-str compile-state-ref
-                           code-str
-                           nil
-                           {:eval cljs/js-eval
-                            :context :expr}
-                           (partial reset! r))
-          {value :value error :error :as eval-result} @r]
-      (if error
-        (throw (ex-info "cljs eval failed" {:cljs-input code-str :cljs-result eval-result}))
-        value))))

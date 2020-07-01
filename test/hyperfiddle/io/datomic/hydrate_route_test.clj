@@ -11,7 +11,7 @@
     [hyperfiddle.io.datomic.peer :as peer]                  ; todo run tests for client as well
     [hyperfiddle.io.datomic.sync :as datomic-sync]
     [hyperfiddle.route :as route]
-    [promesa.core :as p]
+    [contrib.promise :as promise]
     [taoensso.timbre :as timbre])
   (:import
     (clojure.lang ExceptionInfo)
@@ -28,7 +28,6 @@
     (databases [domain]
       {"$" {:database/uri (->URI (str "datomic:mem://" 'hyperfiddle.io.datomic.hydrate-route-test "$"))}
        "$src" {:database/uri (->URI (str "datomic:mem://" 'hyperfiddle.io.datomic.hydrate-route-test "$src"))}})
-    (resolve-fiddle [domain fiddle-ident] nil)
     ))
 
 (use-fixtures :each
@@ -73,7 +72,7 @@
                                                              :stage {"$src" [[:db/add [:fiddle/ident :persons] :db/doc "foo"]
                                                                              [:db/add [:fiddle/ident :persons] :db/doc "bar"]]}}}
                             subject nil]
-                        @(p/branch (hydrate-route/hydrate-route test-domain local-basis route pid partitions subject)
+                        @(promise/branch (hydrate-route/hydrate-route test-domain local-basis route pid partitions subject)
                                    exception/success
                                    exception/failure)))]
       ; issue #1026

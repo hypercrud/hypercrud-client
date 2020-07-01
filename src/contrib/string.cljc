@@ -16,9 +16,12 @@
 (defn empty->nil [s]
   (if (str/empty-or-nil? s) nil s))
 
-(defn blank->nil [s]
-  (if (and (string? s)
-           (not (str/blank? s)))
+(defn blank->nil
+  "Nullify empty strings, identity on all other values."
+  [s]
+  (if (string? s)
+    (when (not (str/blank? s))
+      s)
     s))
 
 (comment

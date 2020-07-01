@@ -43,9 +43,7 @@
         :dustingetz.reg/shirt-size {:db/ident :dustingetz.shirt-size/womens-medium}}]]
 
    :tutorial.race/submission
-   [{:fiddle/css
-     ".display-mode-user div.field.attribute {\n  display: flex;\n}\n\n.display-mode-user div.field.attribute > :first-child {\n  flex: 0 1 8em !important;\n  display: inline;\n  padding-right: 1em;\n  text-align: right;\n}\n\n.display-mode-user div.field.attribute > :not(:first-child) {\n  flex: 1 1;\n}",
-     :fiddle/pull
+   [{:fiddle/pull
      "[:db/id \n :dustingetz.reg/email\n :dustingetz.reg/name\n :dustingetz.reg/age\n :dustingetz.reg/birthdate\n {:dustingetz.reg/gender [:db/ident]}\n {:dustingetz.reg/shirt-size [:db/ident]}]",
      :fiddle/ident :tutorial.race/submission,
      :fiddle/renderer
@@ -57,7 +55,7 @@
      :fiddle/links
      [{:db/id 17592186046199,
        :link/class [:hf/iframe],
-       :link/path ":tutorial.race/submission"
+       :link/path :tutorial.race/submission
        :link/fiddle
        {:db/id 17592186046200,
         :fiddle/ident :tutorial.race/genders,
@@ -73,7 +71,7 @@
         :fiddle/query
         "[:find\n [(pull ?e [:db/ident {:dustingetz.reg/gender [:db/ident]}]) ...]\n :in $ ?gender\n :where\n [?e :db/ident ?i]\n [?e :dustingetz.reg/gender ?gender]\n [(namespace ?i) ?ns]\n [(ground \"dustingetz.shirt-size\") ?ns]]",
         :fiddle/type :query},
-       :link/path ":dustingetz.reg/gender",
+       :link/path :dustingetz.reg/gender,
        :link/rel :hf/iframe}],
      :fiddle/markdown
      "### Registrant's submission\n\n!field[](:dustingetz.reg/email)\n!field[](:dustingetz.reg/name)\n!field[](:dustingetz.reg/age)\n!field[](:dustingetz.reg/birthdate)\n!field[](:dustingetz.reg/gender){options=\"tutorial.race/genders\" option-label=\":db/ident\"}\n\nWould you like a tee-shirt with that?\n\n!field[](:dustingetz.reg/shirt-size){options=\"tutorial.race/shirt-sizes\" option-label=\":db/ident\"}\n\n!block[Shirt-size options react to gender ☝️]{.alert .alert-info}"}
@@ -107,7 +105,7 @@
         :fiddle/query
         "[:find\n [(pull ?e [:db/ident]) ...]\n :where\n [?e :db/ident ?i]\n [(namespace ?i) ?ns]\n [(ground \"dustingetz.gender\") ?ns]]",
         :fiddle/type :query},
-       :link/path ":dustingetz.reg/gender",
+       :link/path :dustingetz.reg/gender,
        :link/rel :hf/iframe}],
      :fiddle/query
      "[:find\n [(pull ?e [:db/ident {:dustingetz.reg/gender [:db/ident]}]) ...]\n :in $ ?gender\n :where\n [?e :db/ident ?i]\n [?e :dustingetz.reg/gender ?gender]\n [(namespace ?i) ?ns]\n [(ground \"dustingetz.shirt-size\") ?ns]]",
@@ -121,11 +119,7 @@
      {:db/ident :dustingetz.shirt-size/womens-large, :dustingetz.reg/gender {:db/ident :dustingetz.gender/female}}]]
 
    :dustingetz.tutorial/blog
-   [{:fiddle/cljs-ns
-     "(defmethod hyperfiddle.api/txfn :user/new-post [_ e a v ctx]\n  [[:db/add v :dustingetz.post/published-date (js/Date.)]])\n\n(defn render-dd [e ctx]\n  (hyperfiddle.ui/link \n   :dustingetz.tutorial/view-post\n   (hypercrud.browser.context/row ctx (:dustingetz.post/slug e))\n   (:dustingetz.post/title e)))\n\n(defn render-dt [e]\n  (or (some-> e \n        :dustingetz.post/published-date\n        (.toLocaleDateString \"en-US\")) \n      \"–\"))",
-     :fiddle/css
-     "dt { \n  font-weight: unset; \n  width: 5em; \n}",
-     :fiddle/ident :dustingetz.tutorial/blog,
+   [{:fiddle/ident :dustingetz.tutorial/blog,
      :hyperfiddle/owners
      [#uuid "acd054a8-4e36-4d6c-a9ec-95bdc47f0d39"],
      :db/id 17592186047369,
@@ -136,7 +130,7 @@
        {:db/id 17592186047371,
         :fiddle/ident :dustingetz.tutorial/view-post,
         :fiddle/type :entity},
-       :link/path ":dustingetz.post/slug",
+       :link/path :dustingetz.post/slug,
        :link/rel :hf/self}
       {:db/id 17592186047372,
        :link/class [:hf/new],
@@ -145,9 +139,9 @@
         :fiddle/ident
         :dustingetz.tutorial.blog/new-post,
         :fiddle/type :entity},
-       :link/path ":dustingetz.post/slug",
+       :link/path :dustingetz.post/slug,
        :link/rel :hf/new,
-       :link/tx-fn ":user/new-post"}],
+       :link/tx-fn :user/new-post}],
      :fiddle/query
      "[:find\n (pull ?e [:dustingetz.post/published-date\n           :dustingetz.post/title\n           :dustingetz.post/slug\n           :db/id])\n :where\n [?e :dustingetz.post/slug]]"}
     [[{:db/id 17592186047105,
@@ -161,8 +155,6 @@
 
    :hfnet.tank/index
    [{:db/id 17592186045830,
-     :fiddle/css
-     "table { width: 100%; }\n.p { max-width: 35em; }\n\nfigcaption.figure-caption { /* FIXME WHEN LANDS */\n  text-align: left;\n  font-size: 1.5em;\n}\n\nfigure img {\n  border: 1px solid lightgray;\n}\n\n.highlight { \n  background-color: #ffa; \n}",
      :fiddle/ident :hfnet.tank/index,
      :fiddle/markdown
      "!block{style=\"margin-bottom: 2em;\"}\n\n# Hyperfiddle Tank\n\nThis is a pastebin like environment for learning Hyperfiddle. \n\n1. Please namespace :idents with your username\n1. Schema changes are allowed\n1. To make a fiddle interactive, change !span[tank]{.i}.hyperfiddle.net to !span[demo]{.i}.hyperfiddle.net \n\n!block{style=\"margin-bottom: 2em;\"}\n\n### Showcase\n* [:clojurians](//demo.hyperfiddle.net/:clojurians/)\n* [:seattle/neighborhoods](//demo.hyperfiddle.net/:seattle!neighborhoods/)\n* [gender-shirtsize](//demo.hyperfiddle.net/:dustingetz!gender-shirtsize/)\n* [:tutorial.blog](//demo.hyperfiddle.net/:tutorial.blog/)\n* [markdown-pipeline](//demo.hyperfiddle.net/:dustingetz!markdown-pipeline/#:hf.src!markdown)\n\n!block{style=\"margin-bottom: 2em;\"}\n",
@@ -188,10 +180,10 @@
      [{:db/id 17592186061848,
        :link/class [:hf/remove],
        :link/rel :hf/remove
-       :link/path ":fiddle/ident"}
+       :link/path :fiddle/ident}
       {:db/id 17592186061849,
        :link/class [:hf/remove],
-       :link/path ":fiddle/links",
+       :link/path :fiddle/links,
        :link/rel :hf/remove}
       {:db/id 17592186061850,
        :link/class [:hf/iframe],
@@ -202,7 +194,7 @@
         :fiddle/query
         "[:find (pull ?link [:db/id :fiddle/ident])\n :where (or [?link :fiddle/ident] [?link :fiddle/type])]",
         :fiddle/type :query},
-       :link/path ":hyperfiddle/ide"
+       :link/path :hyperfiddle/ide
        :link/rel :hf/iframe}
       {:db/id 17592186061851,
        :link/class [:hf/new],
@@ -210,7 +202,7 @@
        {:db/id 17592186056398,
         :fiddle/ident :hyperfiddle.ide/new-fiddle,
         :fiddle/type :entity},
-       :link/path ":link/fiddle",
+       :link/path :link/fiddle,
        :link/rel :hf/affix}
       {:db/id 17592186061852,
        :link/class [:hf/new],
@@ -218,13 +210,11 @@
        {:db/id 17592186058175,
         :fiddle/ident :hyperfiddle.ide/new-link,
         :fiddle/type :entity},
-       :link/path ":fiddle/links",
+       :link/path :fiddle/links,
        :link/rel :hf/affix}],
      :fiddle/type :entity,
      :fiddle/pull
-     "; synchronized with hyperfiddle.fiddle/browser-pull\n[:db/id\n :fiddle/css\n :fiddle/ident\n {:fiddle/links [:db/id\n                 :link/class\n                 {:link/fiddle [:db/id\n                                :fiddle/ident               ; routing\n                                :fiddle/query               ; validation\n                                :fiddle/type                ; validation\n                                ]}\n                 :link/formula\n                 :link/path\n                 :link/rel\n                 :link/tx-fn]}\n :fiddle/markdown\n :fiddle/pull\n :fiddle/pull-database\n :fiddle/query\n :fiddle/cljs-ns\n :fiddle/renderer\n :fiddle/type\n :fiddle/hydrate-result-as-fiddle\n *                                                          ; For hyperblog, so we can access :hyperblog.post/title etc from the fiddle renderer\n ]",
-     :fiddle/css
-     "table.hyperfiddle.-fiddle-links { table-layout: fixed; }\ntable.-fiddle-links th.-hypercrud-browser-path--fiddle-links { width: 60px; }\n\ntable.-fiddle-links td.-hypercrud-browser-path--fiddle-links--link-fiddle { display: flex; }\ntable.hyperfiddle.-fiddle-links td.field.-link-fiddle > select { flex: 0 1 80% !important; } /* line up :new */\n",
+     "; synchronized with hyperfiddle.fiddle/browser-pull\n[:db/id\n :fiddle/ident\n {:fiddle/links [:db/id\n                 :link/class\n                 {:link/fiddle [:db/id\n                                :fiddle/ident               ; routing\n                                :fiddle/query               ; validation\n                                :fiddle/type                ; validation\n                                ]}\n                 :link/formula\n                 :link/path\n                 :link/rel\n                 :link/tx-fn]}\n :fiddle/markdown\n :fiddle/pull\n :fiddle/pull-database\n :fiddle/query\n :fiddle/renderer\n :fiddle/type\n :fiddle/hydrate-result-as-fiddle\n *                                                          ; For hyperblog, so we can access :hyperblog.post/title etc from the fiddle renderer\n ]",
      :fiddle/ident :hyperfiddle/ide,
      :hyperfiddle/owners [#uuid "acd054a8-4e36-4d6c-a9ec-95bdc47f0d39"]
      :hyperfiddle/starred true}
@@ -232,8 +222,8 @@
     {:db/id 17592186061847,
      :fiddle/renderer "hyperfiddle.ide.fiddles.fiddle-src/fiddle-src-renderer",
      :fiddle/links
-     [{:db/id 17592186061848, :link/class [:hf/remove], :link/rel :hf/remove :link/path ":fiddle/ident"}
-      {:db/id 17592186061849, :link/class [:hf/remove], :link/path ":fiddle/links", :link/rel :hf/remove}
+     [{:db/id 17592186061848, :link/class [:hf/remove], :link/rel :hf/remove :link/path :fiddle/ident}
+      {:db/id 17592186061849, :link/class [:hf/remove], :link/path :fiddle/links, :link/rel :hf/remove}
       {:db/id 17592186061850,
        :link/class [:hf/iframe],
        :link/fiddle
@@ -241,23 +231,21 @@
         :fiddle/ident :hyperfiddle.ide/fiddle-options,
         :fiddle/query "[:find (pull ?link [:db/id :fiddle/ident])\n :where (or [?link :fiddle/ident] [?link :fiddle/type])]",
         :fiddle/type :query},
-       :link/path ":hyperfiddle/ide"
+       :link/path :hyperfiddle/ide
        :link/rel :hf/iframe}
       {:db/id 17592186061851,
        :link/class [:hf/new],
        :link/fiddle {:db/id 17592186056398, :fiddle/ident :hyperfiddle.ide/new-fiddle, :fiddle/type :entity},
-       :link/path ":link/fiddle",
+       :link/path :link/fiddle,
        :link/rel :hf/affix}
       {:db/id 17592186061852,
        :link/class [:hf/new],
        :link/fiddle {:db/id 17592186058175, :fiddle/ident :hyperfiddle.ide/new-link, :fiddle/type :entity},
-       :link/path ":fiddle/links",
+       :link/path :fiddle/links,
        :link/rel :hf/affix}],
      :fiddle/type :entity,
      :fiddle/pull
-     "; synchronized with hyperfiddle.fiddle/browser-pull\n[:db/id\n :fiddle/css\n :fiddle/ident\n {:fiddle/links [:db/id\n                 :link/class\n                 {:link/fiddle [:db/id\n                                :fiddle/ident               ; routing\n                                :fiddle/query               ; validation\n                                :fiddle/type                ; validation\n                                ]}\n                 :link/formula\n                 :link/path\n                 :link/rel\n                 :link/tx-fn]}\n :fiddle/markdown\n :fiddle/pull\n :fiddle/pull-database\n :fiddle/query\n :fiddle/cljs-ns\n :fiddle/renderer\n :fiddle/type\n :fiddle/hydrate-result-as-fiddle\n *                                                          ; For hyperblog, so we can access :hyperblog.post/title etc from the fiddle renderer\n ]",
-     :fiddle/css
-     "table.hyperfiddle.-fiddle-links { table-layout: fixed; }\ntable.-fiddle-links th.-hypercrud-browser-path--fiddle-links { width: 60px; }\n\ntable.-fiddle-links td.-hypercrud-browser-path--fiddle-links--link-fiddle { display: flex; }\ntable.hyperfiddle.-fiddle-links td.field.-link-fiddle > select { flex: 0 1 80% !important; } /* line up :new */\n",
+     "; synchronized with hyperfiddle.fiddle/browser-pull\n[:db/id\n :fiddle/ident\n {:fiddle/links [:db/id\n                 :link/class\n                 {:link/fiddle [:db/id\n                                :fiddle/ident               ; routing\n                                :fiddle/query               ; validation\n                                :fiddle/type                ; validation\n                                ]}\n                 :link/formula\n                 :link/path\n                 :link/rel\n                 :link/tx-fn]}\n :fiddle/markdown\n :fiddle/pull\n :fiddle/pull-database\n :fiddle/query\n :fiddle/renderer\n :fiddle/type\n :fiddle/hydrate-result-as-fiddle\n *                                                          ; For hyperblog, so we can access :hyperblog.post/title etc from the fiddle renderer\n ]",
      :fiddle/ident :hyperfiddle/ide,
      :hyperfiddle/owners [#uuid "acd054a8-4e36-4d6c-a9ec-95bdc47f0d39"]
      :hyperfiddle/starred true}
@@ -268,8 +256,6 @@
      "(let [{:keys [:hypercrud.browser/fiddle]} ctx]\n  [:div props\n   [hyperfiddle.ui/markdown (:fiddle/markdown @fiddle) ctx]])",
      :fiddle/type :entity,
      :fiddle/pull "[:link/path\n :db/id]",
-     :fiddle/css
-     ".-hyperfiddle-ide-new-link .field { display: flex; }\n.-hyperfiddle-ide-new-link div.field > :first-child { \n  flex: 0 1 7em !important; display: inline; padding-right: 1em; text-align: right; }\n.-hyperfiddle-ide-new-link div.field > :nth-child(2) { flex: 1 1; }",
      :fiddle/markdown
      "#### new-link\n\n!field(:link/path){placeholder=\":district/region\"}",
      :fiddle/ident :hyperfiddle.ide/new-link}
@@ -281,12 +267,10 @@
      "(let [{:keys [:hypercrud.browser/fiddle]} ctx]\n  [:div props\n   [hyperfiddle.ui/markdown (:fiddle/markdown @fiddle) ctx]])",
      :fiddle/type :entity,
      :fiddle/pull "[:link/path\n :db/id]",
-     :fiddle/css
-     ".-hyperfiddle-ide-new-link .field { display: flex; }\n.-hyperfiddle-ide-new-link div.field > :first-child { \n  flex: 0 1 7em !important; display: inline; padding-right: 1em; text-align: right; }\n.-hyperfiddle-ide-new-link div.field > :nth-child(2) { flex: 1 1; }",
      :fiddle/markdown
      "#### new-link\n\n!field(:link/path){placeholder=\":district/region\"}",
      :fiddle/ident :hyperfiddle.ide/new-link}
-    {:db/id 17592186062067, :link/path ":woo"}]
+    {:db/id 17592186062067, :link/path :woo}]
 
    ::test-links-table-validation
    [{:db/id 17592186061847,
@@ -295,10 +279,10 @@
      :fiddle/links
      [{:db/id 17592186061848,
        :link/class [:hf/remove]
-       :link/path ":fiddle/ident"}
+       :link/path :fiddle/ident}
       {:db/id 17592186061849,
        :link/class [:hf/remove],
-       :link/path ":fiddle/links"}
+       :link/path :fiddle/links}
       {:db/id 17592186061850,
        :link/class [:hf/iframe],
        :link/fiddle
@@ -308,26 +292,24 @@
         :fiddle/query
         "[:find [(pull ?link [:db/id :fiddle/ident]) ...]\n #_(pull ?link [:db/id :fiddle/ident])\n :where \n (or [?link :fiddle/ident] \n     [?link :fiddle/type])]",
         :fiddle/type :query},
-       :link/path ":hyperfiddle/ide"}
+       :link/path :hyperfiddle/ide}
       {:db/id 17592186061851,
        :link/class [:hf/new],
        :link/fiddle
        {:db/id 17592186056398,
         :fiddle/ident :hyperfiddle.ide/new-fiddle,
         :fiddle/type :entity},
-       :link/path ":link/fiddle"}
+       :link/path :link/fiddle}
       {:db/id 17592186061852,
        :link/class [:hf/new],
        :link/fiddle
        {:db/id 17592186058175,
         :fiddle/ident :hyperfiddle.ide/new-link,
         :fiddle/type :entity},
-       :link/path ":fiddle/links"}],
+       :link/path :fiddle/links}],
      :fiddle/type :entity,
      :fiddle/pull
-     "; synchronized with hyperfiddle.fiddle/browser-pull\n[:db/id\n :fiddle/css\n :fiddle/ident\n {:fiddle/links [:db/id\n                 :link/class\n                 {:link/fiddle [:db/id\n                                :fiddle/ident               ; routing\n                                :fiddle/query               ; validation\n                                :fiddle/type                ; validation\n                                ]}\n                 :link/formula\n                 :link/path\n                 :link/rel\n                 :link/tx-fn]}\n :fiddle/markdown\n :fiddle/pull\n :fiddle/pull-database\n :fiddle/query\n :fiddle/cljs-ns\n :fiddle/renderer\n :fiddle/type\n :fiddle/hydrate-result-as-fiddle\n *                                                          ; For hyperblog, so we can access :hyperblog.post/title etc from the fiddle renderer\n ]",
-     :fiddle/css
-     "table.hyperfiddle.-fiddle-links { table-layout: fixed; }\ntable.-fiddle-links th.-hypercrud-browser-path--fiddle-links { width: 60px; }\n\ntable.-fiddle-links td.-hypercrud-browser-path--fiddle-links--link-fiddle { display: flex; }\ntable.hyperfiddle.-fiddle-links td.field.-link-fiddle > select { flex: 0 1 80% !important; } /* line up :new */\n\n.fiddle-editor > .nav > li > a {\n  padding: 3px 6px;\n}\n",
+     "; synchronized with hyperfiddle.fiddle/browser-pull\n[:db/id\n :fiddle/ident\n {:fiddle/links [:db/id\n                 :link/class\n                 {:link/fiddle [:db/id\n                                :fiddle/ident               ; routing\n                                :fiddle/query               ; validation\n                                :fiddle/type                ; validation\n                                ]}\n                 :link/formula\n                 :link/path\n                 :link/rel\n                 :link/tx-fn]}\n :fiddle/markdown\n :fiddle/pull\n :fiddle/pull-database\n :fiddle/query\n :fiddle/renderer\n :fiddle/type\n :fiddle/hydrate-result-as-fiddle\n *                                                          ; For hyperblog, so we can access :hyperblog.post/title etc from the fiddle renderer\n ]",
      :fiddle/ident :hyperfiddle/ide,
      :hyperfiddle/starred true}
 
@@ -337,10 +319,10 @@
      :fiddle/links
      [{:db/id 17592186061848,
        :link/class [:hf/remove]
-       :link/path ":fiddle/ident"}
+       :link/path :fiddle/ident}
       {:db/id 17592186061849,
        :link/class [:hf/remove],
-       :link/path ":fiddle/links"}
+       :link/path :fiddle/links}
       {:db/id 17592186061850,
        :link/class [:hf/iframe],
        :link/fiddle
@@ -350,26 +332,24 @@
         :fiddle/query
         "[:find [(pull ?link [:db/id :fiddle/ident]) ...]\n #_(pull ?link [:db/id :fiddle/ident])\n :where \n (or [?link :fiddle/ident] \n     [?link :fiddle/type])]",
         :fiddle/type :query},
-       :link/path ":hyperfiddle/ide"}
+       :link/path :hyperfiddle/ide}
       {:db/id 17592186061851,
        :link/class [:hf/new],
        :link/fiddle
        {:db/id 17592186056398,
         :fiddle/ident :hyperfiddle.ide/new-fiddle,
         :fiddle/type :entity},
-       :link/path ":link/fiddle"}
+       :link/path :link/fiddle}
       {:db/id 17592186061852,
        :link/class [:hf/new],
        :link/fiddle
        {:db/id 17592186058175,
         :fiddle/ident :hyperfiddle.ide/new-link,
         :fiddle/type :entity},
-       :link/path ":fiddle/links"}],
+       :link/path :fiddle/links}],
      :fiddle/type :entity,
      :fiddle/pull
-     "; synchronized with hyperfiddle.fiddle/browser-pull\n[:db/id\n :fiddle/css\n :fiddle/ident\n {:fiddle/links [:db/id\n                 :link/class\n                 {:link/fiddle [:db/id\n                                :fiddle/ident               ; routing\n                                :fiddle/query               ; validation\n                                :fiddle/type                ; validation\n                                ]}\n                 :link/formula\n                 :link/path\n                 :link/rel\n                 :link/tx-fn]}\n :fiddle/markdown\n :fiddle/pull\n :fiddle/pull-database\n :fiddle/query\n :fiddle/cljs-ns\n :fiddle/renderer\n :fiddle/type\n :fiddle/hydrate-result-as-fiddle\n *                                                          ; For hyperblog, so we can access :hyperblog.post/title etc from the fiddle renderer\n ]",
-     :fiddle/css
-     "table.hyperfiddle.-fiddle-links { table-layout: fixed; }\ntable.-fiddle-links th.-hypercrud-browser-path--fiddle-links { width: 60px; }\n\ntable.-fiddle-links td.-hypercrud-browser-path--fiddle-links--link-fiddle { display: flex; }\ntable.hyperfiddle.-fiddle-links td.field.-link-fiddle > select { flex: 0 1 80% !important; } /* line up :new */\n\n.fiddle-editor > .nav > li > a {\n  padding: 3px 6px;\n}\n",
+     "; synchronized with hyperfiddle.fiddle/browser-pull\n[:db/id\n :fiddle/ident\n {:fiddle/links [:db/id\n                 :link/class\n                 {:link/fiddle [:db/id\n                                :fiddle/ident               ; routing\n                                :fiddle/query               ; validation\n                                :fiddle/type                ; validation\n                                ]}\n                 :link/formula\n                 :link/path\n                 :link/rel\n                 :link/tx-fn]}\n :fiddle/markdown\n :fiddle/pull\n :fiddle/pull-database\n :fiddle/query\n :fiddle/renderer\n :fiddle/type\n :fiddle/hydrate-result-as-fiddle\n *                                                          ; For hyperblog, so we can access :hyperblog.post/title etc from the fiddle renderer\n ]",
      :fiddle/ident :hyperfiddle/ide,
      :hyperfiddle/starred true}]
 
@@ -386,7 +366,7 @@
         :fiddle/query
         "[:find \n [(pull ?e [:district/name :db/id]) ...]\n :where \n [?e :district/name]]",
         :fiddle/type :query},
-       :link/path ":seattle/neighborhoods",
+       :link/path :seattle/neighborhoods,
        :link/rel :hf/iframe}
       {:db/id 17592186045752,
        :link/class [:hf/new],
@@ -394,21 +374,21 @@
        {:db/id 17592186045754,
         :fiddle/ident :seattle/neighborhood-new,
         :fiddle/type :entity},
-       :link/path ":seattle/neighborhoods",
+       :link/path :seattle/neighborhoods,
        :link/rel :hf/new}
       {:db/id 17592186045756,
        :link/fiddle
        {:db/id 17592186045758,
         :fiddle/ident :seattle/neighborhood-edit,
         :fiddle/type :entity},
-       :link/path ":seattle/neighborhoods",
+       :link/path :seattle/neighborhoods,
        :link/rel :hf/self}
       {:db/id 17592186045760,
        :link/fiddle
        {:db/id 17592186045762,
         :fiddle/ident :seattle/district,
         :fiddle/type :entity},
-       :link/path ":district/region",
+       :link/path :district/region,
        :link/rel :hf/self}],
      :fiddle/query
      "[:find \n [(pull ?e [:neighborhood/name \n            {:neighborhood/district \n             [:db/id \n              :district/name\n              {:district/region \n               [:db/ident]}]}\n            :db/id\n            :hyperfiddle/owners]) ...]\n :where \n [?e :neighborhood/name ?name]\n [(< ?name \"C\")]]",
@@ -462,8 +442,6 @@
 
    :dustingetz.seattle/communities
    [{:db/id 17592186047478,
-     :fiddle/css
-     ".hyperfiddle-user table.hyperfiddle { \n  table-layout: fixed; \n}\n\n.hyperfiddle-user th.hyperfiddle.attribute {\n  width: 60px;\n}\n\n.hyperfiddle-user th.hyperfiddle.attribute.-community-neighborhood {\n  width: unset;\n}",
      :fiddle/ident :dustingetz.seattle/communities,
      :fiddle/links
      [{:db/id 17592186047481,
@@ -474,7 +452,7 @@
         :fiddle/query
         "[:find \n [(pull ?e [:district/name :db/id]) ...]\n :where \n [?e :district/name]]",
         :fiddle/type :query},
-       :link/path ":district/region"}],
+       :link/path :district/region}],
      :fiddle/query
      "[:find \n [(pull ?e [*\n            \n            {:community/type [:db/ident]\n             :community/orgtype [:db/ident]\n             :community/neighborhood \n             [:neighborhood/name \n              {:neighborhood/district \n               [:db/id \n                :district/name\n                {:district/region \n                 [:db/ident]}]}\n              :db/id\n              :hyperfiddle/owners]}])\n  ...]\n :where \n [?e :community/name ?name]\n [(< ?name \"B\")]]\n\n",
      :fiddle/type :query,
@@ -572,9 +550,7 @@
       :community/type [{:db/ident :community.type/email-list}]}]]
 
    :dustingetz/counter
-   [{:fiddle/cljs-ns
-     "(defmethod hyperfiddle.api/txfn :user/inc [_ e a v ctx]\n  [[:db.fn/cas e a v (inc v)]])",
-     :fiddle/ident :dustingetz/counter,
+   [{:fiddle/ident :dustingetz/counter,
      :fiddle/renderer
      "(let [{:keys [:hypercrud.browser/fiddle]} ctx]\n  [:div.container-fluid props\n   [hyperfiddle.ui/markdown (:fiddle/markdown @fiddle) ctx]\n   [hyperfiddle.ui/result val ctx {}]\n   [:hr]\n   [:label \"Age: \" (:dustingetz.reg/age val)]\n   [:p]\n\n   ; Right way to transact, needs some work\n   [hyperfiddle.ui/link :user/inc ctx \"inc\"]\n\n   ; Wrong way to transact\n   #_[:button\n      {:on-click\n       #(->> (let [n (:dustingetz.reg/age val)\n                   e [:dustingetz.reg/email \"dustin@example.com\"]]\n               [[:db.fn/cas e :dustingetz.reg/age n (inc n)]])\n             (hyperfiddle.ui.util/with-tx! ctx \"$\"))}\n      \"Inc!\"]])",
      :hyperfiddle/owners
@@ -583,9 +559,9 @@
      :fiddle/type :query,
      :fiddle/links
      [{:db/id 17592186047243,
-       :link/path ":dustingetz.reg/age",
+       :link/path :dustingetz.reg/age,
        :link/rel :hf/rel,
-       :link/tx-fn ":user/inc"}],
+       :link/tx-fn :user/inc}],
      :fiddle/markdown
      "### :dustingetz/counter\n\nExample of incrementing a value in Datomic (Make sure auto-transact is on!)\n",
      :fiddle/query
@@ -594,11 +570,7 @@
     {:db/id 17592186046196, :dustingetz.reg/email "dustin@example.com", :dustingetz.reg/age 102}]
 
    :dustingetz/slack-storm
-   [{:fiddle/cljs-ns
-     "(defn render-post-link [ctx [post _ :as row]]\n  (hyperfiddle.ui/link\n    :dustingetz.storm/view\n    (hypercrud.browser.context/row ctx (contrib.reactive/track identity row))\n    (contrib.string/or-str (:dustingetz.post/title post) \"–\")))",
-     :fiddle/css
-     ".-util-slack-parser { margin-top: 2em; }\n.soup + .CodeMirror { height: 10em; }\n\ndt { \n  width: 10em; \n  text-align: right;\n  font-weight: 400;\n}",
-     :fiddle/ident :dustingetz/slack-storm,
+   [{:fiddle/ident :dustingetz/slack-storm,
      :fiddle/renderer
      "(let [{:keys [:hypercrud.browser/fiddle]} ctx]\n  [:main.container props\n   [hyperfiddle.ui/markdown (:fiddle/markdown @fiddle) ctx]\n   [:h3 [hyperfiddle.ui/link :dustingetz.storm/new-storm ctx \"new storm\"]]\n   [:p]\n   [:p \"Recent storms\"]\n   [:p]\n   (->> val\n        (sort-by second) reverse      ;(sort-by (comp #(compare %2 %1) second))\n        (map (fn [[post _ :as row]]\n               [:<> {:key (str (:db/id post))}\n                [:dt (:dustingetz.storm/channel post) ]\n                [:dd [user/render-post-link ctx row]]]))\n        (into [:dl]))])",
      :hyperfiddle/owners
@@ -611,7 +583,7 @@
        {:db/id 17592186047002,
         :fiddle/ident :dustingetz.storm/view,
         :fiddle/type :entity},
-       :link/path ":dustingetz.post/slug",
+       :link/path :dustingetz.post/slug,
        :link/rel :hf/rel}
       {:db/id 17592186047120,
        :link/fiddle
@@ -620,7 +592,7 @@
         :fiddle/type :entity},
        :link/formula
        "(constantly (hyperfiddle.api/tempid-detached \"$\" ctx))",
-       :link/path ":dustingetz/slack-storm",
+       :link/path :dustingetz/slack-storm,
        :link/rel :hf/self}],
      :fiddle/markdown
      "# Slack Storm\n\n!span[Create documentation from Slack logs]{.lead}",
@@ -690,26 +662,26 @@
         :fiddle/query
         "[:find \n [(pull ?e [:district/name :db/id]) ...]\n :where \n [?e :district/name]]",
         :fiddle/type :query},
-       :link/path ":seattle/neighborhoods"}
+       :link/path :seattle/neighborhoods}
       {:db/id 17592186045752,
        :link/class [:hf/new],
        :link/fiddle
        {:db/id 17592186045754,
         :fiddle/ident :seattle/neighborhood-new,
         :fiddle/type :entity},
-       :link/path ":neighborhood/name"}
+       :link/path :neighborhood/name}
       {:db/id 17592186045756,
        :link/fiddle
        {:db/id 17592186045758,
         :fiddle/ident :seattle/neighborhood-edit,
         :fiddle/type :entity},
-       :link/path ":neighborhood/name"}
+       :link/path :neighborhood/name}
       {:db/id 17592186045760,
        :link/fiddle
        {:db/id 17592186045762,
         :fiddle/ident :seattle/district,
         :fiddle/type :entity},
-       :link/path ":district/region"}],
+       :link/path :district/region}],
      :fiddle/query
      "[:find\n [(pull ?e [:db/ident]) ...]\n :where\n [:db.part/db :db.install/attribute ?e]]",
      :fiddle/renderer
@@ -744,8 +716,6 @@
      {:db/ident :db/doc}
      {:db/ident :attribute/ident}
      {:db/ident :attribute/renderer}
-     {:db/ident :fiddle/cljs-ns}
-     {:db/ident :fiddle/css}
      {:db/ident :fiddle/hydrate-result-as-fiddle}
      {:db/ident :fiddle/ident}
      {:db/ident :fiddle/links}
@@ -789,8 +759,6 @@
 
    :foo/clojurians
    [{:db/id 17592186048012,
-     :fiddle/cljs-ns
-     "(defmethod hyperfiddle.api/render #{:user-profile/image-192}\n  [ctx props]\n  [:img {:src (hypercrud.browser.context/v ctx)}])",
      :fiddle/ident :foo/clojurians,
      :fiddle/links
      [{:db/id 17592186048013,
@@ -798,13 +766,13 @@
        {:db/id 17592186048014,
         :fiddle/ident :foo.clojurians/user-profile,
         :fiddle/type :entity},
-       :link/path ":channel/creator"}
+       :link/path :channel/creator}
       {:db/id 17592186048015,
        :link/fiddle
        {:db/id 17592186048016,
         :fiddle/ident :foo.clojurians/channel,
         :fiddle/type :entity},
-       :link/path ":channel/name"}],
+       :link/path :channel/name}],
      :fiddle/query
      "[:in $clojurians\n :find\n (count ?msg)\n (pull $clojurians ?chan \n       [:channel/name\n        {:channel/creator \n         [:user/name]}])\n :where\n [$clojurians ?msg :message/channel ?chan]\n [$clojurians ?chan :channel/name ?cname]\n [(< ?cname \"d\")]]",
      :fiddle/type :query}
@@ -952,8 +920,6 @@
          {:db/ident :dustingetz.task/completed, :db/valueType {:db/ident :db.type/boolean}, :db/cardinality {:db/ident :db.cardinality/one}}
          {:db/ident :dustingetz.task/parent, :db/valueType {:db/ident :db.type/ref}, :db/cardinality {:db/ident :db.cardinality/one}}
          {:db/ident :dustingetz.task/title, :db/valueType {:db/ident :db.type/string}, :db/cardinality {:db/ident :db.cardinality/one}}
-         {:db/ident :fiddle/cljs-ns, :db/valueType {:db/ident :db.type/string}, :db/cardinality {:db/ident :db.cardinality/one}, :db/doc "ClojureScript `user` namespace, available in :fiddle/renderer."}
-         {:db/ident :fiddle/css, :db/valueType {:db/ident :db.type/string}, :db/cardinality {:db/ident :db.cardinality/one}, :db/doc "Fiddle CSS. \n\nWarning: CSS is not scoped, please write targetted CSS"}
          {:db/ident :fiddle/hydrate-result-as-fiddle, :db/valueType {:db/ident :db.type/boolean}, :db/cardinality {:db/ident :db.cardinality/one}, :db/doc "Experimental. When set, data-sync will interpret this fiddle's result as a fiddle - like a higher order fiddle - this is a recursion mechanic."}
          {:db/ident :fiddle/ident, :db/valueType {:db/ident :db.type/keyword}, :db/cardinality {:db/ident :db.cardinality/one}, :db/unique {:db/ident :db.unique/identity}, :db/doc "Fiddle identifier used in URLs. Warning: changing this breaks fiddle URLs."}
          {:db/ident :fiddle/links, :db/valueType {:db/ident :db.type/ref}, :db/cardinality {:db/ident :db.cardinality/many}, :db/isComponent true, :db/doc "Links to other fiddles that are available from this fiddle"}

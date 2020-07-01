@@ -213,32 +213,6 @@
   (let [props (assoc props :value val :on-change ((::hf/view-change! ctx) ctx))]
     [:<> [recom-date props]]))
 
-(defn- code-comp [ctx]
-  (case (:hyperfiddle.ui/layout ctx :hyperfiddle.ui.layout/block)
-    :hyperfiddle.ui.layout/block contrib.ui/code
-    :hyperfiddle.ui.layout/table contrib.ui/code-inline-block))
-
-(let [on-change (fn [ctx o n]
-                  (->> (entity-change->tx ctx (empty->nil o) (empty->nil n))
-                       (runtime/with-tx (:runtime ctx) (:partition-id ctx) (context/dbname ctx))))]
-  (defn ^:export code [val ctx & [props]]
-    (let [props (-> (assoc props
-                      :value val
-                      :on-change (r/partial on-change ctx)
-                      :parinfer (:contrib.ui/parinfer ctx))
-                    (update :mode #(or % "clojure")))]
-      [debounced props (code-comp ctx)])))
-
-(let [on-change (fn [ctx o n]
-                  (->> (entity-change->tx ctx (empty->nil o) (empty->nil n))
-                       (runtime/with-tx (:runtime ctx) (:partition-id ctx) (context/dbname ctx))))]
-  (defn ^:export css [val ctx & [props]]
-    (let [props (-> (assoc props
-                      :value val
-                      :on-change (r/partial on-change ctx))
-                    (update :mode #(or % "css")))]
-      [debounced props (code-comp ctx)])))
-
 (defn value-validator [ctx]
   (let [[_ a _] @(:hypercrud.browser/eav ctx)]
     (case (contrib.datomic/valueType @(:hypercrud.browser/schema ctx) a)

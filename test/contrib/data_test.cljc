@@ -72,13 +72,13 @@
   (is (= ((fvor #(.toLocaleDateString %) "–") nil) "–")))
 
 (def ordering [:fiddle/ident :fiddle/type :fiddle/pull-database :fiddle/pull :fiddle/query
-               :fiddle/renderer :fiddle/css :fiddle/markdown :fiddle/links :fiddle/hydrate-result-as-fiddle])
+               :fiddle/renderer :fiddle/markdown :fiddle/links :fiddle/hydrate-result-as-fiddle])
 (deftest compare-by-index-
   []
   (is (= (apply sorted-set-by
                 (compare-by-index ordering)
-                [:fiddle/renderer :fiddle/ident :fiddle/css :fiddle/markdown :fiddle/type])
-         (sorted-set :fiddle/ident :fiddle/type :fiddle/renderer :fiddle/css :fiddle/markdown))))
+                [:fiddle/renderer :fiddle/ident :fiddle/markdown :fiddle/type])
+         (sorted-set :fiddle/ident :fiddle/type :fiddle/renderer :fiddle/markdown))))
 
 (deftest ancestry-common-1
   []
@@ -106,12 +106,12 @@
   []
   (is (= (merge-by (juxt :link/rel (comp blank->nil :link/path))
                    [{:link/rel :hf/edit :link/path nil}
-                    {:link/rel :hf/edit :link/path ":reg/gender"}
-                    {:link/rel :hf/edit :link/path ":reg/gender :reg/shirt-size"}]
-                   [{:link/rel :hf/edit :link/path ":reg/gender" :link/extra-stuff true}])
+                    {:link/rel :hf/edit :link/path :reg/gender}
+                    {:link/rel :hf/edit :link/path :reg/shirt-size}]
+                   [{:link/rel :hf/edit :link/path :reg/gender :link/extra-stuff true}])
          '({:link/rel :hf/edit, :link/path nil}
-            {:link/rel :hf/edit, :link/path ":reg/gender", :link/extra-stuff true}
-            {:link/rel :hf/edit, :link/path ":reg/gender :reg/shirt-size"}))))
+            {:link/rel :hf/edit, :link/path :reg/gender, :link/extra-stuff true}
+            {:link/rel :hf/edit, :link/path :reg/shirt-size}))))
 
 (deftest collect-
   []

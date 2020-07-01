@@ -66,9 +66,7 @@
   (url-decode [domain s])
   (url-encode [domain route])
   (api-routes [domain])
-  (resolve-fiddle [domain fiddle-ident])
-  #?(:clj (connect [domain dbname] [domain dbname on-created!]))
-  (memoize [domain f]))
+  #?(:clj (connect [domain dbname] [domain dbname on-created!])))
 
 (defprotocol State
   (state [rt]))
@@ -140,7 +138,7 @@
 
 (declare render-dispatch)
 
-; Dispatch is a set
+;; Dispatch is a set
 (defmulti render (fn [ctx props]
                    (render-dispatch ctx props)))
 
@@ -172,6 +170,10 @@
     ;(contrib.datomic/parser-type (context/qfind ctx))       ; :hf/find-rel :hf/find-scalar
     ;:hf/blank
 
+
+(defmulti render-fiddle (fn [_val ctx _props] (fiddle ctx)))
+
+(defmulti formula (fn [_ctx link _value] (:link/formula link)))
 
 (defmethod tx :default [ctx eav props]
   nil)

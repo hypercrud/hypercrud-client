@@ -1,7 +1,5 @@
 (ns hyperfiddle.project
   (:require
-    #?(:cljs [contrib.eval-cljs :as eval-cljs])
-    #?(:cljs [contrib.try$ :refer [try-either]])
     [hyperfiddle.runtime :as runtime]
     [hypercrud.types.EntityRequest :refer [->EntityRequest]]
     [hypercrud.types.QueryRequest :refer [->QueryRequest]]
@@ -21,16 +19,3 @@
   (-> (io/hydrate-one! (hf/io rt) local-basis partitions (attrs-request rt pid))
       (p/then #(into {} %))))
 
-(defn project-request [rt pid]
-  (->EntityRequest
-    :hyperfiddle/project
-    (runtime/db rt pid (hf/fiddle-dbname (hf/domain rt)))
-    [:project/code
-     :project/css]))
-
-(defn hydrate-project-record [rt pid local-basis partitions]
-  (io/hydrate-one! (hf/io rt) local-basis partitions (project-request rt pid)))
-
-#?(:cljs
-   (defn eval-domain-code!+ [code-str]
-     (try-either (some->> code-str (eval-cljs/eval-statement-str! 'user.domain)))))

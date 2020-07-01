@@ -3,6 +3,7 @@
     [clojure.core.async :as async]
     [cats.monad.either :as either]
     [promesa.core :as p]
+    [contrib.promise :as promise]
     ;[promesa.async]
     )
   #?(:cljs (:require-macros [contrib.do :refer [do-async]])))
@@ -49,15 +50,15 @@
   (p/then v identity))
 
 (defmacro do-async [& body]
-  `(as-p (p/resolved (try ~@body
-                          (catch ~(if (:ns &env) 'js/Error 'Exception) e# (p/rejected e#))))))
+  `(as-p (try (p/resolved ~@body)
+              (catch ~(if (:ns &env) 'js/Error 'Exception) e# (p/rejected e#)))))
 
 (defn from-async [v]
   (.join (do-async v)))
 
 (defmacro do-async-as-chan [& body]
   `(let [c# (async/chan)]
-     (p/branch (do-async ~@body)
+     (promise/branch (do-async ~@body)
        #(async/put! c# %)
        #(async/put! c# %))
      c#))

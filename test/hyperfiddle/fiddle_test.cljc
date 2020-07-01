@@ -12,5 +12,4 @@
 #?(:cljs
    (deftest test-ui-defaults []
      (let [fiddle-val (apply-defaults {})]
-       (is (not (nil? (:fiddle/markdown fiddle-val))))
-       (is (not (nil? (:fiddle/renderer fiddle-val)))))))
+       (is (not (nil? (:fiddle/markdown fiddle-val)))))))

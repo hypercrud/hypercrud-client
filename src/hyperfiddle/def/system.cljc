@@ -9,9 +9,6 @@
        :starred    [:boolean]
        :archived   [:boolean]
        :deprecated [:boolean]}
-  #:project
-      {:code [:string "a ClojureScript form for storing view functions, evaluated on page load"]
-       :css [:string]}
   #:attribute
       {:ident    [:keyword :identity]
        :renderer [:string "Default attribute renderer, a CLJS var like `hyperfiddle.ui.controls/code`."]}
@@ -26,11 +23,6 @@
        :pull-database [:string "Argument to `datomic.api/pull`, defaults to $"]
        :links         [:ref* :isComponent "Links to other fiddles that are available from this fiddle"]
        :renderer      [:string "Reagent expression for the fiddle view"]
-       :cljs-ns       [:string "ClojureScript `user` namespace, available in :fiddle/renderer."]
-       :css           [:string
-                       "Fiddle CSS.
-
-                        Warning: CSS is not scoped, please write targetted CSS"]
        :markdown      [:string "Markdown expression for fiddle view, optional"]
        :hydrate-result-as-fiddle
                       [:boolean "Experimental. When set, data-sync will interpret this fiddle's result as a fiddle - like a higher order fiddle - this is a recursion mechanic."]
@@ -53,59 +45,6 @@
        :created-date [:instant]
        :last-seen    [:instant]})
 
-(hf-def/project :hyperfiddle/project
-  :code
-  (defn filter-controls [needle #_is-regex]
-    [:div.form-group #_{:class (when (and @is-regex err) "has-error")}
-     [:input.form-control
-      {:style         {:display "inline-block"}            ; bootstrap styles are half imported, wonky hacks
-       :type          "text"
-       :on-change     #(reset! needle (.. % -target -value))
-       :auto-complete "off"
-       #_#_:auto-focus true                                ; page sroll pos gets lost, otherwise this is great
-       :placeholder   "filter"}]
-     #_[:span.col-sm-3 [contrib.ui/easy-checkbox-boolean "regex " is-regex]]
-     #_(when (and @is-regex err) [:span (ex-message err)])])
-
-  (defn parse-regex [needle]
-    (try
-      [nil (re-pattern @needle)]
-      (catch :default e
-        [e #""])))
-
-  (defn fiddle-list [ctx]
-    [:div.scroll-wrapper
-     [:table.table-hover
-      [:tbody
-       (->> (hypercrud.browser.context/data ctx)
-            (sort (fn [[a b] [a' b']]
-                    (if (= b b')
-                      (compare (clojure.string/replace (str (:fiddle/ident a)) #"/" ".")
-                        (clojure.string/replace (str (:fiddle/ident a')) #"/" "."))
-                      (> b b'))
-                    ))
-            (map (fn [[fiddle tx is-entrypoint]]
-                   [:tr {:key (str (hash (:fiddle/ident fiddle)))}
-                    [:td
-                     (if is-entrypoint
-                       (let [route {:hyperfiddle.route/fiddle       :hyperfiddle.ide/edit
-                                    :hyperfiddle.route/datomic-args [(:fiddle/ident fiddle)]}]
-                         #_[:div (pr-str {:route route})]
-                         [hyperfiddle.ui/anchor ctx {:route route} (str (:fiddle/ident fiddle))])
-                       (str (:fiddle/ident fiddle)))
-                     ]]))
-            (doall))]]])
-
-  :css "
-    /* Not th – that hits fiddle shortcuts */
-    div.hyperfiddle.ui div.hyperfiddle.field.-fiddle-pull,
-    div.hyperfiddle.ui div.hyperfiddle.field.-fiddle-query,
-    div.hyperfiddle.ui div.hyperfiddle.field.-fiddle-cljs-ns,
-    div.hyperfiddle.ui div.hyperfiddle.field.-fiddle-renderer,
-    div.hyperfiddle.ui div.hyperfiddle.field.-fiddle-css,
-    div.hyperfiddle.ui div.hyperfiddle.field.-fiddle-markdown { display: block !important; }
-  ")
-
 (hf-def/fiddle :hyperfiddle.system/decoding-error []
   :renderer
   (let [[s message data] (:hyperfiddle.route/datomic-args @(:hypercrud.browser/route ctx))]
@@ -120,32 +59,3 @@
 (hf-def/fiddle :hyperfiddle.system/unauthorized []
   :markdown "## Credentials invalid or stale. Please login again.")
 
-(hf-def/attr
-  #:project
-      {:code {:renderer hyperfiddle.ui.controls/code}
-       :css  {:renderer hyperfiddle.ui.controls/css}}
-
-  #:domain
-      {:router {:renderer hyperfiddle.ui.controls/code}
-       :home-route
-               {:renderer
-                (let [parse-string (fn [s]
-                                     (-> (contrib.reader/read-edn-string! s)
-                                         hyperfiddle.route/validate-route+
-                                         (cats.monad.either/branch (fn [e] (throw e)) (constantly s))))
-                      to-string identity]
-                  (fn [val ctx & [props]]
-                    (let [props (-> (assoc props
-                                      :value val
-                                      :on-change ((:hyperfiddle.api/view-change! ctx) ctx)
-                                      :mode "clojure"
-                                      :linkNumbers false)
-                                    (update :mode #(or % "clojure")))]
-                      [contrib.ui/debounced props contrib.ui/validated-cmp parse-string to-string contrib.ui.codemirror/-codemirror])))}
-       :css                      {:renderer hyperfiddle.ui.controls/css}
-       :environment              {:renderer hyperfiddle.ui.controls/code}
-       :code                     {:renderer hyperfiddle.ui.controls/code}}
-
-  {:attribute/renderer              {:renderer hyperfiddle.ui.controls/code}
-   :database.custom-security/client {:renderer hyperfiddle.ui.controls/code}
-   :database.custom-security/server {:renderer hyperfiddle.ui.controls/code}})

@@ -41,13 +41,10 @@
            (assoc m k v)
            m))))))
 
-(defn get-attrs []
-  (into {} (map (fn [[k v]] {k (:renderer v)}) (@*defs :attribute))))
-
 (defn get-fiddle [id] (get-in @*defs [:fiddle id]))
 
 (defn def! [type ident form val]
-  {:pre [(#{:schema :attribute :fiddle :project} type)
+  {:pre [(#{:schema :fiddle} type)
          (qualified-keyword? ident)
          form
          val]}
@@ -61,17 +58,9 @@
   (doseq [[_ attr] (read-schema (apply merge attrs))]
     (def! :schema (:db/ident attr) &form attr)))
 
-(defmacro attr [ident & attrs]
-  (doseq [[key attr] (apply merge attrs)]
-     (def! :attribute key &form (map-attrs :attribute attr))))
-
 (defmacro fiddle [ident & attrs]
   (def! :fiddle ident &form
         (read-def :fiddle ident attrs)))
-
-(defmacro project [ident & attrs]
-  (def! :project ident &form
-    (read-def :project ident attrs)))
 
 (s/def ::schema
   (s/cat
@@ -101,9 +90,13 @@
       :fiddle ::expr
       :& (s/* any?))))
 
+(s/def ::link-key
+  (s/or :attribute keyword?
+        :db-attribute (s/cat :db symbol? :attribute keyword?)))
+
 (s/def ::links
   (s/map-of
-    any?
+    ::link-key
     (read-alt (s/& ::link-expr (s/conformer vector))
       (s/+ (s/spec ::link-expr)))))
 
@@ -143,6 +136,11 @@
   (read-schema {::d [:string "docstring" :identity :many]})
   (read-schema {::d [:string :identity :many "docstring"]})
   (read-schema {::e [:string* :identity :many :index]})
+
+  (read-links {:dustingetz/email [[::submission-detail]
+                                    [:hf/new ::submission-detail :tx-fn :user.hello-world/new-submission]]
+               :user.hello-world/submission-master [:hf/iframe ::genders]
+               :dustingetz/gender [:hf/iframe ::shirt-sizes]})
   )
 
 (defn read-attrs [body]
@@ -197,14 +195,13 @@
   )
 
 (defn map-attr [type k v]
-  (s/assert #{:project :fiddle :attribute :link} type)
+  (s/assert #{:fiddle :link} type)
   (s/assert keyword? k)
   (s/assert (comp not nil?) v)
 
   (let
     [kv
      (case (qualify type k)
-       :project/ident  :db/ident
 
        :fiddle/pull
        (let [[db q] (->> v map-expr (split-with (some-fn string? seq?)))]
@@ -226,8 +223,6 @@
 
        :fiddle/shape
        {:fiddle/shape (-> v one map-expr)}
-
-       :fiddle/code :fiddle/cljs-ns
 
        :fiddle/links
        {:fiddle/links
@@ -268,7 +263,8 @@
   "When a fiddle is of type :fiddle/eval we want to be able to infer the resultset
   schema from a static definition. Passing a :query parameter to a fiddle
   provides a way to infer a schema, but this doesn't make this fiddle a :query
-  fiddle, so it should stay of type :eval."
+  fiddle, so it should stay of type :eval.
+  FIXME: deprecated once :query and :pull are removed."
   [fiddle]
   (if (contains? fiddle :fiddle/eval)
     (assoc fiddle :fiddle/type :eval)
@@ -286,8 +282,8 @@
           {k (cond
                (and (= type :fiddle)
                     (= (hyperfiddle.fiddle/kind acc) :fn)) (map-val v)
-               (-> k name keyword #{:query :pull :formula}) (map-expr v)
-               (-> k name keyword #{:code :cljs-ns :renderer :markdown :css}) (repr-val v)
+               (-> k name keyword #{:query :pull}) (map-expr v)
+               (-> k name keyword #{:renderer :markdown}) (repr-val v)
                () v)}))
       {})
     (adjust-type)))

@@ -193,6 +193,9 @@
 
 #?(:clj
    (defmacro orp
+     "`clojure.core/or` evaluates arguments one by one, returning the first truthy
+  one and so leaving the remaining ones unevaluated. `orp` does the same but
+  with a custom predicate."
      ([pred] nil)
      ([pred x]
       `(let [or# ~x]
@@ -200,6 +203,12 @@
      ([pred x & next]
       `(let [or# ~x]
          (if (~pred or#) or# (orp ~pred ~@next))))))
+
+#?(:clj
+   (defmacro orf [y]
+     "Like `#(or %1 y)`. Useful with update. Eg. (update {:x nil} :x (orf 1))"
+     `(fn [x#] (or x# ~y))))
+
 
 ; https://crossclj.info/ns/net.mikera/core.matrix/0.62.0/clojure.core.matrix.utils.html#_xor
 (defn xor "Returns the logical xor of a set of values, considered as booleans."
@@ -265,9 +274,12 @@
   (= (str ns) (namespace (keyword x))))
 
 (defn keywordize [s]
-  (if (= \: (first s))
-    (keyword (subs s 1))
-    (keyword s)))
+  (when s
+    (if (keyword? s)
+      s
+      (if (= \: (first s))
+        (keyword (subs s 1))
+        (keyword s)))))
 
 (defn first-key [k]
   (cond (ident? k) k
@@ -286,3 +298,4 @@
   (if-let [indent (some-> (re-find #"(\n +)\S" s) second)]
     (str/trim (str/replace s indent "\n"))
     (str/trim s)))
+

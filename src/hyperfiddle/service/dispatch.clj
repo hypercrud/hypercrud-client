@@ -114,16 +114,16 @@
     (p/resolved (io/local-basis-for io global-basis route)))
 
   (hydrate-requests [io local-basis partitions requests]
-    (p/do* (hydrate-requests domain local-basis requests partitions ?subject)))
+    (p/do! (hydrate-requests domain local-basis requests partitions ?subject)))
 
   (hydrate-route [io local-basis route pid partitions]
-    (p/do* (hydrate-route domain local-basis route pid partitions ?subject)))
+    (p/do! (hydrate-route domain local-basis route pid partitions ?subject)))
 
   (sync [io dbnames]
-    (p/do* (ds/sync domain dbnames)))
+    (p/do! (ds/sync domain dbnames)))
 
   (transact! [io tx-groups]
-    (p/do* (transact! domain ?subject tx-groups))))
+    (p/do! (transact! domain ?subject tx-groups))))
 
 (defmethod endpoint :ssr [context]
   (R/via context R/render))

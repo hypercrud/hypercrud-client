@@ -5,7 +5,7 @@
     [clojure.core.match :refer [match #?(:cljs match*)]]
     [clojure.spec.alpha :as s]
     [contrib.ct :refer [unwrap]]
-    [contrib.data :refer [ancestry-common ancestry-divergence unqualify]]
+    [contrib.data :refer [ancestry-common ancestry-divergence unqualify keywordize]]
     [contrib.datomic]
     [contrib.eval :as eval]
     [contrib.reactive :as r]
@@ -229,11 +229,11 @@ a speculative db/id."
                    (conj (some-> link :link/fiddle :fiddle/ident))
 
                    ; fast way to name a button without a fiddle
-                   (conj (some-> link :link/tx-fn (subs 1) keyword))
+                   (conj (:link/tx-fn link))
 
                    ; link/a is probably not useful except for narrowing, maybe
                    ; nil path is no longer defined, use fiddle-ident instead
-                   (conj (some-> link :link/path hyperfiddle.fiddle/read-path))
+                   (conj (some-> link :link/path hyperfiddle.fiddle/path))
 
                    ; nil #{txfn linkpath fiddleident} is not meaningful
                    (disj nil))]                             ; Preserve set type
@@ -1043,34 +1043,23 @@ a speculative db/id."
       :scalar
       v)))
 
-; controlled memoization, this will correctly bust on cljs-ns changes in the UI
-(let [f (fn [s cljs-ns] (eval/eval-expr-str!+ s))]
-  (defn eval-expr-str!+ [{:keys [:hypercrud.browser/fiddle] :as ctx} s]
-    (let [memoized-f (hf/memoize (hf/domain (:runtime ctx)) f)]
-      (memoized-f s @(r/cursor fiddle [:fiddle/cljs-ns])))))
-
 (defn build-args+ "Params are EAV-typed (uncolored)"
-  ;There is a ctx per argument if we are element-level tuple.
+  ;; There is a ctx per argument if we are element-level tuple.
   [ctx link]
   {:post [(s/assert either? %)]}
-  ; if at element level, zip with the find-elements, so do this N times.
-  ; That assumes the target query is a query of one arg. If it takes N args, we can apply as tuple.
-  ; If they misalign thats an error. Return the tuple of args.
-  (mlet [formula-ctx-closure (if-let [formula-str (contrib.string/blank->nil (:link/formula link))]
-                               (eval-expr-str!+ ctx (str "(fn [ctx] \n" formula-str "\n)"))
-                               (either/right (constantly (constantly nil))))
-         formula-fn (try-either (formula-ctx-closure ctx))
-
-         ; V legacy is tuple, it should be scalar by here (tuple the ctx, not the v)
-         :let [[e a v] (eav ctx)]
-
-         ; Documented behavior is v in, tuple out, no colors.
-         arg (try-either (formula-fn v))]
-    ; Don't normalize, must handle tuple dimension properly.
-    ; For now assume no tuple.
-    (return
-      ; !link[⬅︎ Slack Storm](:dustingetz.storm/view)
-      (if arg [arg]))))
+  ;; if at element level, zip with the find-elements, so do this N times. That
+  ;; assumes the target query is a query of one arg. If it takes N args, we can
+  ;; apply as tuple. If they misalign thats an error. Return the tuple of args.
+  (let [;; V legacy is tuple, it should be scalar by here (tuple the ctx, not
+        ;; the v)
+        [e a v]    (eav ctx)
+        ;; Documented behavior is v in, tuple out, no colors.
+        arg        (hf/formula ctx link v)]
+    ;; Don't normalize, must handle tuple dimension properly. For now assume no
+    ;; tuple.
+    (either/right
+     ;; !link[⬅︎ Slack Storm](:dustingetz.storm/view)
+     (if arg [arg]))))
 
 (defn ^:export build-route+ "There may not be a route! Fiddle is sometimes optional" ; build-route+
   [args ctx]
@@ -1093,7 +1082,7 @@ a speculative db/id."
   [ctx link-ref]
   {:pre [(s/assert :hypercrud/context ctx)]
    :post [(s/assert either? %)]}
-  (->> (hyperfiddle.fiddle/read-path @(r/cursor link-ref [:link/path]))
+  (->> (hyperfiddle.fiddle/path @(r/cursor link-ref [:link/path]))
        (refocus+ ctx)
        (cats/fmap #(assoc % :hypercrud.browser/link link-ref))))
 
@@ -1134,11 +1123,13 @@ a speculative db/id."
   {:post [(or (keyword? %)
               (nil? %))]}
   (when-let [link-ref (:hypercrud.browser/link ctx)]
-    (let [kw-str @(r/cursor link-ref [:link/tx-fn])         ; TODO migrate type to keyword
-          x (if (blank->nil kw-str)
-              (eval-expr-str!+ ctx kw-str)                  ; Parse the keyword here and ignore the error, once migrated to keyword this doesn't happen
-              (either/right nil))]
-      (unwrap (constantly nil) x))))
+    (when-let [x @(r/cursor link-ref [:link/tx-fn])]
+      (assert (not (string? x)) (str `link/tx-fn " : The link/tx-fn should not be a string anymore"))
+      (cond
+        (keyword? x) x
+        (string? x)  (some-> x blank->nil keywordize)
+        :else        (throw (ex-info "Unsuported link-tx value. Expected keyword or keyword as a strings." {:value x
+                                                                                                            :type  (type x)}))))))
 
 (defn branched-link?' [link]                                ; todo remove
   (-> link :link/tx-fn blank->nil some?))
