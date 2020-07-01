@@ -3,6 +3,7 @@
     [clojure.core.async :as async]
     [cats.monad.either :as either]
     [promesa.core :as p]
+    [contrib.promise :as promise]
     ;[promesa.async]
     )
   #?(:cljs (:require-macros [contrib.do :refer [do-async]])))
@@ -57,7 +58,7 @@
 
 (defmacro do-async-as-chan [& body]
   `(let [c# (async/chan)]
-     (p/branch (do-async ~@body)
+     (promise/branch (do-async ~@body)
        #(async/put! c# %)
        #(async/put! c# %))
      c#))

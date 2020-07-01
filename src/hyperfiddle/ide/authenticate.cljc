@@ -27,7 +27,7 @@
     #?(:clj  (let [auth (AuthAPI. (:domain auth0) (:client-id auth0) (:client-secret auth0))
                    req (.exchangeCode auth oauth-authorization-code redirect-uri)]
                ; todo async api?
-               (p/do* (-> req (.execute) (.getIdToken))))
+               (p/do! (-> req (.execute) (.getIdToken))))
        ; Node server target untested
        :cljs (let [baseSite ""
                    authorizationUrl (str (:domain auth0) "/authorize")
@@ -48,7 +48,7 @@
          id-token (let [verify (jwt/build-verifier
                                  (-> config :auth0 :client-secret)
                                  (-> config :auth0 :domain))]
-                    (p/do* (verify encoded-id-token)))
+                    (p/do! (verify encoded-id-token)))
          basis (io/sync io #{"$users"})
          user-record (->> (map->EntityRequest {:e [:user/sub (:sub id-token)]
                                                :db (->DbRef "$users" hf/root-pid)

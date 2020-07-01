@@ -55,7 +55,7 @@
 
       (let [aux-io (reify io/IO
                      (hydrate-requests [io local-basis partitions requests]
-                       (p/do* (hydrate-requests/hydrate-requests domain local-basis requests partitions ?subject))))
+                       (p/do! (hydrate-requests/hydrate-requests domain local-basis requests partitions ?subject))))
             aux-rt (reify hf/HF-Runtime
                      (io [rt] aux-io)
                      (domain [rt] domain))

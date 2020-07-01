@@ -10,6 +10,7 @@
     [hyperfiddle.service.http :as http-service :refer [handle-route]]
     [hyperfiddle.service.jwt :as jwt]
     [promesa.core :as p]
+    [contrib.promise :as promise]
     [taoensso.timbre :as timbre]))
 
 
@@ -52,7 +53,7 @@
                                          (object/set req "domain" domain-provider)
                                          (next))
     (fn? domain-provider) (fn [req res next]
-                            (p/branch
+                            (promise/branch
                               (domain-provider (.-hostname req))
                               (fn [domain]
                                 (object/set req "domain" domain)
