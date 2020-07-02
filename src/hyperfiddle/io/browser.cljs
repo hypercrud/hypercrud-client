@@ -51,7 +51,8 @@
                        (js/alert "We deployed some updates and your client is out of date, press OK and we will refresh your page")
                        (js/alert message)))
                    (handle-401 domain e)))))
-
+  ;; This is implemented as a deftype because defrecord brings a lot of extra
+  ;; protocols that don't make sense in this case, like assoc.
   IEquiv
   (-equiv [o other]
     (and (instance? IOImpl other) (= (.-domain o) (.-domain other))))

@@ -42,12 +42,16 @@
   (-> (impl/request! req jwt)
       (p/catch handle-error)))
 
-(defn global-basis! [domain ?service-uri & [jwt]]
+(defn global-basis!
+  "See `hyperfiddle.io.core/global-basis` method."
+  [domain ?service-uri & [jwt]]
   (-> {:method :get
        :url    (str ?service-uri (domain/api-path-for domain :global-basis))}
       (request! jwt)))
 
-(defn hydrate-requests! [domain ?service-uri local-basis partitions requests & [jwt]]
+(defn hydrate-requests!
+  "See `hyperfiddle.io.core/hydrate-requests` method."
+  [domain ?service-uri local-basis partitions requests & [jwt]]
   (let [form {:partitions partitions
               :request    requests}]
     (timbre/debugf "hydrate-requests! request count= %s basis= %s form= %s" (count requests) (pr-str local-basis) (str/prune (pr-str form) 100))
@@ -60,7 +64,9 @@
                   (assert (= (count requests) (count (:pulled-trees body))) "Server contract violation; mismatched counts")
                   body)))))
 
-(defn hydrate-route! [domain ?service-uri local-basis route pid partitions & [jwt]]
+(defn hydrate-route!
+  "See `hyperfiddle.io.core/hydrate-route` method."
+  [domain ?service-uri local-basis route pid partitions & [jwt]]
   {:pre [domain local-basis route]}
   (-> {:method :post
        :url    (str ?service-uri
@@ -74,7 +80,9 @@
        :params partitions}
       (request! jwt)))
 
-(defn local-basis! [domain ?service-uri global-basis route & [jwt]]
+(defn local-basis!
+  "See `hyperfiddle.io.core/local-basis` method."
+  [domain ?service-uri global-basis route & [jwt]]
   (-> {:method :get
        :url    (str ?service-uri
                     (domain/api-path-for domain :local-basis
@@ -85,13 +93,17 @@
                                          ))}
       (request! jwt)))
 
-(defn sync! [domain ?service-uri dbnames & [jwt]]
+(defn sync!
+  "See `hyperfiddle.io.core/sync` method."
+  [domain ?service-uri dbnames & [jwt]]
   (-> {:method :post
        :url    (str ?service-uri (domain/api-path-for domain :sync))
        :params dbnames}
       (request! jwt)))
 
-(defn transact! [domain ?service-uri tx-groups & [jwt]]
+(defn transact!
+  "See `hyperfiddle.io.core/transact!` method."
+  [domain ?service-uri tx-groups & [jwt]]
   (-> {:method :post
        :url    (str ?service-uri (domain/api-path-for domain :transact))
        :params tx-groups}

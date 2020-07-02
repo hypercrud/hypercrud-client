@@ -10,12 +10,30 @@
 
 
 (defprotocol IO
-  (global-basis [io])
-  (hydrate-requests [io local-basis partitions requests])
-  (hydrate-route [io local-basis route pid partitions])
-  (local-basis [io global-basis route])
-  (sync [io dbnames])
-  (transact! [io tx-groups]))
+  (global-basis [io] "Datomic time basis for a domain (N databases combined).
+  Used to guarantee consistency and also for cache-control.")
+
+  (hydrate-requests [io local-basis partitions requests] "A hyperfiddle-route
+  resolves into N datomic queries (due to iframes, a system schema query). This
+  does the datomic io.
+  NOTE: that in the reactive-over-network future, hydrate-request is probably
+  the join point of a reaction.")
+
+  (hydrate-route [io local-basis route pid partitions] "Do the queries for a
+  hyperfiddle route, respecting iframes")
+
+  (local-basis [io global-basis route] "Datomic time basis for databases visible
+  on a single route (e.g. if the page you are looking at does not query the user
+  database, we would exclude that basis for tighter caching). An ideal
+  local-basis could be computed with advance knowledge of the queries actually
+  on the page we could exclude novel datoms that do not impact the visible
+  queries. That is is difficult to compute without incremental view maintenance,
+  so local-basis has some sort of simple stub for now.")
+
+  (sync [io dbnames] "Get the datomic time-basis for a set of databases.")
+
+  (transact! [io tx-groups] "d/transact for a domain, there are N databases on
+  the domain that can be transacted to so the tx is group-by database."))
 
 (defn hydrate-one! [io local-basis partitions request]
   (-> (hydrate-requests io local-basis partitions [request])
