@@ -150,7 +150,7 @@
   ;; embedded newline lets this pass the cursive clojure formatter
   (let [{:keys [:hypercrud.browser/fiddle]} ctx]
     #?(:cljs [:div.container-fluid props
-              [hyperfiddle.ui/markdown (:fiddle/markdown @fiddle) ctx]
+              [:h1 (-> @fiddle :fiddle/ident str)]
               [hyperfiddle.ui/result val ctx props]])))
 
 (def fiddle-defaults
