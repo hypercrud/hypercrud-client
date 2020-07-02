@@ -252,7 +252,7 @@
      (if (schema/many? schema a)
        (if (contains? (get-in ideal [:+ a]) v)
          (update-in ideal [:+ a] -disj v)
-         (update-in ideal [:- a] conj a))
+         (update-in ideal [:- a] conj v))
        (if (= v (get-in ideal [:+ a]))
          (-> ideal
              (update-existing :+ dissoc a))
@@ -310,7 +310,13 @@
        []
        (concat
         (map (fn [[a v]] [:db/add e a v])       adds)
-        (map (fn [[a v]] [:db/retract e a v])   retracts)
+        (->> retracts
+             (mapcat
+               (fn [[a v]]
+                 (if (schema/many? schema a)
+                   (map (fn [v] [a v]) v)
+                   [[a v]])))
+             (map (fn [[a v]] [:db/retract e a v])))
         (map (fn [[a [o n]]] [:db/cas e a o n]) cas)
         mutations)))))
 

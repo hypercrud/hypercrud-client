@@ -113,7 +113,8 @@
                                           #{:find-rel :find-tuple} (get (hf/row-key ctx val) option-element))))
                       :option-label (fn [val]
                                       (let [option-label (:option-label props pr-str)]
-                                        (option-label val)))}
+                                        (option-label val)))
+                      :multiple (context/attr? anchor-ctx :db.cardinality/many)}
         ; The pulled v is always the select value, options must align
         ; There is always an attribute here because all widgets are attribute-centric
         value (hf/v anchor-ctx)]
@@ -189,14 +190,24 @@
                         :onChange    (fn [jrecord]
                                        ;; foreign lib state is js array, single select is lifted into List like multi-select
                                        ;; unselected is []
-                                       (let [[?record] (array-seq jrecord)
-                                             ?n        (hf/id options-ctx ?record)]
+                                       (let [?n (vec (array-seq jrecord))
+                                             ?n (if (and (:allow-new select-props)
+                                                         (object? (last ?n))
+                                                         (.-customOption (last ?n)))
+                                                  (conj (pop ?n) (.-label (last ?n)))
+                                                  ?n)]
                                          ((:on-change select-props) ?v ?n)))
                         ;; V might not be in options - widget accounts for this by taking a selected record rather than identity
                         ;; V might have different keys than options - as long as :option-label works, it doesn't matter
-                        :selected    (if ?v #js [?v] #js [])
+                        :selected    (if (:multiple select-props)
+                                       (object-array ?v)
+                                       #js [?v])
 
-                        :highlightOnlyResult true ; this helps avoid
+                        :multiple (:multiple select-props)
+
+                        :allowNew (:allow-new select-props)
+
+                        :highlightOnlyResult (not (:allow-new select-props)) ; does not work with allowNew enabled, avoiding a warning
 
                         ;; Rendering strategy that works in tables
                         ;; http://hyperfiddle.hyperfiddle.site/:hyperfiddle.ide!edit/(:fiddle!ident,:hyperfiddle!ide)
@@ -205,7 +216,7 @@
                         :disabled      disabled}]]))))
 
 (defn- adapt-options [select-props options]
-  (to-array (sort-by (:option-label select-props) options)))
+  (to-array options))
 
 (defn- typeahead-error [{rt :runtime pid :partition-id :as ctx} e select-props common-props]
   ; even if browsing fails, the user needs a chance to alter their search, so just add an ugly error message
