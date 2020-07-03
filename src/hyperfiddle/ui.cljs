@@ -523,6 +523,7 @@ User renderers should not be exposed to the reaction."
 (defn ^:export result "Default result renderer. Invoked as fn, returns seq-hiccup, hiccup or
 nil. call site must wrap with a Reagent component"          ; is this just hyper-control ?
   [val ctx & [props]]
+  {:pre [(not= val clojure.core/val)]}                      ; check for busted call while we migrate away from this param
   [:<>
    (doall
      (for [[k ctx] (hypercrud.browser.context/spread-result ctx)]
