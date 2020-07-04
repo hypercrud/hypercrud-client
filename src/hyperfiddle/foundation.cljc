@@ -136,7 +136,7 @@
 
 
 (hf-def/fiddle :hyperfiddle/account
-  :query
+  :query                                                    ; to port to :eval, need a nicer Datomic facade
   '[:in $users
     :find
     (pull $users ?user
@@ -151,19 +151,17 @@
     .
     :where
     [(ground hyperfiddle.api/*subject*) ?user-id]
-    [$users ?user :user/user-id ?user-id]]
-
-  :renderer (hyperfiddle.foundation/Account val ctx props))
+    [$users ?user :user/user-id ?user-id]])
 
 (defmethod hf/render #{:user/user-id
-                       :hyperfiddle.blocks/account}
+                       :hyperfiddle/account}
   [ctx props]
   #?(:cljs
      [:div.hyperfiddle-input-group
       [:div.input (pr-str (hf/data ctx))]]))
 
-#?(:cljs
-   (defn Account [_ ctx props]
+(defmethod hf/render-fiddle :hyperfiddle/account [val ctx props]
+  #?(:cljs
      (let [user @(:hypercrud.browser/result ctx)]
        [:div.container-fluid props
         [:div.p
@@ -187,11 +185,13 @@
         [:div.p [:div {:style {:margin-bottom "1em"}}]]
         [ui/field [:user/user-id] ctx]])))
 
-(hf-def/fiddle :hyperfiddle.ide/please-login
-  :renderer
-  (let [tunneled-route (first (:hyperfiddle.route/datomic-args @(:hypercrud.browser/route ctx)))
-        state (hyperfiddle.api/url-encode (hyperfiddle.api/domain (:runtime ctx)) tunneled-route)
-        href (hyperfiddle.foundation/stateless-login-url ctx state)]
-    [:div
-     [:br]
-     [:center [:h3 "Please " [:a {:href href} "login"]]]]))
+(hf-def/fiddle :hyperfiddle.ide/please-login)
+
+(defmethod hf/render-fiddle :hyperfiddle.ide/please-login [val ctx props]
+  #?(:cljs
+     (let [tunneled-route (first (:hyperfiddle.route/datomic-args @(:hypercrud.browser/route ctx)))
+           state (hyperfiddle.api/url-encode (hyperfiddle.api/domain (:runtime ctx)) tunneled-route)
+           href (hyperfiddle.foundation/stateless-login-url ctx state)]
+       [:div
+        [:br]
+        [:center [:h3 "Please " [:a {:href href} "login"]]]])))
