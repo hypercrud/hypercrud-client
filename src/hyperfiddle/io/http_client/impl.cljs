@@ -8,25 +8,11 @@
    [taoensso.timbre :as timbre])
   (:require-macros [cljs.core.async.macros :refer [go]]))
 
-(def ^:dynamic *content-type*
-  "Data representation format the HTTP client is going to talk to servers with."
-  :transit)
+(def ^:dynamic *content-type* :transit)                     ; for repl e.g. (set! *content-type* :edn)
 
 (def content-types {:edn     "application/edn"
                     :transit "application/transit+json"
                     :json    "application/json"})
-
-(defn set-content-type!
-  "Change the HTTP client content type. You can call this function manually at the
-  REPL or from a JS console. If you need to change the default value for
-  production, do not call this function at initialization time with a plain
-  value, but instead rely on config files (or simply change the default value of
-  `*content-type*`)."
-  [type]
-  {:pre [(#{"edn" "transit" "json" :edn :transit :json} type)]}
-  (set! *content-type* (if (keyword? type)
-                         type
-                         (keyword type))))
 
 (defn- add-auth-info
   "Add oAuth info to the request, if any. Expects a JWT string or nil, will set
