@@ -12,7 +12,7 @@
 
 (defonce compile-state-ref (env/default-compiler-env))
 
-(def booted ((p/promisify boot/init) compile-state-ref {:path "/static/_/boot"}))
+(def booted ((p/promisify boot/init) compile-state-ref {:path "/static/_/boot"})) ; Kickoff self-host asset loading
 
 ; These are like clj readers in resources/data-readers.cljc ??
 ; Should we just slurp those here?
@@ -30,5 +30,6 @@
                 *ns* (find-ns 'user) ; shadow cljs repl creates 'cljs.user, not available in prod
                 cljs.js/*eval-fn* cljs.js/js-eval
                 tags/*cljs-data-readers*]
+        (assert *ns*)
         (eval form)))))
 
