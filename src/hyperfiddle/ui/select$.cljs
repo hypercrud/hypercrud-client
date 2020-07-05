@@ -49,46 +49,8 @@
 ;    (some-> (hf/row-key ctx row) ident->label)
 ;    (clojure.string/join " " (vals row))))
 
-(defn wrap-change-for-select [hf-change!]
-  (fn [e]
-    (-> (some->> (.-target.value e)
-                 blank->nil
-                 contrib.reader/read-edn-string+
-                 ; todo why handle this exception? just throw and call it a day
-                 ; instead of terminating on error, user now transacts a retract
-                 (unwrap #(timbre/warn %)))
-        hf-change!)))
-
 (declare options-value-bridge+)
 (declare select-error-cmp)
-
-(defn select-html [_ ctx props]                             ; element, etc
-  (either/branch
-    (options-value-bridge+ (::value-ctx props) props)
-    (fn [err]
-      [select-error-cmp err])
-    (fn [[select-props option-props]]
-      ; hack in the selected value if we don't have options hydrated?
-      ; Can't, since we only have the #DbId hydrated, and it gets complicated with relaton vs entity etc
-      ; This is possible if the value matches the row-key (qfind) of options query
-      (let [is-no-options (empty? (hf/data ctx))
-            select-props (-> select-props
-                             (assoc :value (str (hf/v (::value-ctx props)))) ; serialize v to string for dom roundtrip
-                             (update :on-change wrap-change-for-select)
-                             (dissoc :disabled)             ; Use :read-only instead to allow click to expand options
-                             (update :read-only #(or % (:disabled select-props) is-no-options))
-                             (update :class #(str % (if (:disabled option-props) " disabled"))))]
-        [:select.ui (select-keys select-props [:value :class :style :on-change :read-only :on-click]) ;(dissoc props :option-label)
-         ; .ui is because options are an iframe and need the pink box
-         (conj
-           (->> (hf/data ctx)
-                (mapv (juxt #((:option-value select-props) % ctx) ; is lookup ref good yet?
-                            #((:option-label select-props) % ctx)))
-                (sort-by second)
-                (map (fn [[id label]]
-                       [:option (assoc option-props :key (str id) :value (str id)) label])))
-           [:option (assoc option-props :key :blank :value "") "--"])]))))
-
 
 (defn select-error-cmp [msg]
   [:span msg])
