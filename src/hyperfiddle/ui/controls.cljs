@@ -16,7 +16,6 @@
     [hyperfiddle.data]
     [hyperfiddle.runtime :as runtime]
     #_[hyperfiddle.ui]
-    [hyperfiddle.ui.select$ :refer [picklist]]
     [hyperfiddle.ui.util :refer [entity-change->tx ]]
     [taoensso.timbre :as timbre]))
 
@@ -157,16 +156,11 @@
            doall)])))
 
 (defn ^:export ref [val ctx & [props]]
-  (cond
-    (:options props)
-    [picklist ctx props]
-
-    :else
-    [:div.hyperfiddle-input-group
-     (entity-links val ctx
-                   (hf-new val ctx)                         ; new child
-                   (hf-remove val ctx)
-                   (hf-iframe nil ctx))]))
+  [:div.hyperfiddle-input-group
+   (entity-links val ctx
+     (hf-new val ctx)                         ; new child
+     (hf-remove val ctx)
+     (hf-iframe nil ctx))])
 
 (declare edn)
 
