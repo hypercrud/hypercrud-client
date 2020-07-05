@@ -82,7 +82,7 @@
 (defn ^:export effect-cmp [ctx link-ref props label]
   (let [link-ctx (try
                    (let [ctx (from-result (context/refocus-to-link+ ctx link-ref))
-                         args (from-result (context/build-args+ ctx @link-ref))] ; not sure what args would be in this case
+                         args (context/build-args ctx @link-ref)] ; not sure what args would be in this case
                      (context/occlude-eav ctx args))        ; guessing we are occluding v to nil?
                    (catch js/Error e nil))                  ; wtf how does anything work
         props (-> props

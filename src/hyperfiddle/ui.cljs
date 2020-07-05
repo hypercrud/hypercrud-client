@@ -63,8 +63,6 @@
 (defn render-ref [ctx props]
   (let [children (context/children ctx)]
     (cond
-      (:options props) [hyperfiddle.ui.select$/select nil ctx props] ; legacy, use attr renderers for this
-
       (and (seq children)
            (= 1 (count children))
            (every? (partial context/identity? ctx) children))

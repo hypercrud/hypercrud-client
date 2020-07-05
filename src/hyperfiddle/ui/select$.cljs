@@ -279,7 +279,7 @@
      "filterBy" (constantly true)                           ; no client side filtering
      "onSearch" (fn [s]
                   (try
-                    (let [args (from-result (context/build-args+ parent-ctx @(:hypercrud.browser/link parent-ctx)))
+                    (let [args (context/build-args parent-ctx @(:hypercrud.browser/link parent-ctx))
                           route (from-result (context/build-route+ args parent-ctx))]
                       (hf/set-route rt options-pid (assoc route (::hf/needle-key select-props) s)))
                     (catch js/Error e
@@ -302,46 +302,16 @@
      #_#_"searchText" "Searching..."
      "useCache" false}]])
 
-(defn ^:export select-needle
-  ([_ ctx props] (select-needle ctx props))
-  ([ctx props]
-   (assert (:options props) "select: :options prop is required")
-   ; any error in this mlet is fatal, don't bother rendering the typeahead
-   (-> (mlet [link-ref (data/select+ ctx (keyword (:options props)))
-              link-ctx (context/refocus-to-link+ ctx link-ref)]
-         (either/branch
-           (context/build-route-and-occlude+ link-ctx link-ref)
-           (fn [e]
-             ; if this failed we don't care, either not an iframe or the route is likely incomplete, just show no initial options
-             ; we do need to create a placeholder partition though, (because the backend would not have due to errors)
-             (let [options-pid (context/build-pid-from-link ctx link-ctx nil)]
-               ; hopefully we are in a unique enough parent-ctx slot, otherwise pid clashes may happen (no occlusion or route)
-               (runtime/create-partition (:runtime ctx) (:partition-id ctx) options-pid)
-               (mlet [[select-props options-props] (options-value-bridge+ ctx props)]
-                 (return [select-needle-typeahead link-ctx options-pid (hf/data ctx) select-props options-props]))))
-           (fn [[occluded-ctx initial-route]]
-             (let [options-pid (context/build-pid-from-link ctx link-ctx initial-route)]
-               (cond
-                 ; hybrid, use the existing iframe to render initial options, but use the needle to filter on server
-                 (::hf/needle-key props)
-                 (mlet [[select-props options-props] (options-value-bridge+ ctx props)]
-                   (return [select-needle-typeahead occluded-ctx options-pid (hf/data ctx) select-props options-props]))
-
-                 ; iframe (data is local), complete-route, and no needle
-                 ; just use client side filtering on the intial options
-                 :else (->> (context/set-partition occluded-ctx options-pid)
-                            (base/browse-partition+)
-                            (cats/fmap (fn [options-ctx] [typeahead-html nil options-ctx (assoc props ::value-ctx ctx)]))))))))
-
-       (either/branch
-         (fn [e] [(ui-error/error-comp ctx) e])
-         identity))))
-
-(defn ^:export typeahead [ctx props]
-  [select-needle ctx props])
-
-(def picklist typeahead)                                    ; better name
-
-(defn ^:export select
-  ([ctx props] [select-needle ctx props])
-  ([_ ctx props] (select ctx props)))
+(defn ^:export picklist "typeahead picker integrated with hyperfiddle IO, single- and multi-select"
+  [ctx props]
+  (assert (:options props) "select: :options prop is required")
+  (assert (::hf/needle-key props))
+  (try
+    (let [link-ref (from-result (data/select+ ctx (:options props)))
+          link-ctx (from-result (context/refocus-to-link+ ctx link-ref))
+          [occluded-ctx initial-route] (from-result (context/build-route-and-occlude+ link-ctx link-ref)) ; ":link/fiddle required"
+          options-pid (context/build-pid-from-link ctx link-ctx initial-route)
+          [select-props options-props] (from-result (options-value-bridge+ ctx props))] ; "no attribute in scope"
+      [select-needle-typeahead occluded-ctx options-pid (hf/data ctx) select-props options-props])
+    (catch js/Error e
+      [(ui-error/error-comp ctx) e])))

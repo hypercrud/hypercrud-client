@@ -16,7 +16,7 @@
     [hyperfiddle.data]
     [hyperfiddle.runtime :as runtime]
     #_[hyperfiddle.ui]
-    [hyperfiddle.ui.select$ :refer [select]]
+    [hyperfiddle.ui.select$ :refer [picklist]]
     [hyperfiddle.ui.util :refer [entity-change->tx ]]
     [taoensso.timbre :as timbre]))
 
@@ -159,7 +159,7 @@
 (defn ^:export ref [val ctx & [props]]
   (cond
     (:options props)
-    [select val ctx props]
+    [picklist ctx props]
 
     :else
     [:div.hyperfiddle-input-group

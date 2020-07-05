@@ -4,6 +4,7 @@
     [cats.monad.either :as either :refer [left right either?]]
     [clojure.core.match :refer [match #?(:cljs match*)]]
     [clojure.spec.alpha :as s]
+    [contrib.do :refer [do-result from-result]]
     [contrib.ct :refer [unwrap]]
     [contrib.data :refer [ancestry-common ancestry-divergence unqualify keywordize]]
     [contrib.datomic]
@@ -1043,10 +1044,9 @@ a speculative db/id."
       :scalar
       v)))
 
-(defn build-args+ "Params are EAV-typed (uncolored)"
+(defn build-args "Params are EAV-typed (uncolored)"
   ;; There is a ctx per argument if we are element-level tuple.
   [ctx link]
-  {:post [(s/assert either? %)]}
   ;; if at element level, zip with the find-elements, so do this N times. That
   ;; assumes the target query is a query of one arg. If it takes N args, we can
   ;; apply as tuple. If they misalign thats an error. Return the tuple of args.
@@ -1057,9 +1057,8 @@ a speculative db/id."
         arg        (hf/formula ctx link v)]
     ;; Don't normalize, must handle tuple dimension properly. For now assume no
     ;; tuple.
-    (either/right
-     ;; !link[⬅︎ Slack Storm](:dustingetz.storm/view)
-     (if arg [arg]))))
+    ;; !link[⬅︎ Slack Storm](:dustingetz.storm/view)
+    (if arg [arg])))
 
 (defn ^:export build-route+ "There may not be a route! Fiddle is sometimes optional" ; build-route+
   [args ctx]
@@ -1072,8 +1071,8 @@ a speculative db/id."
          ; Why must we reverse into tempids? For the URL, of course.
          :let [colored-args (mapv (partial tag-v-with-color ctx) args) ; this ctx is refocused to some eav
                route (cond-> {::route/fiddle fiddle-id}
-                       (seq colored-args) (assoc ::route/datomic-args colored-args))]
-         route (try-either (route/invert-route route (partial runtime/id->tempid! (:runtime ctx) (:partition-id ctx))))
+                       (seq colored-args) (assoc ::route/datomic-args colored-args))
+               route (route/invert-route route (partial runtime/id->tempid! (:runtime ctx) (:partition-id ctx)))]
          ; why would this function ever construct an invalid route? this check seems unnecessary
          route (hyperfiddle.route/validate-route+ route)]
     (return route)))
@@ -1094,11 +1093,12 @@ a speculative db/id."
                                                 (r/track identity v')]))))
 
 (defn build-route-and-occlude+ [ctx link-ref]
-  (mlet [args (build-args+ ctx @link-ref)
-         ; :hf/remove doesn't have route by default, :hf/new does, both can be customized
-         route (build-route+ args ctx)
-         :let [ctx (occlude-eav ctx args)]]
-    (return [ctx route])))
+  (do-result
+    (let [args (build-args ctx @link-ref)
+          ; :hf/remove doesn't have route by default, :hf/new does, both can be customized
+          route (from-result (build-route+ args ctx))
+          ctx (occlude-eav ctx args)]
+      [ctx route])))
 
 (defn refocus-build-route-and-occlude+ "focus a link ctx, accounting for link/formula which occludes the natural eav"
   [ctx link-ref]
