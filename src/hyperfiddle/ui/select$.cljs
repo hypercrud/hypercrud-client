@@ -180,7 +180,7 @@
 (defn- adapt-options [select-props options]
   (to-array options))
 
-(defn- typeahead-error [{rt :runtime pid :partition-id :as ctx} e select-props common-props]
+(defn- typeahead-error [{rt :runtime pid :partition-id :as ctx} e ?v select-props common-props]
   ; even if browsing fails, the user needs a chance to alter their search, so just add an ugly error message
   [:<>
    [select-error-cmp (or (ex-message e) (str e))]           ; should use error-comp, wrong ctx in scope though
@@ -198,7 +198,7 @@
                        (runtime/set-error rt pid (ex-info "Record selected when no records hydrated"
                                                           {:record (pr-str ?record)}))))))]])
 
-(defn- typeahead-success [ctx select-props common-props]
+(defn- typeahead-success [ctx ?v select-props common-props]
   #_(js/console.log "typeahead-success " (hf/data ctx))
   [:<>
    [truncated-options @(r/fmap count (:hypercrud.browser/result ctx))]
@@ -219,21 +219,27 @@
                        #{:find-rel :find-tuple} (mapv #(get % (:option-element select-props 0))
                                                       (hf/data ctx)))
                      (adapt-options select-props))
-      "onChange" (fn [jrecord]
-                   ; foreign lib state is js array, single select is lifted into List like multi-select
-                   ; unselected is []
-                   (let [[?record] (array-seq jrecord)
+      "onChange" (fn [jxs] ; foreign lib state is js array of selections (single select is lifted into multi)
+                   (let [xs (vec (array-seq jxs))           ; current selection state
+                         is-new (and (object? (last xs)) (.-customOption (last xs)))
+                         xs (if (and is-new (:allow-new select-props))
+                              (conj (pop xs) (.-label (last xs))) ; appears broken
+                              xs)]      ; appears broken
+                     ; we want to send up the hf-ident?
+                     ((:on-change select-props) ?v xs))     ; sending records but need to send ident?
+                   #_
+                   (let [[?record] (array-seq jxs)
                          element-ctx (hf/browse-element ctx (:option-element select-props 0))
                          ?id (hf/id element-ctx ?record)]
                      ((:on-change select-props) ?id))))]])
 
-(defn- select-needle-typeahead [{rt :runtime :as parent-ctx} options-pid value
+(defn- select-needle-typeahead [{rt :runtime :as parent-ctx} options-pid ?v
                                 ; todo these props need cleaned up, shouldn't be adapting them over and over again
                                 select-props options-props]
-  #_(js/console.log "select-needle-typeahead " (hf/data parent-ctx))
+  #_(js/console.log `select-needle-typeahead 'options (hf/data parent-ctx)) ; this is the sub
   [:div {:key options-pid}
    [iframe/stale-browse (context/set-partition parent-ctx options-pid)
-    typeahead-error typeahead-success select-props
+    typeahead-error typeahead-success ?v select-props
     {
      #_#_"delay" 200
      "isLoading" (runtime/loading? rt options-pid)
@@ -251,9 +257,12 @@
      "placeholder" (:placeholder select-props)
      ; V might not be in options - widget accounts for this by taking a selected record rather than identity
      ; V might have different keys than options - as long as :option-label works, it doesn't matter
-     "selected" (if value #js [value] #js [])               ; because of multi-select
-
-     "highlightOnlyResult" true                             ; this helps avoid
+     :selected (if (:multiple select-props)
+                 (object-array ?v)
+                 (if ?v #js [?v] #js []))                 ; adapt to multi-select
+     :multiple (:multiple select-props)
+     :allowNew (:allow-new select-props)
+     :highlightOnlyResult (not (:allow-new select-props)) ; does not work with allowNew enabled, avoiding a warning
 
      ; Rendering strategy that works in tables
      ; http://hyperfiddle.hyperfiddle.site/:hyperfiddle.ide!edit/(:fiddle!ident,:hyperfiddle!ide)
@@ -267,6 +276,7 @@
 (defn ^:export picklist "typeahead picker integrated with hyperfiddle IO, single- and multi-select"
   [ctx props]
   (assert (:options props) "select: :options prop is required")
+  (assert (::hf/view-change! ctx))                        ; good: (f e a adds rets) (f ctx selection) bad: (f ctx os ns)
   (assert (::hf/needle-key props))
   (try
     (let [link-ref (from-result (data/select+ ctx (:options props)))
@@ -274,6 +284,7 @@
           [occluded-ctx initial-route] (from-result (context/build-route-and-occlude+ link-ctx link-ref)) ; ":link/fiddle required"
           options-pid (context/build-pid-from-link ctx link-ctx initial-route)
           [select-props options-props] (from-result (options-value-bridge+ ctx props))] ; "no attribute in scope"
+      #_(js/console.log `picklist 'data (hf/data ctx) 'link-data (hf/data occluded-ctx))
       [select-needle-typeahead occluded-ctx options-pid (hf/data ctx) select-props options-props])
     (catch js/Error e
       [(ui-error/error-comp ctx) e])))

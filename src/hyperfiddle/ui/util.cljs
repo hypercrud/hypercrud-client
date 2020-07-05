@@ -18,8 +18,13 @@
   (cond-> [] (some? o) (conj [:db/retract e a o])
              (some? n) (conj [:db/add e a n])))
 
+(defn ^:export picker-tx [e a rets adds]                    ; used directly in Rosie, don't change
+  (vec (concat
+         (map (fn [v] [:db/retract e a v]) rets)
+         (map (fn [v] [:db/add e a v]) adds))))
+
 (defn entity-change->tx
-  [ctx o n]
+  [ctx o n]                                                 ; idea - (f e a rets adds)
   (let [[e a v] @(:hypercrud.browser/eav ctx)
         attribute (context/hydrate-attribute! ctx a)
         component? (context/attr? (:hypercrud.browser/parent ctx) :db/isComponent)
@@ -44,8 +49,9 @@
       :db.cardinality/many
       (let [o (set o)
             n (set n)]
-        (vec (concat (map (fn [v] [:db/retract e a v]) (set/difference o n))
-                     (map (fn [v] [:db/add e a v]) (set/difference n o))))))))
+        (picker-tx e a
+          (set/difference o n)
+          (set/difference n o))))))
 
 (defn ^:deprecated with-tx!
   ([ctx tx]
@@ -58,6 +64,7 @@
 (defn with-entity-change! [ctx] #_[tx]
   #_(js/console.log `with-entity-change! ctx)
   (r/comp (r/partial runtime/with-tx (:runtime ctx) (:partition-id ctx) (context/dbname ctx)) ; [ctx vorvs]
+          (r/partial identity)                              ; translate ui tx to database tx
           (r/partial entity-change->tx ctx)))               ; [tx]
 
 (defn with-entity-change-route!
@@ -66,4 +73,5 @@
    (r/partial with-entity-change-route! ctx)
    #_(fn [vorvs] (with-entity-change-route! ctx vorvs)))
   ([ctx vorvs]
+   ; Note we are ignoring EAV in ctx, unlike the tx version
    (hf/swap-route! ctx assoc-in (:hypercrud.browser/result-path ctx) vorvs)))
