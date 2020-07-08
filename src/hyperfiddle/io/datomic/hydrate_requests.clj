@@ -3,6 +3,7 @@
     [cats.core :as cats :refer [mlet]]
     [cats.monad.either :as either]
     [cats.monad.exception :as exception :refer [try-on]]
+    [clojure.edn :as edn]
     [clojure.set :as set]
     [clojure.string :as string]
     [contrib.data :refer [cond-let map-values parse-query-element]]
@@ -18,6 +19,7 @@
     [hyperfiddle.security]
     [taoensso.timbre :as timbre]
     [hyperfiddle.def :as hf-def]
+    [hyperfiddle.spec :as spec]
     [contrib.datomic-tx :refer [expand-hf-tx]])
   (:import
     (hypercrud.types.DbRef DbRef)
@@ -61,12 +63,42 @@
     (q arg-map)))
 
 
+(defn- min-arity
+  "0 if a function doesn't have args, otherwise the smallest amount of args it
+  accepts"
+  [avar]
+  (->> avar meta :arglists (sort-by count) first count))
+
+
+(defn- parse-fiddle-eval [form]
+  (let [parsed (edn/read-string form)]
+    (if (seqable? parsed)
+      parsed
+      (list parsed))))
+
+(defn- eval-fiddle! [form route]
+  (let [[fn-sym & args] (parse-fiddle-eval form)]
+    (if (and (qualified-symbol? fn-sym)
+             (empty? args))
+      ;; :eval is a function symbol
+      (let [fvar  (find-var fn-sym)
+            fspec (spec/parse fn-sym)
+            f     (eval fn-sym)]
+        (cond
+          fspec                    (case (-> fspec :args :type)
+                                     (spec/apply-map f fspec route)
+                                     ;; TODO (spec/apply-cat f fspec route)
+                                     )
+          (zero? (min-arity fvar)) (f)
+          :else                    (throw (ex-info "This fiddle's eval function expect some arguments, please provide a spec for them." {:var fvar}))))
+      ;; :eval is a legacy form, load it the old way
+      (load-string form))))
 
 (defmethod hydrate-request* EvalRequest [{:keys [form pid route]} domain get-secure-db-with]
   {:pre [form]}
   (binding [hf/*route* route
-            hf/*$* (:db (get-secure-db-with "$" pid))]
-    (load-string form)))
+            hf/*$*     (:db (get-secure-db-with "$" pid))]
+    (eval-fiddle! form route)))
 
 ; todo i18n
 (def ERROR-BRANCH-PAST ":hyperfiddle.error/basis-stale Branching the past is currently unsupported, please refresh your basis by refreshing the page")

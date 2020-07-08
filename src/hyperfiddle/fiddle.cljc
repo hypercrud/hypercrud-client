@@ -159,7 +159,6 @@
    :fiddle/pull (constantly "[:db/id\n *]")
    :fiddle/pull-database (constantly "$")
    :fiddle/query (constantly "" #_(load-resource "fiddle-query-default.edn"))
-   :fiddle/eval (constantly "(->> \n  (datomic.api/q\n   '[:in $ \n     :find [(pull ?e [:db/ident]) ...]     ; Final value must match FindColl pattern as here\n     :where [?e :db/ident]]\n   hyperfiddle.api/*$*)\n  (sort-by :db/ident)\n  (take 20))\n")
    :fiddle/type (constantly :blank)})                       ; Toggling default to :query degrades perf in ide
 
 (defn- composite-link?
@@ -213,8 +212,7 @@
                   (update :fiddle/pull-database or-str ((:fiddle/pull-database fiddle-defaults) fiddle))
                   (cond->
                     (empty? (:fiddle/pull fiddle)) (assoc :fiddle/pull ((:fiddle/pull fiddle-defaults) fiddle))))
-      :eval (update fiddle :fiddle/eval or-str ((:fiddle/eval fiddle-defaults) fiddle))
-      :blank fiddle)
+      (:eval :blank) fiddle)
     (update fiddle :fiddle/markdown or-str ((:fiddle/markdown fiddle-defaults) fiddle))))
 
 (defn apply-fiddle-links-defaults+ "Link defaults require a parsed qfind, so has to be done separately later."

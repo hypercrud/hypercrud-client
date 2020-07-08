@@ -40,11 +40,18 @@
      :children [(parse name)]}))
 
 (defmethod parse-spec `s/keys [[_ & {:keys [req req-un opt opt-un] :as args}]]
-  (let [keys (set (concat req req-un opt opt-un))]
+  (let [keys (distinct (concat req req-un opt opt-un))]
     {:type     :keys
-     :keys     keys
+     :keys     (set keys)
      :args     args
      :children (mapv parse keys)}))
+
+(defmethod parse-spec `s/cat [[_ & kvs]]
+  (let [names (partition 2 kvs)]
+    {:type     :cat
+     :names    (map first names)
+     :args     kvs
+     :children (map (comp parse last) names)}))
 
 (defmethod parse-spec :default [form]
   {:type      :predicate

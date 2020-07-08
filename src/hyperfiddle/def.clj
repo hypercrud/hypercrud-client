@@ -217,7 +217,7 @@
        :fiddle/eval
        {:fiddle/type :eval
         :fiddle/eval (-> v one map-expr)
-        :fiddle/spec (when-let [spec (s/get-spec (ffirst v))]
+        :fiddle/spec (when-let [spec (s/get-spec (first v))]
                        (-> (hf-spec/parse spec)
                            (hf-spec/fiddle-spec)))}
 
