@@ -6,6 +6,7 @@
     [cats.monad.either :as either :refer [right]]
 
     [clojure.spec.alpha :as s]
+    [clojure.string :as str]
     [taoensso.timbre :as timbre]
     [hypercrud.types.ThinEntity :refer [thinentity?]]))     ; Exceptional hf require, the deftype should lift up to here or be removed
 
@@ -239,3 +240,8 @@
 
 (def root-pid "root")
 (def browser-query-limit 50)
+
+(defn needle-match [v needle]
+  (str/includes?
+   (.toLowerCase (or v ""))
+   (.toLowerCase (or needle ""))))

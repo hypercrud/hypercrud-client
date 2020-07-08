@@ -50,3 +50,15 @@
      {:args       args
       :ret        ret
       :attributes (index ret)})))
+
+(defn spec
+  "Get fiddle spec in context, if any"
+  [ctx]
+  (:fiddle/spec @(:hypercrud.browser/fiddle ctx)))
+
+(defn arg?
+  "State if `attribute` belongs to `spec` :args"
+  [spec attr]
+  (when-let [args (:keys (:args spec))]
+    (contains? args attr)))
+

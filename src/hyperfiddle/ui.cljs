@@ -24,6 +24,7 @@
     [hyperfiddle.domain :as domain]
     [hyperfiddle.route :as route]
     [hyperfiddle.runtime :as runtime]
+    [hyperfiddle.spec :as spec]
     [hyperfiddle.ui.controls :as controls :refer [identity-label ref-label element-label]]
     [hyperfiddle.ui.error :as ui-error]
     [hyperfiddle.ui.iframe :as iframe]
@@ -31,6 +32,7 @@
     [hyperfiddle.ui.select$]
     [hyperfiddle.ui.sort :as sort]
     [hyperfiddle.ui.stale :as stale]
+    [hyperfiddle.ui.util :as ui-utils]
     [spec-coerce.alpha]))
 
 (declare result)
@@ -177,16 +179,38 @@
     (boolean (hf/e ctx))                                    ; you have some sort of entity identity (db/id, lookup ref, etc)
     ))
 
+(defn- redirect-to-route?
+  "State if changes to the currently focused attr should go to the route"
+  [ctx]
+  (let [spec (spec/spec ctx)
+        attr (hf/a ctx)]
+    (spec/arg? spec attr)))
+
+(defn- disabled?
+  "To be used with `clojure.core/update`."
+  [disabled? ctx]
+  (cond
+    disabled?                true ; specified by user
+    (redirect-to-route? ctx) false
+    :else                    (or (not @(r/track writable-entity? ctx)) ; either the entity is readonly due to the fiddle query
+                                 (not @(r/track hf/subject-may-edit-entity? (:hypercrud.browser/parent ctx)))
+                                 (not @(r/track hf/subject-may-edit-attr? ctx)) ; or you failed security
+                                 )))
+
 (defn- value-props [props ctx]
   (let [r-validation-hints (r/track context/validation-hints-here ctx)]
     (as-> props props
-          (update props :disabled #(or %
-                                     (not @(r/track writable-entity? ctx)) ; either the entity is readonly due to the fiddle query
-                                     (not @(r/track hf/subject-may-edit-entity? (:hypercrud.browser/parent ctx)))
-                                     (not @(r/track hf/subject-may-edit-attr? ctx)))) ; or you failed security
+          (update props :disabled disabled? ctx)
           (assoc props ::hf/invalid-messages r-validation-hints) ; why would this be null
           (assoc props ::hf/is-invalid (boolean (seq @r-validation-hints)))
           (update props :class css (if (:disabled props) "disabled")))))
+
+(defn- maybe-redirect-to-route
+  "Redirect view changes to route if applicable."
+  [ctx]
+  (if (redirect-to-route? ctx)
+    (assoc ctx ::hf/view-change! ui-utils/with-entity-change-route!)
+    ctx))
 
 (defn ^:export value "Relation level value renderer. Works in forms and lists but not tables (which need head/body structure).
 User renderers should not be exposed to the reaction."
@@ -319,8 +343,9 @@ User renderers should not be exposed to the reaction."
 (defn form-field "Form fields are label AND value. Table fields are label OR value.
   EAV is already set."
   [ctx Body Head props]
-  (let []
+  (let [ctx (maybe-redirect-to-route ctx)]
     [:div {:class (css "field" (:class props))
+           ;; TODO make fields writing to the route colorless, they don't depend on any DB.
            :style {:border-color (domain/database-color (hf/domain (:runtime ctx)) (context/dbname ctx))}}
      [Head ctx props]                                   ; suppress ?v in head even if defined
      [Body ctx (value-props props ctx)]]))

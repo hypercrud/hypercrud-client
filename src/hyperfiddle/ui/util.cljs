@@ -74,4 +74,6 @@
    #_(fn [vorvs] (with-entity-change-route! ctx vorvs)))
   ([ctx vorvs]
    ; Note we are ignoring EAV in ctx, unlike the tx version
-   (hf/swap-route! ctx assoc-in (:hypercrud.browser/result-path ctx) vorvs)))
+   (hf/swap-route! ctx assoc-in (:hypercrud.browser/result-path ctx) vorvs))
+  ([ctx _old new]
+   (with-entity-change-route! ctx new)))

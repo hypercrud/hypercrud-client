@@ -201,6 +201,10 @@ a speculative db/id."
 (def ^:export ^:legacy row-keyfn row-key)
 (def ^:export ^:legacy key-row row-key)
 
+
+;; stable- prefixed functions exist to provide stable references, closures
+;; doesn't and would cause re-renders
+
 (defn stable-eav-v [[?e a _] ?v']
   {:pre [#_a
          #_?v'                                              ; Never know with ?v, did they pull identity?
