@@ -31,7 +31,7 @@
 (def form (comp second serializer/serialize))
 
 (defn leaf? [node]
-  (not-empty (:children node)))
+  (empty? (:children node)))
 
 (def branch? (complement leaf?))
 
@@ -43,13 +43,14 @@
 (defn fiddle-spec
   "Index a spec `tree` and wrap it as a `Spec` type for further use a schema
   replacement."
-  [{:keys [type args ret] :as tree}]
+  [{:keys [type args ret] :as fspec}]
   (if (not= ::fn type)
     (throw (ex-info "A fiddle spec must be built from a function spec." {:type type}))
     (map->Spec
      {:args       args
       :ret        ret
-      :attributes (index ret)})))
+      :attributes (merge (index args)
+                         (index (assoc ret :name (keyword (:name fspec)))))})))
 
 (defn spec
   "Get fiddle spec in context, if any"

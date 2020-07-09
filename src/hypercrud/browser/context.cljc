@@ -20,6 +20,8 @@
     [hyperfiddle.fiddle]
     [hyperfiddle.route :as route]
     [hyperfiddle.runtime :as runtime]
+    [hyperfiddle.spec :as spec]
+    [hyperfiddle.spec.datomic :as spec-datomic]
     [taoensso.timbre :as timbre])
   #?(:clj
      (:import
@@ -667,6 +669,12 @@ a speculative db/id."
   (let [{{db :symbol} :source} element]
     (some->> db str (runtime/get-schema+ rt pid) deref)))
 
+(defn schema-with-spec [ctx schema]
+  (contrib.datomic/->Schema (->(spec/spec ctx)
+                                   (:attributes)
+                                   (spec-datomic/spec->schema)
+                                   (merge (.-schema-by-attr schema)))))
+
 ; This complects two spread-elements concerns which are separate.
 ; 1. Setting Schema and element
 ; 2. Setting result and result related things
@@ -677,7 +685,8 @@ a speculative db/id."
       ; stable-element-schema! can throw on schema lookup
       ; this may need to be caught depending on when how/when this function is used
       ; or with reactions; we may need to unlazily throw ASAP
-      :hypercrud.browser/schema (r/fmap->> r-element (stable-element-schema! (:runtime ctx) (:partition-id ctx))))))
+      :hypercrud.browser/schema (r/fmap->> r-element (stable-element-schema! (:runtime ctx) (:partition-id ctx))
+                                           (schema-with-spec ctx)))))
 
 (defn browse-element [ctx i]                                ; [nil :seattle/neighborhoods 1234345]
   {:pre []
@@ -745,12 +754,12 @@ a speculative db/id."
                 :hypercrud.browser/qfind]} ctx]
 
     ; Schema aliases can crash here https://github.com/hyperfiddle/hyperfiddle.net/issues/182
-    #_(if-not (contrib.datomic/cardinality @(:hypercrud.browser/schema ctx) a')
-        ctx)
+    ;; #_(if-not (contrib.datomic/cardinality @(:hypercrud.browser/schema ctx) a')
+    ;;     ctx)
     (as->
       ctx ctx
       (-infer-implicit-element ctx)                         ; ensure pull-enclosure
-      #_(-validate-qfind-element ctx)
+      ;; #_(-validate-qfind-element ctx)
       (set-parent ctx)
       (update ctx :hypercrud.browser/pull-path (fnil conj []) a') ; what is the cardinality? are we awaiting a row?
       (if (:hypercrud.browser/head-sentinel ctx)

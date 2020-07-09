@@ -63,8 +63,9 @@
     (q arg-map)))
 
 (defmethod hf/defaults :default [ident route]
-  (when-let [spec (some-> ident spec/parse :args)]
-    (select-keys route (spec/spec-keys spec))))
+  (if-let [spec (some-> ident spec/parse :args)]
+    (select-keys route (spec/spec-keys spec))
+    route))
 
 (defn- min-arity
   "0 if a function doesn't have args, otherwise the smallest amount of args it
@@ -87,9 +88,9 @@
     (if (and (qualified-symbol? ident)
              (empty? args))
       ;; :eval is a function symbol
-      (let [fvar  (find-var fn-sym)
+      (let [fvar  (find-var ident)
             f     (deref fvar)
-            fspec (spec/parse fn-sym)]
+            fspec (spec/parse ident)]
         (cond
           (= ::spec/fn (:type fspec)) (spec/apply-map f fspec route)
           (zero? (min-arity fvar))    (f)
