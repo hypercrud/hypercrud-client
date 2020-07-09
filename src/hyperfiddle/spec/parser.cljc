@@ -53,8 +53,9 @@
      :args     kvs
      :children (map (comp parse last) names)}))
 
+; no spec defaults to predicate
+; spec with {:args ()} defaults to predicate
+
 (defmethod parse-spec :default [form]
   {:type      :predicate
    :predicate (first form)})
-
-
