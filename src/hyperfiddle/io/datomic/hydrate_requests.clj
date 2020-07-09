@@ -62,6 +62,9 @@
                            :args (map #(parameter % get-secure-db-with) params)))]
     (q arg-map)))
 
+(defmethod hf/defaults :default [ident route]
+  (when-let [spec (some-> ident spec/parse :args)]
+    (select-keys route (spec/spec-keys spec))))
 
 (defn- min-arity
   "0 if a function doesn't have args, otherwise the smallest amount of args it
@@ -70,15 +73,18 @@
   (->> avar meta :arglists (sort-by count) first count))
 
 
-(defn- parse-fiddle-eval [form]
-  (let [parsed (edn/read-string form)]
-    (if (seqable? parsed)
-      parsed
-      (list parsed))))
+(defn- resolve-fiddle-fn [form]
+  (cond
+    (string? form)  (let [parsed (edn/read-string form)]
+                     (if (seqable? parsed)
+                       parsed
+                       (list parsed)))
+    (keyword? form) (list (symbol form))
+    :else           (list form)))
 
 (defn- eval-fiddle! [form route]
-  (let [[fn-sym & args] (parse-fiddle-eval form)]
-    (if (and (qualified-symbol? fn-sym)
+  (let [[ident & args] (resolve-fiddle-fn form)]
+    (if (and (qualified-symbol? ident)
              (empty? args))
       ;; :eval is a function symbol
       (let [fvar  (find-var fn-sym)

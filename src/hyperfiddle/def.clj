@@ -66,6 +66,11 @@
     (def! :fiddle ident &form
           (read-def :fiddle ident attrs))))
 
+;; Fiddles are now functions
+(defmacro deffiddle [ident & attrs]
+  (let [[_ ident] ident]
+    `(fiddle ~(keyword ident) ~@attrs)))
+
 (s/def ::schema
   (s/cat
     :type (s/? keyword?)
@@ -154,9 +159,12 @@
 
 (defn read-def [type ident attrs]
   (s/assert qualified-keyword? ident)
-  (let [attrs (read-spec ::def attrs)]
+  (let [attrs (read-spec ::def attrs)
+        spec (s/get-spec (symbol ident))]
     (map-attrs type
-      {:ident ident}
+               (cond-> {:ident       ident
+                        :fiddle/type :eval}
+                 spec (assoc :fiddle/spec (-> spec (hf-spec/parse) (hf-spec/fiddle-spec))))
       (when (= type :fiddle)
         {:fiddle/source (symbol (.name *ns*))})
       (dissoc attrs :&)
@@ -218,15 +226,9 @@
        {:fiddle/type  :query
         :fiddle/query (-> v one map-expr)}
 
-       :fiddle/eval
-       {:fiddle/type :eval
-        :fiddle/eval (-> v one map-expr)
-        :fiddle/spec (when-let [spec (s/get-spec (first v))]
-                       (-> (hf-spec/parse spec)
-                           (hf-spec/fiddle-spec)))}
 
        :fiddle/shape
-       {:fiddle/shape (-> v one map-expr)}
+       {:fiddle/shape (some-> v one map-expr)}
 
        :fiddle/links
        {:fiddle/links
