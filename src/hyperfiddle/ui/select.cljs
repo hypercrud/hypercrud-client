@@ -8,6 +8,7 @@
    [contrib.ui :refer [debounced text easy-checkbox]]
    [hyperfiddle.api :as hf]
    [hypercrud.browser.base :as base]
+   [hyperfiddle.ui :as ui]
    [hyperfiddle.ui.iframe :as iframe]
    [hyperfiddle.runtime :as runtime]
    [hypercrud.browser.context :as context]
@@ -223,21 +224,58 @@
   (assert (:options props) "select: :options prop is required")
   (assert (::hf/view-change! ctx))                        ; good: (f e a adds rets) (f ctx selection) bad: (f ctx os ns)
   (assert (::hf/needle-key props))
-  (let [ref? (context/attr? ctx :db.type/ref)
-        many? (context/attr? ctx :db.cardinality/many)
+  (let [is-ref (context/attr? ctx :db.type/ref)
+        is-many (context/attr? ctx :db.cardinality/many)
         options-ctx (context-of ctx (:options props))]
     (try
       [select-needle-typeahead options-ctx
        (merge
         {:selected (context/data ctx)
          :options (resolve-options options-ctx props)
-         :multiple many?
+         :multiple is-many
          :on-change ((::hf/view-change! ctx) ctx)
-         ::hf/ident-key (if ref?
+         ::hf/ident-key (if is-ref
                           (partial hf/id ctx)
                           identity)}
         (select-keys props [:html/id])
-        (select-keys props [::hf/option-label ::hf/needle-key ::hf/ident-key]))])))
+        (select-keys props [::hf/option-label ::hf/needle-key ::hf/ident-key]))]
 
-      ; (catch js/Error e
-      ;   [(ui-error/error-comp ctx) e]))))
+      (catch js/Error e
+        [(ui-error/error-comp ctx) e]))))
+
+(defn table-picker-row-renderer
+  [parent-ctx]
+  (let [[e a v] (context/eav parent-ctx)
+        is-many (context/attr? parent-ctx :db.cardinality/many)]
+    (if-not is-many
+      (fn [ctx {:keys [key] :as props} & args]
+        (let [this-value (if (vector? key) (first key) key)
+              row [:td {:class "hyperfiddle-table-picker-control-cell"}
+                   [:input {:checked (= v this-value)
+                            :type "radio"
+                            :on-change #(((::hf/view-change! parent-ctx) parent-ctx) v this-value)}]]]
+          (conj (into [ui/row ctx props] (cons row args)))))
+
+      (fn [ctx {:keys [key] :as props} & args]
+        (let [v (set (context/data parent-ctx))
+              this-value key
+              checked (contains? v this-value)
+              control [:td {:class "hyperfiddle-table-picker-control-cell"}
+                        [:input {:checked checked
+                                 :type "checkbox"
+                                 :on-change #(((::hf/view-change! parent-ctx) parent-ctx) v (if checked
+                                                                                              (disj v this-value)
+                                                                                              (conj v this-value)))}]]]
+          (into [ui/row ctx props] (cons control args)))))))
+
+(defn ^:export table-picker
+  [ctx props]
+  (let [options-ctx (context-of ctx (:options props))
+        options (resolve-options options-ctx props)]
+    [:div
+     [ui/table options-ctx
+      {:row (partial table-picker-row-renderer ctx)
+       :headers (if (::hf/allow-new props)
+                  (fn [& args] (cons [:td [:button "NEW!"]] (apply ui/table-column-product args)))
+                  (fn [& args] (cons [:td {:class "hyperfiddle-table-picker-control-cell"}] (apply ui/table-column-product args))))
+       :columns ui/table-column-product}]]))

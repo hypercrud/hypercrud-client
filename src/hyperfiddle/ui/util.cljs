@@ -77,3 +77,7 @@
    (hf/swap-route! ctx assoc-in (:hypercrud.browser/result-path ctx) vorvs))
   ([ctx _old new]
    (with-entity-change-route! ctx new)))
+
+(defn with-entity-tx!
+  [ctx tx]
+  (runtime/with-tx (:runtime ctx) (:partition-id ctx) (context/dbname ctx) tx))

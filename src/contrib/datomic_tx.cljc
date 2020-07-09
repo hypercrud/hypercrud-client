@@ -215,12 +215,14 @@
   [schema id ideal [_ e a v :as tx]]
   [(merge id (identifier schema tx))
    (if (schema/many? schema a)
-     (update-in ideal [:+ a]
-       (fn [coll]
-         (let [coll (or coll #{})]
-           (if (and (not (string? v)) (seqable? v) (not (map? v)))
-             (into coll v)
-             (conj coll v)))))
+     (if (contains? (get ideal :-) a)
+       (update-existing ideal :- dissoc a)
+       (update-in ideal [:+ a]
+                  (fn [coll]
+                    (let [coll (or coll #{})]
+                      (if (and (not (string? v)) (seqable? v) (not (map? v)))
+                        (into coll v)
+                        (conj coll v))))))
      (if (contains? (get ideal :-) a)
        (if (= (get-in ideal [:- a]) v)
          (update-existing ideal :- dissoc a)

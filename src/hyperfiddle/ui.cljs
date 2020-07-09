@@ -386,35 +386,45 @@ User renderers should not be exposed to the reaction."
       ^{:key (str relative-path)}                           ; could be a product, does eav as key work for that?
       [form-field ctx Body Head props])))
 
+(defn row
+  [ctx props & cs]
+  (into [:tr props] cs))
+
+(defn rows
+  [ctx {:keys [columns row]
+        :or {columns columns, row row}
+        :as props}
+   rows]
+  (for [[ix [?k ctx]] rows]
+    (into [row ctx {:key (or ?k ix)}] (columns ctx))))
+
 (defn ^:export table "Semantic table; columns driven externally" ; this is just a widget
-  [columns ctx & [props]]
+  [ctx & [{:keys [rows row columns headers colgroup]
+           :or {rows rows, row row, columns columns, headers columns, colgroup (fn [& _] nil)}
+           :as props}]]
   {:pre [(s/assert :hypercrud/context ctx)]}
   ; Need backwards compat arity
   (let [sort-col (r/atom (::sort/initial-sort props))
         page-size (if (> 0 hf/browser-query-limit) 20 hf/browser-query-limit)
         page (r/atom 0)]
-    (fn [columns ctx & [props]]
+    (fn [ctx & [props]]
       {:pre [(s/assert :hypercrud/context ctx)]}
       (let [props (update props :class (fnil css "hyperfiddle") "unp") ; fnil case is iframe root (not a field :many)
             ctx (assoc ctx ::sort/sort-col sort-col
                            :hypercrud.browser/head-sentinel true ; hacks - this is coordination with the context, how to fix?
-                           ::layout :hyperfiddle.ui.layout/table)
-            cols  (columns ctx)]
+                           ::layout :hyperfiddle.ui.layout/table)]
         [:<>
          [:table (select-keys props [:class :style])
-          [:thead (into [:tr] cols)]
+          [:thead (into [:tr] (headers ctx))]
                                         ; filter? Group-by? You can't. This is data driven. Shape your data in the peer.
-          (let [rows (for [[ix [?k ctx]] (->> (hypercrud.browser.context/spread-rows
-                                               ctx
-                                               #(sort/sort-fn % sort-col)
-                                               #(->> % (drop (* @page page-size)) (take page-size)))
-                                        ; Duplicate rows https://github.com/hyperfiddle/hyperfiddle/issues/298
-                                              (map-indexed vector))]
-                                        ; columns keys should work out, field sets it on inside
-                       #_[:tr {:key (str ?k)} (columns ctx)]
-                       (let [k (or ?k ix)
-                             cs (columns ctx)]
-                         (into [:tr {:key (str k)}] cs)))]
+          [colgroup]
+          (let [rows (rows ctx props
+                           (->> (hypercrud.browser.context/spread-rows
+                                  ctx
+                                  #(sort/sort-fn % sort-col)
+                                  #(->> % (drop (* @page page-size)) (take page-size)))
+                           ; Duplicate rows https://github.com/hyperfiddle/hyperfiddle/issues/298
+                                (map-indexed vector)))]
             (if (empty? rows)
               [:tbody
                [:tr
@@ -525,7 +535,7 @@ User renderers should not be exposed to the reaction."
       ; http://hyperfiddle.hyperfiddle.site/:hyperfiddle.ide!domain/~entity('$domains',(:domain!ident,'hyperfiddle'))
       [:db.cardinality/many] [:<>
                               #_(controls/hf-new val ctx)   ; table db/id will handle this
-                              [table columns ctx props]]
+                              [table ctx (assoc props :columns columns)]]
       [_] [:pre (pr-str a)])))
 
 (defn table-column-product "We collapse the top layer of pull into a cartesian product.
@@ -556,9 +566,9 @@ nil. call site must wrap with a Reagent component"          ; is this just hyper
           [needle-input2 ctx props])
         (let [qtype (type @(:hypercrud.browser/qfind ctx))] ; i think we need to make up a qfind for this case
           (if-not qtype
-            [table table-column-product ctx props]
+            [table ctx (assoc props :columns table-column-product)]
             (condp some [qtype]                             ; spread-rows
-              #{FindRel FindColl} [table table-column-product ctx props] ; identical result?
+              #{FindRel FindColl} [table ctx (assoc props :columns table-column-product)] ; identical result?
               #{FindTuple FindScalar} [form table-column-product val ctx props])))]))])
 
 ;(defmethod render :hf/blank [ctx props]
