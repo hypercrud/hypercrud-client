@@ -45,7 +45,10 @@
   (map (comp keyword str) "abcdefghijklmnopqrstuvwxyz")     ; this version works in clojurescript
   #_(->> (range) (map (comp keyword str char #(+ % (int \a))))))
 
-(defn or-str [a b] (orp seq a b))
+(defn or-str
+  #_([& args] (apply orp seq args))                         ; can't apply macro todo
+  ([a b] (orp seq a b))
+  ([a b c] (orp seq a b c)))
 
 (defn lpad-str [n zero s]
   (str (apply str (repeat (- n (count s)) zero)) s))
