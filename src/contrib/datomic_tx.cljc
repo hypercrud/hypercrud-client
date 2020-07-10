@@ -197,11 +197,10 @@
       (map? stmt)
       :map
 
-      (and (list? stmt) (symbol? (first stmt)))
-      :mutation
+      (and (vector? stmt) (#{:db/add :db/retract :db/retractEntity} (first stmt)))
+      (first stmt)
 
-      (vector? stmt)
-      (first stmt))))
+      :else :other)))
 
 (defmethod absorb :map
   [schema id ideal stmt]
@@ -246,7 +245,6 @@
 
     (set? coll) (disj coll v)))
 
-
 (defmethod absorb :db/retract
   [schema identifier ideal [_ _ a v]]
   (let [v (retract-munge-value schema v)]
@@ -265,16 +263,10 @@
   [schema identifier ideal _]
   [identifier (assoc ideal :retracted true)])
 
-(defmethod absorb :db/cas
-  [schema identifier ideal [_ e a o n]]
-  [identifier
-   (assoc-in ideal [:cas a] [o n])])
-
-
-(defmethod absorb :mutation
+(defmethod absorb :other
   [schema identifier ideal tx]
   [identifier
-   (update ideal :mutations (fn [m] (conj (or m []) tx)))])
+   (update ideal :other #(conj (or % []) tx))])
 
 (defn absorb-stmt
   [schema ideals stmt]
@@ -304,14 +296,14 @@
 
 
 (defn deconstruct-ideal
-  [schema identifier {adds :+ retracts :- :keys [retracted cas mutations] :as ideal}]
+  [schema identifier {adds :+ retracts :- :keys [retracted other] :as ideal}]
   (let [e (identifier->e schema identifier)]
     (if retracted
       [[:db/retractEntity e]]
       (into
        []
        (concat
-        (map (fn [[a v]] [:db/add e a v])       adds)
+        (map (fn [[a v]] [:db/add e a v]) adds)
         (->> retracts
              (mapcat
                (fn [[a v]]
@@ -319,8 +311,7 @@
                    (map (fn [v] [a v]) v)
                    [[a v]])))
              (map (fn [[a v]] [:db/retract e a v])))
-        (map (fn [[a [o n]]] [:db/cas e a o n]) cas)
-        mutations)))))
+        other)))))
 
 (defn ideals->tx
   [schema ideals]

@@ -611,9 +611,12 @@
     (is (= (absorb schema {:db/id 1} {:+ {:community/name "name"}} [:db/retract 1 :community/name "name"])
            [{:db/id 1} {:+ {}}]))
     (is (= (absorb schema {:db/id 1} {} [:db/cas "e" :community/name "asdf" "qwer"])
-           [{:db/id 1} {:cas {:community/name ["asdf" "qwer"]}}]))
+           [{:db/id 1} {:other [[:db/cas "e" :community/name "asdf" "qwer"]]}]))
     (is (= (absorb schema {:db/id 1} {} [:db/retractEntity 1])
-           [{:db/id 1} {:retracted true}]))))
+           [{:db/id 1} {:retracted true}]))
+    (let [some-fn (fn [] '...)]
+      (is (= (absorb schema {:db/id 1} {} [some-fn "arg0" 'arg1 :arg2])
+             [{:db/id 1} {:other [[some-fn "arg0" 'arg1 :arg2]]}])))))
 
 (deftest test|identifier->e
   (let [schema (map-by :db/ident seattle-schema-tx)]
@@ -645,11 +648,12 @@
 
 (deftest test|deconstruct
   (let [schema (map-by :db/ident seattle-schema-tx)]
-    (is (= (deconstruct schema [[{:db/id 1} {:+ {:attr0 1} :- {:attr1 2} :cas {:attr2 ["v0" "v1"]}}]])
+    (is (= (deconstruct schema [[{:db/id 1} {:+ {:attr0 1} :- {:attr1 2} :other [[:db/cas 1 :attr2 "v0" "v1"] [:db/some-custom-fn "arg0" 'arg1 "arge2"]]}]])
            [[:db/add 1 :attr0 1]
             [:db/retract 1 :attr1 2]
-            [:db/cas 1 :attr2 "v0" "v1"]]))
-    (is (= (deconstruct schema [[{:db/id 1} {:+ {:attr0 1} :- {:attr1 2} :cas {:attr2 ["v0" "v1"]} :retracted true}]])
+            [:db/cas 1 :attr2 "v0" "v1"]
+            [:db/some-custom-fn "arg0" 'arg1 "arge2"]]))
+    (is (= (deconstruct schema [[{:db/id 1} {:+ {:attr0 1} :- {:attr1 2} :other [[:db/cas 1 :attr2 "v0" "v1"]] :retracted true}]])
            [[:db/retractEntity 1]]))))
 
 (deftest test|mappify
