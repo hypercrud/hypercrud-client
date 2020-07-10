@@ -2,6 +2,8 @@
   (:require
     [taoensso.timbre :as timbre]
     [clojure.spec.alpha :as s]
+    [clojure.tools.reader :as reader]
+    [clojure.tools.reader.reader-types :as reader-types]
     [contrib.expr :refer :all]
     [contrib.do :refer [do-result]]
     [contrib.data :refer [qualify trim-str for-kv]]
@@ -55,12 +57,14 @@
   nil)
 
 (defmacro schema [& attrs]
-  (doseq [[_ attr] (read-schema (apply merge attrs))]
-    (def! :schema (:db/ident attr) &form attr)))
+  (binding [reader/*alias-map* (ns-aliases *ns*)]
+    (doseq [[_ attr] (read-schema (apply merge attrs))]
+      (def! :schema (:db/ident attr) &form attr))))
 
 (defmacro fiddle [ident & attrs]
-  (def! :fiddle ident &form
-        (read-def :fiddle ident attrs)))
+  (binding [reader/*alias-map* (ns-aliases *ns*)]
+    (def! :fiddle ident &form
+          (read-def :fiddle ident attrs))))
 
 (s/def ::schema
   (s/cat
@@ -301,10 +305,10 @@
   nil)
 
 (defn annotate-source [input & [origin]]
-  (let [r (clojure.lang.LineNumberingPushbackReader. (java.io.StringReader. input))]
+  (let [r (reader-types/source-logging-push-back-reader (java.io.StringReader. input))]
     (when (:line origin) (.setLineNumber r (:line origin)))
     (take-while #(not= :. %)
-      (repeatedly (fn [] (let [[val val-str] (read+string {:eof :. :read-cond :allow} r)]
+      (repeatedly (fn [] (let [[val val-str] (reader/read+string {:eof :. :read-cond :allow} r)]
                            (cond-> val (instance? clojure.lang.IObj val) (vary-meta assoc :source val-str))))))))
 
 (defn line-at [x]
