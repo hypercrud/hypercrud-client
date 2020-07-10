@@ -238,7 +238,7 @@
                           (partial hf/id ctx)
                           identity)}
         (select-keys props [:html/id])
-        (select-keys props [::hf/option-label ::hf/needle-key ::hf/ident-key]))]
+        (select-keys props [::hf/option-label ::hf/needle-key ::hf/ident-key ::hf/is-invalid]))]
 
       (catch js/Error e
         [(ui-error/error-comp ctx) e]))))
