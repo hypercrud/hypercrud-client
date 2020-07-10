@@ -2,7 +2,8 @@
   (:require
     [clojure.test :refer [deftest is]]
     [hyperfiddle.def :as hf-def]
-    [clojure.spec.alpha :as s]))
+    [clojure.spec.alpha :as s]
+    [clojure.tools.reader :as reader]))
 
 
 (deftest read-schema|
@@ -41,3 +42,12 @@
          #:db{:ident :idos.cpc/sites, :cardinality :db.cardinality/many, :valueType :db.type/ref, :isComponent true}
          #:db{:ident :idos.cpc/confirm-email, :cardinality :db.cardinality/one, :valueType :db.type/boolean}]
         )))
+
+(deftest annotate-source|namespace-aliases
+  (is (= (list :asdf.qwer/zxcv)
+         (binding [reader/*alias-map* {'hfdt (create-ns 'asdf.qwer)}]
+           (hf-def/annotate-source "::hfdt/zxcv"))))
+  (is (= (list :user/zxcv)  ; Tests execute in the user namespace
+         (binding [*ns* *ns*
+                   reader/*alias-map* {}]
+           (hf-def/annotate-source "::zxcv")))))

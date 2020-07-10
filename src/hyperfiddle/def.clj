@@ -307,9 +307,10 @@
 (defn annotate-source [input & [origin]]
   (let [r (reader-types/source-logging-push-back-reader (java.io.StringReader. input))]
     (when (:line origin) (.setLineNumber r (:line origin)))
-    (take-while #(not= :. %)
-      (repeatedly (fn [] (let [[val val-str] (reader/read+string {:eof :. :read-cond :allow} r)]
-                           (cond-> val (instance? clojure.lang.IObj val) (vary-meta assoc :source val-str))))))))
+    (doall
+      (take-while #(not= :. %)
+                  (repeatedly (fn [] (let [[val val-str] (reader/read+string {:eof :. :read-cond :allow} r)]
+                                       (cond-> val (instance? clojure.lang.IObj val) (vary-meta assoc :source val-str)))))))))
 
 (defn line-at [x]
   (some-> x meta :line))
