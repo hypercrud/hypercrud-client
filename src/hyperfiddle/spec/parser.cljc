@@ -27,28 +27,28 @@
 
 (defmethod parse-spec `s/fspec [[_ & args-seq]]
   (let [{:keys [args ret]} args-seq]
-    {:type     :fn
+    {:type     :hyperfiddle.spec/fn
      :args-seq args-seq
      :args     (some-> args parse)
      :ret      (some-> ret parse)}))
 
 (defmethod parse-spec `s/coll-of [[_ name & args-seq]]
   (let [{:keys [] :as args-map} args-seq]
-    {:type     :coll
+    {:type     :hyperfiddle.spec/coll
      :args     args-map
      :args-seq args-seq
      :children [(parse name)]}))
 
 (defmethod parse-spec `s/keys [[_ & {:keys [req req-un opt opt-un] :as args}]]
   (let [keys (distinct (concat req req-un opt opt-un))]
-    {:type     :keys
+    {:type     :hyperfiddle.spec/keys
      :keys     (set keys)
      :args     args
      :children (mapv parse keys)}))
 
 (defmethod parse-spec `s/cat [[_ & kvs]]
   (let [names (partition 2 kvs)]
-    {:type     :cat
+    {:type     :hyperfiddle.spec/cat
      :names    (map first names)
      :args     kvs
      :children (map (comp parse last) names)}))
@@ -57,5 +57,5 @@
 ; spec with {:args ()} defaults to predicate
 
 (defmethod parse-spec :default [form]
-  {:type      :predicate
+  {:type      :hyperfiddle.spec/predicate
    :predicate (first form)})

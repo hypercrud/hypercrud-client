@@ -44,7 +44,7 @@
   "Index a spec `tree` and wrap it as a `Spec` type for further use a schema
   replacement."
   [{:keys [type args ret] :as tree}]
-  (if (not= :fn type)
+  (if (not= ::fn type)
     (throw (ex-info "A fiddle spec must be built from a function spec." {:type type}))
     (map->Spec
      {:args       args
@@ -59,8 +59,8 @@
 (defn spec-keys [spec]
   (set
    (case (:type spec)
-     :keys (:keys spec)
-     :cat  (:names spec))))
+     ::keys (:keys spec)
+     ::cat  (:names spec))))
 
 (defn arg?
   "State if `attribute` belongs to `spec` :args"
@@ -70,8 +70,8 @@
 
 (defn names [spec]
   (case (:type spec)
-    :keys (->> spec :children (map :name))
-    :cat  (:names spec)))
+    ::keys (->> spec :children (map :name))
+    ::cat  (:names spec)))
 
 (defn apply-map
   "Pass args from `m` to `f` in the order `f` expects them, based on `fspec` :args."
@@ -79,14 +79,14 @@
    (apply-map f (parse f) m))
   ([f fspec m]
    {:pre [(or (qualified-symbol? fspec)
-              (= :fn (:type fspec)))]}
+              (= ::fn (:type fspec)))]}
    (if (and (qualified-symbol? fspec)
             (s/get-spec fspec))
      (apply-map f (parse fspec) m)
      (if-let [spec (:args fspec)]
        (case (:type spec)
-         :keys (f m)
-         :cat  (let [extract-args (apply juxt (names spec))]
-                 (apply f (extract-args m))))
+         ::keys (f m)
+         ::cat  (let [extract-args (apply juxt (names spec))]
+                  (apply f (extract-args m))))
        (throw (ex-info "Couldn't find a spec for this function, unable to infer argument order" {:fn f}))))))
 

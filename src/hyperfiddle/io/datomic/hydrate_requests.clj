@@ -85,9 +85,9 @@
             f     (deref fvar)
             fspec (spec/parse fn-sym)]
         (cond
-          (= :fn (:type fspec))    (spec/apply-map f fspec route)
-          (zero? (min-arity fvar)) (f)
-          :else                    (throw (ex-info "This fiddle's eval function expect some arguments, please provide a function spec for it." {:var fvar}))))
+          (= ::spec/fn (:type fspec)) (spec/apply-map f fspec route)
+          (zero? (min-arity fvar))    (f)
+          :else                       (throw (ex-info "This fiddle's eval function expect some arguments, please provide a function spec for it." {:var fvar}))))
       ;; :eval is a legacy form, load it the old way
       (load-string form))))
 

@@ -15,18 +15,18 @@
          [(conj acc def) spec])
        [acc spec]))))
 
-(defmethod serialize-spec :coll [acc {:keys [children args-seq]}]
+(defmethod serialize-spec :hyperfiddle.spec/coll [acc {:keys [children args-seq]}]
   (let [{:keys [name] :as child} (first children)
         [acc spec]               (serialize acc child)
         child-spec               (or name spec)]
     [acc
      (seq (into [`s/coll-of child-spec] args-seq))]))
 
-(defmethod serialize-spec :keys [acc {:keys [children args]}]
+(defmethod serialize-spec :hyperfiddle.spec/keys [acc {:keys [children args]}]
   (let [specs (map (partial serialize (empty acc)) children)
         accs  (mapcat first specs)]
     [(reduce conj acc accs)
      (seq (into [`s/keys] (mapcat identity args)))]))
 
-(defmethod serialize-spec :predicate [acc {:keys [predicate]}]
+(defmethod serialize-spec :hyperfiddle.spec/predicate [acc {:keys [predicate]}]
   [acc predicate])

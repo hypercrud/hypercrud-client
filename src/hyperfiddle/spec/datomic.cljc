@@ -58,12 +58,12 @@
         predicate   (pred-of valueType)]
     {:name      ident
      :type      (if predicate
-                  :predicate
+                  :hyperfiddle.spec/predicate
                   (if (= :db.cardinality/many cardinality)
                     (if (= :db.type/ref valueType)
-                      :coll
-                      :keys)
-                    :keys))
+                      :hyperfiddle.spec/coll
+                      :hyperfiddle.spec/keys)
+                    :hyperfiddle.spec/keys))
      :predicate predicate}))
 
 ;; (to-spec {:db/ident       :dustingetz/gender
@@ -78,9 +78,9 @@
     (let [{:keys [name type predicate]} attr]
       {:db/ident       name
        :db/valueType   {:db/ident (case type
-                                    (:coll :keys) :db.type/ref
+                                    (:hyperfiddle.spec/coll :hyperfiddle.spec/keys) :db.type/ref
                                     (type-of predicate))}
-       :db/cardinality {:db/ident (if (= :coll type) :db.cardinality/many :db.cardinality/one)}})))
+       :db/cardinality {:db/ident (if (= :hyperfiddle.spec/coll type) :db.cardinality/many :db.cardinality/one)}})))
 
 ;; -----------------------------------------------------------------
 
