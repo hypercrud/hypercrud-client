@@ -82,15 +82,12 @@
              (empty? args))
       ;; :eval is a function symbol
       (let [fvar  (find-var fn-sym)
-            fspec (spec/parse fn-sym)
-            f     (eval fn-sym)]
+            f     (deref fvar)
+            fspec (spec/parse fn-sym)]
         (cond
-          fspec                    (case (-> fspec :args :type)
-                                     (spec/apply-map f fspec route)
-                                     ;; TODO (spec/apply-cat f fspec route)
-                                     )
+          (= :fn (:type fspec))    (spec/apply-map f fspec route)
           (zero? (min-arity fvar)) (f)
-          :else                    (throw (ex-info "This fiddle's eval function expect some arguments, please provide a spec for them." {:var fvar}))))
+          :else                    (throw (ex-info "This fiddle's eval function expect some arguments, please provide a function spec for it." {:var fvar}))))
       ;; :eval is a legacy form, load it the old way
       (load-string form))))
 

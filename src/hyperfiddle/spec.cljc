@@ -80,16 +80,13 @@
   ([f fspec m]
    {:pre [(or (qualified-symbol? fspec)
               (= :fn (:type fspec)))]}
-   (if (qualified-symbol? fspec)
+   (if (and (qualified-symbol? fspec)
+            (s/get-spec fspec))
      (apply-map f (parse fspec) m)
      (if-let [spec (:args fspec)]
        (case (:type spec)
          :keys (f m)
-         :cat  (let [extract-args (if-let [names (seq (names spec))]
-                                    (apply juxt names)
-                                    (constantly ()))]
+         :cat  (let [extract-args (apply juxt (names spec))]
                  (apply f (extract-args m))))
        (throw (ex-info "Couldn't find a spec for this function, unable to infer argument order" {:fn f}))))))
 
-
-;; {:name user.demo.route-state/sub-requests, :type :fn, :args-seq (:args (clojure.spec.alpha/keys :opt [:user.demo.route-state/since :user.demo.route-state/school]) :ret clojure.core/any? :fn nil), :args {:type :keys, :keys #{:user.demo.route-state/since :user.demo.route-state/school}, :args {:opt [:user.demo.route-state/since :user.demo.route-state/school]}, :children [{:name :user.demo.route-state/since, :type :predicate, :predicate clojure.core/inst?} {:name :user.demo.route-state/school, :type :predicate, :predicate clojure.spec.alpha/nilable}]}, :ret {:type :predicate, :predicate clojure.core/any?}}
