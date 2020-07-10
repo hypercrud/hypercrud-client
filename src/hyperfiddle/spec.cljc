@@ -86,7 +86,8 @@
      (if-let [spec (:args fspec)]
        (case (:type spec)
          ::keys (f m)
-         ::cat  (let [extract-args (apply juxt (names spec))]
-                  (apply f (extract-args m))))
-       (throw (ex-info "Couldn't find a spec for this function, unable to infer argument order" {:fn f}))))))
-
+         ::cat  (if-let [args (seq (names spec))]
+                  (let [extract-args (apply juxt args)]
+                    (apply f (extract-args m)))
+                  (f)))
+       (throw (ex-info "Couldn't find an `:args` spec for this function, unable to infer argument order" {:fn f}))))))
