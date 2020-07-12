@@ -184,7 +184,7 @@
    (render-related-links val ctx)])
 
 (defn ^:export ref-many [val ctx & [props]]
-  [hyperfiddle.ui/table hyperfiddle.ui/columns ctx props])
+  [hyperfiddle.ui/table ctx (merge props {:columns hyperfiddle.ui/columns})])
 
 (defn ^:export identity-control [val ctx & [props]]
   [:div.hyperfiddle-input-group
