@@ -224,6 +224,7 @@
   (assert (:options props) "select: :options prop is required")
   (assert (::hf/view-change! ctx))                        ; good: (f e a adds rets) (f ctx selection) bad: (f ctx os ns)
   (assert (::hf/needle-key props))
+  (assert (not (some? (:option-label props))) "migrate legacy prop")
   (let [is-ref (context/attr? ctx :db.type/ref)
         is-many (context/attr? ctx :db.cardinality/many)
         options-ctx (context-of ctx (:options props))]
