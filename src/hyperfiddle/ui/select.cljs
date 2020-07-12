@@ -177,8 +177,10 @@
 
         (update :selected (fn [selected]
                             (if (:multiple props)
-                              selected
-                              #js [selected])))
+                              (object-array selected)
+                              (if selected
+                                #js [selected]
+                                #js []))))
 
         (update :options to-array))]])
 
