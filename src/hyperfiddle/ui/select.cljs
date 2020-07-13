@@ -84,19 +84,23 @@
   [ctx props selections-comp selection-comp]
   (let [selected (context/data ctx)]
     (into [selections-comp {}]
-          (map (fn [v] [selection-comp ctx {:value v} v]) selected))))
+          (map (fn [v] [selection-comp ctx {:value ((::hf/option-label props str) v)} v]) selected))))
 
 (defn ->options
   [ctx {:keys [options] :as props} options-comp option-comp]
-  (let [selected (set (context/data ctx))
-        options (if (coll? options) options (options-of ctx options props))]
-    (into [options-comp ctx {}]
+  (let [selected (condp = (:db/cardinality (context/attr ctx))
+                   :db.cardinality/many (set (context/data ctx))
+                   :db.cardinality/one #{(context/data ctx)})
+        options (set/difference (set (if (coll? options) options (options-of ctx options props))) selected)
+        options (concat selected options)
+        options (sort options)]
+    (into [options-comp ctx {:options options :selected selected}]
           (map
            (fn [value]
 
              [option-comp
               ctx
-              {:value value
+              {:value ((::hf/option-label props str) value)
                :selected (contains? selected value)
                :on-change (fn [select?]
                             (apply
@@ -109,14 +113,14 @@
 
 
 (defn select
-  [ctx {:keys [options components]}]
+  [ctx {:keys [options components] :as props}]
   [:div
    (when (or (:options components) (:option components))
-     [->options ctx {:options options} (:options components (fn [_ & args] (into [:div] args))) (:option components (fn [_ & args] (into [:div] args)))])
+     [->options ctx (merge {:options options} props) (:options components (fn [_ & args] (into [:div] args))) (:option components (fn [_ & args] (into [:div] args)))])
    (when (or (:selections components) (:selection components))
-     [->selections ctx {} (:selections components :div) (:selection components :div)])])
+     [->selections ctx props (:selections components :div) (:selection components :div)])])
 
-(defn checkboxes
+(defn checkbox-picker
   [ctx props]
   (condp = (:db/cardinality (context/attr ctx))
     :db.cardinality/many
@@ -237,19 +241,22 @@
          :options (resolve-options options-ctx props)
          :multiple is-many
          :on-change ((::hf/view-change! ctx) ctx)
+         :allow-new (::hf/allow-new props)
          ::hf/ident-key (if is-ref
                           (partial hf/id ctx)
                           identity)}
         (select-keys props [:html/id])
-        (select-keys props [::hf/option-label ::hf/needle-key ::hf/ident-key ::hf/is-invalid]))]
+        (select-keys props [::hf/option-label ::hf/needle-key ::hf/ident-key ::hf/is-invalid]))])
 
-      (catch js/Error e
-        [(ui-error/error-comp ctx) e]))))
+    (catch :default e
+      [(ui-error/error-comp ctx) e])))
 
 (defn table-picker-row-renderer
   [parent-ctx]
   (let [[e a v] (context/eav parent-ctx)
-        is-many (context/attr? parent-ctx :db.cardinality/many)]
+        is-many (context/attr? parent-ctx :db.cardinality/many)
+        is-ref (context/attr? parent-ctx :db.type/ref)]
+
     (if-not is-many
       (fn [ctx {:keys [key] :as props} & args]
         (let [this-value (if (vector? key) (first key) key)
@@ -259,9 +266,11 @@
                             :on-change #(((::hf/view-change! parent-ctx) parent-ctx) v this-value)}]]]
           (conj (into [ui/row ctx props] (cons row args)))))
 
-      (fn [ctx {:keys [key] :as props} & args]
+      (fn [ctx props & args]
         (let [v (set (context/data parent-ctx))
-              this-value key
+              v (if is-ref (set (map (partial hf/id parent-ctx) v)) v)
+              this-value (context/data ctx)
+              this-value (if is-ref (hf/id ctx this-value) v)
               checked (contains? v this-value)
               control [:td {:class "hyperfiddle-table-picker-control-cell"}
                         [:input {:checked checked
@@ -273,12 +282,15 @@
 
 (defn ^:export table-picker
   [ctx props]
-  (let [options-ctx (context-of ctx (:options props))
-        options (resolve-options options-ctx props)]
-    [:div
-     [ui/table options-ctx
-      {:row (partial table-picker-row-renderer ctx)
-       :headers (if (::hf/allow-new props)
-                  (fn [& args] (cons [:td [:button "NEW!"]] (apply ui/table-column-product args)))
-                  (fn [& args] (cons [:td {:class "hyperfiddle-table-picker-control-cell"}] (apply ui/table-column-product args))))
-       :columns ui/table-column-product}]]))
+  (try
+    (let [options-ctx (context-of ctx (:options props))
+          options (resolve-options options-ctx props)]
+      [:div
+       [ui/table options-ctx
+        {:row (partial table-picker-row-renderer ctx)
+         :headers (if (::hf/allow-new props)
+                    (fn [& args] (cons [:td [:button "NEW!"]] (apply ui/table-column-product args)))
+                    (fn [& args] (cons [:td {:class "hyperfiddle-table-picker-control-cell"}] (apply ui/table-column-product args))))
+         :columns ui/table-column-product}]])
+    (catch js/Error e
+      [(ui-error/error-comp ctx) e])))

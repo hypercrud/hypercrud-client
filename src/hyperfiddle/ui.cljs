@@ -110,6 +110,9 @@
 (defmethod hf/render #{:db.type/string :db.cardinality/one} [ctx props]
   [controls/string (context/data ctx) ctx props])
 
+(defmethod hf/render #{:db.type/symbol :db.cardinality/one} [ctx props]
+  [controls/string (context/data ctx) ctx props])
+
 (defmethod hf/render #{:db.type/long :db.cardinality/one} [ctx props]
   [controls/long (context/data ctx) ctx props])
 
