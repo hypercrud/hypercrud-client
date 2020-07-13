@@ -246,10 +246,10 @@
                           (partial hf/id ctx)
                           identity)}
         (select-keys props [:html/id])
-        (select-keys props [::hf/option-label ::hf/needle-key ::hf/ident-key ::hf/is-invalid]))])
+        (select-keys props [::hf/option-label ::hf/needle-key ::hf/ident-key ::hf/is-invalid]))]
 
-    (catch :default e
-      [(ui-error/error-comp ctx) e])))
+      (catch :default e
+        [(ui-error/error-comp ctx) e]))))
 
 (defn table-picker-row-renderer
   [parent-ctx]
