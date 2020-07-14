@@ -5,6 +5,7 @@
    [contrib.data :refer [unqualify]]
    [contrib.datomic]
    [contrib.do :refer [from-result]]
+   [contrib.reactive :as r]
    [contrib.ui :refer [debounced text easy-checkbox]]
    [hyperfiddle.api :as hf]
    [hypercrud.browser.base :as base]
@@ -88,26 +89,41 @@
 
 (defn ->options
   [ctx {:keys [options] :as props} options-comp option-comp]
-  (let [selected (condp = (:db/cardinality (context/attr ctx))
+  (let [cardinality (:db/cardinality (context/attr ctx))
+        selected (condp = cardinality
                    :db.cardinality/many (set (context/data ctx))
-                   :db.cardinality/one #{(context/data ctx)})
-        options (set/difference (set (if (coll? options) options (options-of ctx options props))) selected)
-        options (concat selected options)
-        options (sort options)]
+                   :db.cardinality/one (context/data ctx))
+        options (set (if (coll? options)
+                       options
+                       (options-of ctx options props)))
+        options (to-array
+                 (sort
+                  (condp = cardinality
+                    :db.cardinality/many (concat selected (set/difference options selected))
+                    :db.cardinality/one (cons selected (disj options selected)))))]
+
     (into [options-comp ctx {:options options :selected selected}]
           (map
            (fn [value]
-
              [option-comp
               ctx
               {:value ((::hf/option-label props str) value)
-               :selected (contains? selected value)
-               :on-change (fn [select?]
-                            (apply
-                              ((::hf/view-change! ctx) ctx)
-                              (if select?
-                                [selected (conj selected value)]
-                                [selected (disj selected value)])))}])
+               :selected (condp = cardinality
+                                :db.cardinality/many (contains? selected value)
+                                :db.cardinality/one (= selected value))
+               :on-change (condp = cardinality
+                            :db.cardinality/many
+                            (fn [select?]
+                              (apply
+                                ((::hf/view-change! ctx) ctx)
+                                (if select?
+                                  [selected (conj selected value)]
+                                  [selected (disj selected value)])))
+                            :db.cardinality/one
+                            (fn [_]
+                              (apply
+                                ((::hf/view-change! ctx) ctx)
+                                [selected value])))}])
 
            options))))
 
@@ -137,8 +153,8 @@
                           (let [[e a] @(:hypercrud.browser/eav ctx)]
                             [:div [contrib.ui/radio-with-label
                                    (merge
-                                    {:name (str e a)}
-                                    (select-keys props [:value]))]]))})]))
+                                    {:checked (:selected props)}
+                                    props)]]))})]))
 
 (defn- typeahead-error [{rt :runtime pid :partition-id :as ctx} e props]
   ; even if browsing fails, the user needs a chance to alter their search, so just add an ugly error message
@@ -280,11 +296,18 @@
                                                                                               (conj v this-value)))}]]]
           (into [ui/row ctx props] (cons control args)))))))
 
+(defn add-selected
+  [vals]
+  (concat selected vals))
+
 (defn ^:export table-picker
   [ctx props]
   (try
-    (let [options-ctx (context-of ctx (:options props))
-          options (resolve-options options-ctx props)]
+    (let [selected (set (context/data ctx))
+          options-ctx (context-of ctx (:options props))
+          options-ctx (update options-ctx
+                              :hypercrud.browser/result
+                              (r/partial r/fmap add-selected))]
       [:div
        [ui/table options-ctx
         {:row (partial table-picker-row-renderer ctx)
