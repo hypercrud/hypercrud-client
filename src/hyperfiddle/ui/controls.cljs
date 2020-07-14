@@ -332,6 +332,17 @@
      [debounced props contrib.ui/long])
    (render-related-links val ctx)])
 
+(defn ^:export slider [ctx & [props]]
+  (let [[e a v] @(:hypercrud.browser/eav ctx)]
+    [:div.hyperfiddle-input-group
+     [:div.hyperfiddle-slider-labels
+      [:div.hyperfiddle-slider-label (:min props 0)]
+      [:div.hyperfiddle-slider-label v]
+      [:div.hyperfiddle-slider-label (:max props 100)]]
+     (let [props (assoc props :value v :on-change ((::hf/view-change! ctx) ctx))]
+       [debounced props contrib.ui/slider])
+     (render-related-links val ctx)]))
+
 (defn ^:export boolean [val ctx & [props]]
   [:div.hyperfiddle-input-group
    [:div (select-keys props [:class :style])

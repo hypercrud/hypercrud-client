@@ -159,6 +159,16 @@
   (defn long [props]
     [validated-cmp props parse-string str text]))
 
+(let [target-value (fn [e] (js/parseInt (.. e -target -value)))]          ; letfn not working #470
+  (defn slider [props]
+    (let [props (-> (assoc props :type "range")
+                    (update-existing :on-change r/comp target-value)
+                    (select-keys [:type :value :default-value :on-change :style :read-only :disabled
+                                  :html/placeholder :html/class
+                                  :placeholder :class :min :max :step])
+                    (for-kv {} (fn [m k v] (assoc m (unqualify k) v))))]
+      [:input props])))
+
 (defn easy-checkbox [props & [label]]
   (let [control [checkbox props]]
     (if (blank->nil label)
