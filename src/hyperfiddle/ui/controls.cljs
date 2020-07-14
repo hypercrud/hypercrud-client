@@ -155,8 +155,23 @@
                 (interpose "·"))
            doall)])))
 
+(declare invalid-message-popup validation-message)
+
+(defn input-group
+  [_ ctx props & body]
+  (if (::hf/is-invalid props)
+    (if (= (::hf/validation-display props) :popup)
+      [:div.hyperfiddle-input-group.hyperfiddle-invalid
+       (into [invalid-message-popup (select-keys props [::hf/invalid-messages])] body)]
+      (conj
+        (into
+          [:div.hyperfiddle-input-group.hyperfiddle-invalid]
+          body)
+       [validation-error {} @(::hf/invalid-messages props)]))
+    (into [:div.hyperfiddle-input-group] body)))
+
 (defn ^:export ref [val ctx & [props]]
-  [:div.hyperfiddle-input-group
+  [input-group val ctx props
    (entity-links val ctx
      (hf-new val ctx)                         ; new child
      (hf-remove val ctx)
@@ -174,7 +189,7 @@
       [ref val ctx props]))
 
 (defn ^:export keyword [val ctx & [props]]
-  [:div.hyperfiddle-input-group
+  [input-group val ctx props
    (let [props (-> props
                  (assoc :value val :on-change ((::hf/view-change! ctx) ctx))
                  (cond-> (::hf/is-invalid props) (update :class contrib.css/css "invalid"))
@@ -187,7 +202,7 @@
   [hyperfiddle.ui/table ctx (merge props {:columns hyperfiddle.ui/columns})])
 
 (defn ^:export identity-control [val ctx & [props]]
-  [:div.hyperfiddle-input-group
+  [input-group val ctx props
    ; hf/new can't just be slammed in, because once semantic, it will be available
    ; in places where it wasn't asked for. So in datamode, what do you do?
    ; I think we ignore it in forms, and only draw it in table headers.
@@ -233,7 +248,7 @@
                        (assert (every? value-pred v))
                        v))]
   (defn ^:export edn-many [val ctx & [props]]
-    [:div.hyperfiddle-input-group
+    [input-group val ctx props
      ; Links aren't handled, we need to isolate individual values for that
      (let [val (if (context/attr? ctx :db.type/ref)
                  (->> val (map (r/partial context/smart-entity-identifier ctx)) distinct)
@@ -252,7 +267,7 @@
                        (assert ((some-fn nil? value-pred) v))
                        v))]
   (defn ^:export edn [val ctx & [props]]
-    [:div.hyperfiddle-input-group
+    [input-group val ctx props
      (let [props (merge {:value val
                          :mode "clojure"
                          :on-change ((::hf/view-change! ctx) ctx)}
@@ -316,25 +331,24 @@
                   (->> (entity-change->tx ctx (empty->nil o) (empty->nil n))
                        (runtime/with-tx (:runtime ctx) (:partition-id ctx) (context/dbname ctx))))]
   (defn ^:export string [val ctx & [props]]
-    [:div.hyperfiddle-input-group
-     [invalid-message-popup (select-keys props [::hf/invalid-messages]) ; accounted for by ::hf/is-invalid
-      (let [props' (-> props
-                     (assoc :value val
-                            :on-change #_(r/partial on-change ctx) ((::hf/view-change! ctx) ctx))
-                     (dissoc ::hf/invalid-messages ::hf/is-invalid)
-                     (cond-> (::hf/is-invalid props) (update :class contrib.css/css "invalid")))]
-        [debounced props' contrib.ui/text #_contrib.ui/textarea])]
+    [input-group val ctx props
+     (let [props' (-> props
+                      (assoc :value val
+                             :on-change #_(r/partial on-change ctx) ((::hf/view-change! ctx) ctx))
+                      (dissoc ::hf/invalid-messages ::hf/is-invalid)
+                      (cond-> (::hf/is-invalid props) (update :class contrib.css/css "invalid")))]
+       [debounced props' contrib.ui/text #_contrib.ui/textarea])
      (render-related-links val ctx)]))
 
 (defn ^:export long [val ctx & [props]]
-  [:div.hyperfiddle-input-group
+  [input-group val ctx props
    (let [props (assoc props :value val :on-change ((::hf/view-change! ctx) ctx))]
      [debounced props contrib.ui/long])
    (render-related-links val ctx)])
 
 (defn ^:export slider [ctx & [props]]
   (let [[e a v] @(:hypercrud.browser/eav ctx)]
-    [:div.hyperfiddle-input-group
+    [input-group val ctx props
      [:div.hyperfiddle-slider-labels
       [:div.hyperfiddle-slider-label (:min props 0)]
       [:div.hyperfiddle-slider-label v]
@@ -344,7 +358,7 @@
      (render-related-links val ctx)]))
 
 (defn ^:export boolean [val ctx & [props]]
-  [:div.hyperfiddle-input-group
+  [input-group val ctx props
    [:div (select-keys props [:class :style])
     (let [props (assoc props
                   :checked (clojure.core/boolean val)
@@ -361,7 +375,7 @@
                   "true" true
                   "false" false))]
   (defn ^:export tristate-boolean [val ctx & [props]]
-    [:div.hyperfiddle-input-group
+    [input-group val ctx props
      (let [option-props (select-keys props [])
            select-props (select-keys props [:value :on-change :class :style :disabled])]
        [:select (assoc select-props

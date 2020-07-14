@@ -215,7 +215,7 @@
 (defn- select-needle-typeahead
   [ctx {:keys [multiple] :as props}]
   (let [{rt :runtime} ctx]
-    [:div {:key (str (:partition-id ctx))}
+    [:div {:key (str (:partition-id ctx)) :class "hyperfiddle-picklist"}
 
      [iframe/stale-browse ctx
        typeahead-error
