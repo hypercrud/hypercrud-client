@@ -50,15 +50,14 @@
      [:button.tag.remove {:on-click #(with-entity-tx! ctx [[:db/retract e a value]])} "✖"]]))
 
 (defn search
-  [ctx {:keys [by of]}]
-  (let [ctx (context-of ctx of)]
+  [ctx {:keys [::hf/needle-key ::hf/options]}]
+  (let [ctx (context-of ctx options)]
     [debounced
      {:placeholder "Type here to search ..."
-      :value (get by @(-> ctx :hypercrud.browser/route) "")
+      :value (get @(-> ctx :hypercrud.browser/route) needle-key "")
       :on-change (fn [o n]
                    (try
-                     (hf/swap-route! ctx
-                                     assoc by n)
+                     (hf/swap-route! ctx assoc needle-key n)
                      (catch js/Error e
                        (runtime/set-error runtime partition-id e))))}
      text]))
