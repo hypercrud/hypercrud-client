@@ -219,7 +219,8 @@
        (update-in ideal [:+ a]
                   (fn [coll]
                     (let [coll (or coll #{})]
-                      (if (and (not (string? v)) (seqable? v) (not (map? v)))
+                      (if (and (not (string? v)) (seqable? v) (not (map? v))
+                               (not (and (vector? v) (= 2 (count v)) (schema/identity? schema (first v)))))
                         (into coll v)
                         (conj coll v))))))
      (if (contains? (get ideal :-) a)

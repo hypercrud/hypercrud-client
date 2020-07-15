@@ -274,7 +274,7 @@
 
     (if-not is-many
       (fn [ctx {:keys [key] :as props} & args]
-        (let [this-value (if (vector? key) (first key) key)
+        (let [this-value key
               row [:td {:class "hyperfiddle-table-picker-control-cell"}
                    [:input {:checked (= v this-value)
                             :type "radio"
@@ -283,7 +283,7 @@
 
       (fn [ctx props & args]
         (let [v (set (context/data parent-ctx))
-              v (if is-ref (set (map (partial hf/id parent-ctx) v)) v)
+              v (if is-ref (set (map (partial hf/id parent-ctx) v)) v);
               this-value (context/data ctx)
               this-value (if is-ref (hf/id ctx this-value) v)
               checked (contains? v this-value)
