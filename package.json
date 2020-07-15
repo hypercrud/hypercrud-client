@@ -20,5 +20,15 @@
     "remark-toc": "5.1.1",
     "request": "2.88.0",
     "websocket": "1.0.28"
+  },
+  "scripts": {
+    "install-haxe": "test -d .m2 || ln -s ~/.m2 .m2"
+  },
+  "devDependencies": {
+    "haxe": "^5.2.1"
+  },
+  "haxeDependencies": {
+    "haxe": "4.1.1",
+    "hxjava": "3.2.0"
   }
 }
