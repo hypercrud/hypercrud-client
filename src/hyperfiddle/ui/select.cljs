@@ -10,6 +10,7 @@
    [hyperfiddle.api :as hf]
    [hypercrud.browser.base :as base]
    [hyperfiddle.ui :as ui]
+   [hyperfiddle.ui.controls :refer [input-group]]
    [hyperfiddle.ui.iframe :as iframe]
    [hyperfiddle.runtime :as runtime]
    [hypercrud.browser.context :as context]
@@ -129,7 +130,7 @@
 
 (defn select
   [ctx {:keys [options components] :as props}]
-  [:div
+  [input-group nil ctx props
    (when (or (:options components) (:option components))
      [->options ctx (merge {:options options} props) (:options components (fn [_ & args] (into [:div] args))) (:option components (fn [_ & args] (into [:div] args)))])
    (when (or (:selections components) (:selection components))
@@ -250,18 +251,19 @@
         is-many (context/attr? ctx :db.cardinality/many)
         options-ctx (context-of ctx (:options props))]
     (try
-      [select-needle-typeahead options-ctx
-       (merge
-        {:selected (context/data ctx)
-         :options (resolve-options options-ctx props)
-         :multiple is-many
-         :on-change ((::hf/view-change! ctx) ctx)
-         :allow-new (::hf/allow-new props)
-         ::hf/ident-key (if is-ref
-                          (partial hf/id ctx)
-                          identity)}
-        (select-keys props [:html/id])
-        (select-keys props [::hf/option-label ::hf/needle-key ::hf/ident-key ::hf/is-invalid]))]
+      [input-group nil ctx props
+       [select-needle-typeahead options-ctx
+        (merge
+         {:selected (context/data ctx)
+          :options (resolve-options options-ctx props)
+          :multiple is-many
+          :on-change ((::hf/view-change! ctx) ctx)
+          :allow-new (::hf/allow-new props)
+          ::hf/ident-key (if is-ref
+                           (partial hf/id ctx)
+                           identity)}
+         (select-keys props [:html/id])
+         (select-keys props [::hf/option-label ::hf/needle-key ::hf/ident-key ::hf/is-invalid]))]]
 
       (catch :default e
         [(ui-error/error-comp ctx) e]))))
@@ -307,7 +309,7 @@
           options-ctx (update options-ctx
                               :hypercrud.browser/result
                               (r/partial r/fmap add-selected))]
-      [:div
+      [input-group nil ctx props
        [ui/table options-ctx
         {:row (partial table-picker-row-renderer ctx)
          :headers (if (::hf/allow-new props)
