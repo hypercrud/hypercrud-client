@@ -35,6 +35,13 @@
 (declare request-for-fiddle+)
 (declare nil-or-hydrate+)
 
+(defn explode-result
+  "Extract a fiddle response into [route-defaults result]"
+  [r-response]
+  [(from-result (r/fmap (comp key first) r-response)) ; completed route
+   (from-result (r/fmap (comp val first) r-response))])
+
+
 ; internal bs abstraction to support hydrate-result-as-fiddle
 (defn- internal-browse-route+ [{rt :runtime pid :partition-id :as ctx} route]
   {:pre [route]}
@@ -53,9 +60,9 @@
           ;_ (timbre/debug "fiddle" @r-fiddle)
           r-request (from-result @(r/apply-inner-r (r/fmap->> r-fiddle (request-for-fiddle+ rt pid route))))
           ;_ (timbre/debug "request" @r-request)
-          r-result (from-result @(r/apply-inner-r (r/fmap->> r-request (nil-or-hydrate+ rt pid))))
+          r-response (from-result @(r/apply-inner-r (r/fmap->> r-request (nil-or-hydrate+ rt pid))))
           ;_ (timbre/debug "result" @r-fiddle :-> @r-result)
-          ]
+          [r-route-defaults r-result] (explode-result r-response)]
 
       ; fiddle request can be nil for no-arg pulls (just draw readonly form)
       (context/result
@@ -65,6 +72,7 @@
               ; because it is not, this is obviously fragile and will break on any change to the route
               ; this is acceptable today (Jun-2019) because changing a route in ANY way assumes the entire iframe will be re-rendered
               (assoc :hypercrud.browser/route (r/pure route))
+              (assoc :hypercrud.browser/route-defaults r-route-defaults)
               (context/fiddle+ r-fiddle)))
         r-result))))
 

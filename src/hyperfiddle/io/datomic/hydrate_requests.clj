@@ -62,11 +62,6 @@
                            :args (map #(parameter % get-secure-db-with) params)))]
     (q arg-map)))
 
-(defmethod hf/defaults :default [ident route]
-  (if-let [spec (some-> ident spec/parse :args)]
-    (select-keys route (spec/spec-keys spec))
-    route))
-
 (defn- min-arity
   "0 if a function doesn't have args, otherwise the smallest amount of args it
   accepts"
@@ -88,13 +83,17 @@
     (if (and (qualified-symbol? ident)
              (empty? args))
       ;; :eval is a function symbol
-      (let [fvar  (find-var ident)
-            f     (deref fvar)
-            fspec (spec/parse ident)]
-        (cond
-          (= ::spec/fn (:type fspec)) (spec/apply-map f fspec route)
-          (zero? (min-arity fvar))    (f)
-          :else                       (throw (ex-info "This fiddle's eval function expect some arguments, please provide a function spec for it." {:var fvar}))))
+      (if-let [fvar (find-var ident)]
+        (let [f     (deref fvar)
+              fspec (spec/parse ident)]
+          (cond
+            (= ::spec/fn (:type fspec)) (let [defaults (hf/defaults ident route)
+                                              route'   (merge defaults route)
+                                              args     (dissoc route' :hyperfiddle.route/fiddle)]
+                                          {route' (merge args {(keyword ident) (spec/apply-map f fspec args)})})
+            (zero? (min-arity fvar))    (f)
+            :else                       (throw (ex-info "This fiddle function expect some arguments, please provide a fdef for it." {:var fvar}))))
+        (throw (ex-info "Fiddle not found" {:name ident})))
       ;; :eval is a legacy form, load it the old way
       (load-string form))))
 

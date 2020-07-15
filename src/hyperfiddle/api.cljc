@@ -177,6 +177,7 @@
 (defmulti formula (fn [_ctx link _value] (:link/formula link)))
 
 (defmulti defaults (fn [ident _route] ident))
+(defmethod defaults :default [_ route] route) ;; identity
 
 (defmethod tx :default [ctx eav props]
   nil)
