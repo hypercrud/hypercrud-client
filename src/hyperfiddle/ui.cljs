@@ -347,8 +347,9 @@ User renderers should not be exposed to the reaction."
   [ctx Body Head props]
   (let [ctx (maybe-redirect-to-route ctx)]
     [:div {:class (css "field" (:class props))
-           ;; TODO make fields writing to the route colorless, they don't depend on any DB.
-           :style {:border-color (domain/database-color (hf/domain (:runtime ctx)) (context/dbname ctx))}}
+           :style {:border-color (if (redirect-to-route? ctx)
+                                   :transparent ; fields writting to the route are colorless
+                                   (domain/database-color (hf/domain (:runtime ctx)) (context/dbname ctx)))}}
      [Head ctx props]                                   ; suppress ?v in head even if defined
      [Body ctx (value-props props ctx)]]))
 
