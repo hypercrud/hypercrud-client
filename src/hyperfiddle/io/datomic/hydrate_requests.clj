@@ -90,7 +90,7 @@
             (= ::spec/fn (:type fspec)) (let [defaults (hf/defaults ident route)
                                               route'   (merge defaults route)
                                               args     (dissoc route' :hyperfiddle.route/fiddle)]
-                                          {route' (merge args {(keyword ident) (spec/apply-map f fspec args)})})
+                                          {route' (spec/apply-map f fspec args)})
             (zero? (min-arity fvar))    (f)
             :else                       (throw (ex-info "This fiddle function expect some arguments, please provide a fdef for it." {:var fvar}))))
         (throw (ex-info "Fiddle not found" {:name ident})))

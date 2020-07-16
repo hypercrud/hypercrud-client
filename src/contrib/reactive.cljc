@@ -162,6 +162,9 @@
     ; java.lang.RuntimeException: Can't have fixed arity function with more params than variadic function
    (apply f (cons rv rvs))))
 
+(defn lift [f]
+  (partial fmap f))
+
 (defn apply
   ([f rvs]
    (fmap (partial clojure.core/apply f) (sequence rvs)))

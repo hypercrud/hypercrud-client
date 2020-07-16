@@ -159,7 +159,6 @@
    :fiddle/pull-database (constantly "$")
    :fiddle/query (constantly "" #_(load-resource "fiddle-query-default.edn"))
    :fiddle/type (constantly :blank) ; Toggling default to :query degrades perf in ide
-   :fiddle/shape '[:find (pull ?e [*]) . :where [?e]] ;; FindScalar
    })
 
 (defn- composite-link?
@@ -242,3 +241,14 @@
                       fake-q `[:find (~'pull ~source ~'?e ~pull) . :in ~source :where [~source ~'?e]]]
                   (datascript.parser/parse-query fake-q))))
     :query (do-result (datascript.parser/parse-query (from-result (as-expr query))))))
+
+(defn shape
+  "Build a fiddle shape by type. Useful to change a fiddle qfind on the fly."
+  [type]
+  (:qfind
+   (datascript.parser/parse-query
+    (from-result
+     (as-expr
+      (case type
+        FindScalar (template [:find (pull ?e [*]) . :where [?e]])
+        (throw (ex-info "Not implemented yet, feel free to add it." {:type type}))))))))

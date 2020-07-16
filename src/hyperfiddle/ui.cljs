@@ -574,6 +574,10 @@ nil. call site must wrap with a Reagent component"          ; is this just hyper
               #{FindRel FindColl} [table ctx (assoc props :columns table-column-product)] ; identical result?
               #{FindTuple FindScalar} [form table-column-product val ctx props])))]))])
 
+(defn search-defaults [ctx & [props]]
+  (let [ctx (context/derive-for-search-defaults ctx)]
+    [result (hf/data ctx) ctx props]))
+
 ;(defmethod render :hf/blank [ctx props]
 ;  [iframe-field-default val ctx props])
 ;

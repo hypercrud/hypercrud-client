@@ -17,7 +17,7 @@
     [hypercrud.types.DbName :refer [#?(:cljs DbName)]]
     [hypercrud.types.ThinEntity :refer [->ThinEntity #?(:cljs ThinEntity)]]
     [hyperfiddle.api :as hf]
-    [hyperfiddle.fiddle]
+    [hyperfiddle.fiddle :as fiddle]
     [hyperfiddle.route :as route]
     [hyperfiddle.runtime :as runtime]
     [hyperfiddle.spec :as spec]
@@ -664,6 +664,19 @@ a speculative db/id."
     ; index-result implicitly depends on eav in the tempid reversal stable entity code.
     ; Conceptually, it should be after qfind and before EAV.
     (index-result ctx)))                                    ; in row case, now indexed, but path is not aligned yet
+
+(defn derive-for-search-defaults
+  "Build a new context with route defaults as result so they can be rendered as a form."
+  [{:keys [:hypercrud.browser/route-defaults] :as ctx}]
+  (-> ctx
+      (assoc ;; Remove :hyperfiddle.route/fiddle from route defaults
+             :hypercrud.browser/result ((r/lift dissoc) route-defaults :hyperfiddle.route/fiddle)
+             ;; We want to render as a form, so qfind is FindScalar
+             :hypercrud.browser/qfind (r/pure (fiddle/shape 'FindScalar)))
+      (as-> ctx
+          (assoc ctx :hypercrud.browser/result-enclosure (r/track result-enclosure! ctx)
+                     :hypercrud.browser/validation-hints (r/track validation-hints-enclosure! ctx)))
+      (index-result)))
 
 (defn stable-element-schema! [rt pid element]
   (let [{{db :symbol} :source} element]
