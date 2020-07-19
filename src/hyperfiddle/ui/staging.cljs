@@ -73,7 +73,7 @@
                                    (map (fn [x]
                                           (cond (vector? x) (str x)
                                                 (list? x) (pr-str x)
-                                                (map? x) (pr-str x)
+                                                (map? x) (pprint-str x) ; multi-select transactions get big now
                                                 () (pprint-str x)))) ; what else?
                                    (interpose \newline))]
                         (str \[ (first s)
