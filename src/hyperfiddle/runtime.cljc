@@ -371,20 +371,22 @@
 (defn with-tx
   "Stage tx to the given dbname (appends to existing tx).  This will rehydrate the given branch.  This may or may not immediately transact.
   Returns a promise"
-  [rt pid dbname tx]
-  (cond
-    (not (branched? rt pid)) (with-tx rt (get-branch-pid rt pid) dbname tx)
-    (not (domain/valid-dbname? (hf/domain rt) dbname)) (p/rejected (ex-info "Unable to stage to an invalid db" {:dbname dbname}))
-    (empty? tx) (do (timbre/warn "No tx provided")
-                    (p/resolved nil))
-    :else (do
-            (let [tx (update-to-tempids! rt pid dbname tx)]
-              (state/dispatch! rt [:with pid dbname tx]))
-            (if (and (nil? (parent-pid rt pid)) (get-auto-transact rt dbname))
-              (transact pid dbname)
-              (do
-                (state/dispatch! rt [:hydrate!-start pid])
-                (hydrate-partition rt pid))))))
+  ([ctx tx]
+   (with-tx (:runtime ctx) (:partition-id ctx) (hf/dbname ctx) tx))
+  ([rt pid dbname tx]
+   (cond
+     (not (branched? rt pid)) (with-tx rt (get-branch-pid rt pid) dbname tx)
+     (not (domain/valid-dbname? (hf/domain rt) dbname)) (p/rejected (ex-info "Unable to stage to an invalid db" {:dbname dbname}))
+     (empty? tx) (do (timbre/warn "No tx provided")
+                     (p/resolved nil))
+     :else (do
+             (let [tx (update-to-tempids! rt pid dbname tx)]
+               (state/dispatch! rt [:with pid dbname tx]))
+             (if (and (nil? (parent-pid rt pid)) (get-auto-transact rt dbname))
+               (transact pid dbname)
+               (do
+                 (state/dispatch! rt [:hydrate!-start pid])
+                 (hydrate-partition rt pid)))))))
 
 (defn commit-branch
   "Commit the branch to its parent.  This will rehydrate the parent branch.  This may or may not immediately transact.

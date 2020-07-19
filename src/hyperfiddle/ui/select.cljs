@@ -12,11 +12,11 @@
    [hyperfiddle.ui :as ui]
    [hyperfiddle.ui.controls :refer [input-group]]
    [hyperfiddle.ui.iframe :as iframe]
-   [hyperfiddle.runtime :as runtime]
+   [hyperfiddle.runtime :as runtime :refer [with-tx]]
    [hypercrud.browser.context :as context]
    [hyperfiddle.data :as data]
    [hyperfiddle.ui.error :as ui-error]
-   [hyperfiddle.ui.util :refer [with-entity-tx!]]
+   [hyperfiddle.ui.util]
    ["react-bootstrap-typeahead" :refer [Typeahead AsyncTypeahead #_TypeaheadInputSingle]]))
 
 (defn disabled? [ctx props]
@@ -48,7 +48,7 @@
   [ctx {:keys [value] :as props}]
   (let [[e a _] @(:hypercrud.browser/eav ctx)]
     [:div.tag props value
-     [:button.tag.remove {:on-click #(with-entity-tx! ctx [[:db/retract e a value]])} "✖"]]))
+     [:button.tag.remove {:on-click #(with-tx ctx [[:db/retract e a value]])} "✖"]]))
 
 (defn search
   [ctx {:keys [::hf/needle-key ::hf/options]}]
@@ -114,16 +114,11 @@
                :on-change (condp = cardinality
                             :db.cardinality/many
                             (fn [select?]
-                              (apply
-                                ((::hf/view-change! ctx) ctx)
-                                (if select?
-                                  [selected (conj selected value)]
-                                  [selected (disj selected value)])))
+                              (let [ns (if select? (conj selected value) (disj selected value))]
+                                (((::hf/view-change! ctx) ctx) selected ns)))
                             :db.cardinality/one
                             (fn [_]
-                              (apply
-                                ((::hf/view-change! ctx) ctx)
-                                [selected value])))}])
+                              (((::hf/view-change! ctx) ctx) selected value)))}])
 
            options))))
 
@@ -190,7 +185,7 @@
                                                    (:allow-new props)
                                                    (map adapt-new-entry))]
                               (if multiple
-                                ((:on-change props) selected current)
+                                ((:on-change props) (set selected) (set current))
                                 ((:on-change props) (first selected) (first current))))))
 
         (assoc :label-key (comp str (::hf/option-label props identity)))
