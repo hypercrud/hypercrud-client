@@ -44,14 +44,6 @@
 ; On the request side, we walk the whole resultset and load each iframe from exactly the right place
 ; without any refocusing. Only on the view side do we care about drawing things in some other place.
 
-(defn cross-streams [ctx]
-  ; This does not get to look at the fiddlescope, though seems reasonable if it wanted to
-  (when @(r/fmap :fiddle/hydrate-result-as-fiddle (:hypercrud.browser/fiddle ctx))
-    (either/branch
-      (base/browse-result-as-fiddle+ ctx)
-      (fn [e] (timbre/warn e))                              ; do we actually care about this error?
-      requests)))
-
 (defn request-attr-level [ctx]
   (doseq [[a ctx] (context/spread-attributes ctx)]
     (requests-here ctx)
@@ -97,5 +89,4 @@
             :variable nil #_(requests-here ctx)
             :aggregate nil #_(requests-here ctx)
             :pull (do (requests-here ctx)
-                      (request-attr-level ctx)))))))
-  (cross-streams ctx))
+                      (request-attr-level ctx))))))))

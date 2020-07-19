@@ -182,7 +182,6 @@
                                                  ]}
                                   :link/formula
                                   :link/path
-                                  :link/rel
                                   :link/tx-fn]}
                   :fiddle/markdown
                   :fiddle/pull
@@ -190,7 +189,6 @@
                   :fiddle/query
                   :fiddle/renderer
                   :fiddle/type
-                  :fiddle/hydrate-result-as-fiddle
                   #_*                                                ; For hyperblog, so we can access :hyperblog.post/title etc from the fiddle renderer
                   ])
 

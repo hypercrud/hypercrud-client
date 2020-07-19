@@ -7,8 +7,6 @@
  #:db{:ident :hyperfiddle/starred :valueType :db.type/boolean :cardinality :db.cardinality/one}
 
  ; fiddle
- #:db{:ident :fiddle/hydrate-result-as-fiddle :valueType :db.type/boolean :cardinality :db.cardinality/one
-      :doc "Experimental. When set, data-sync will interpret this fiddle's result as a fiddle - like a higher order fiddle - this is a recursion mechanic."}
  #:db{:ident :fiddle/ident :valueType :db.type/keyword :cardinality :db.cardinality/one :unique :db.unique/identity
       :doc "Fiddle identifier used in URLs. Warning: changing this breaks fiddle URLs."}
  #:db{:ident :fiddle/links :valueType :db.type/ref :cardinality :db.cardinality/many :isComponent true
@@ -40,8 +38,6 @@
       :doc "deprecated; function hook to influence target query inputs wiring, this is fully managed now"}
  #:db{:ident :link/path :valueType :db.type/string :cardinality :db.cardinality/one
       :doc "todo rename; specifies the attribute for which this link is valid"}
- #:db{:ident :link/rel :valueType :db.type/keyword :cardinality :db.cardinality/one
-      :doc "archived"}
  #:db{:ident :link/tx-fn :valueType :db.type/string :cardinality :db.cardinality/one
       :doc "names a hyperfiddle.api/tx-fn multimethod which builds a transaction"}
  ]

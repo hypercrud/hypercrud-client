@@ -34,7 +34,6 @@
                                                :opt [:link/class :link/fiddle :link/formula :link/tx-fn])
                                        #_(s/multi-spec fiddle-link :link/class))))
 (s/def :fiddle/markdown string?)
-(s/def :fiddle/hydrate-result-as-fiddle boolean?)
 
 (s/def :link/class (s/coll-of keyword?))                    ; hf/new is not allowed on FindScalar at the top (no parent)
 (s/def :link/fiddle (comp not nil?))

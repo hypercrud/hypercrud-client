@@ -24,8 +24,6 @@
        :links         [:ref* :isComponent "Links to other fiddles that are available from this fiddle"]
        :renderer      [:string "Reagent expression for the fiddle view"]
        :markdown      [:string "Markdown expression for fiddle view, optional"]
-       :hydrate-result-as-fiddle
-                      [:boolean "Experimental. When set, data-sync will interpret this fiddle's result as a fiddle - like a higher order fiddle - this is a recursion mechanic."]
        :uuid          [:uuid :identity "For naming anonymous fiddles"]
        ;:query-needle [:string]
        }
