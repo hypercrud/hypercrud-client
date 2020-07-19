@@ -29,7 +29,6 @@
     [hyperfiddle.ui.error :as ui-error]
     [hyperfiddle.ui.iframe :as iframe]
     [hyperfiddle.ui.popover :refer [effect-cmp popover-cmp]]
-    [hyperfiddle.ui.select$]
     [hyperfiddle.ui.sort :as sort]
     [hyperfiddle.ui.stale :as stale]
     [hyperfiddle.ui.util :as ui-utils]
