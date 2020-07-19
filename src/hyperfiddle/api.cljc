@@ -221,7 +221,8 @@
        (thinentity? e) (.-id e)
        (number? e) e                                        ; dbid
        (string? e) e                                        ; tempid
-       () (throw (ex-info "unknown route param" {}))))))
+       (some? e) (throw (ex-info "unrecognized route param type" {}))
+       () nil))))                                           ; don't crash if missing entirely
 
 (defn with-hf-args [f] (f *$* (arg *route*)))
 
