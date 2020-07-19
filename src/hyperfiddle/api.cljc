@@ -239,7 +239,7 @@
                                                  :type  (type x)}))))
 
 (def root-pid "root")
-(def browser-query-limit 50)
+(def browser-query-limit 20)
 
 (defn needle-match [v needle]
   (str/includes?
