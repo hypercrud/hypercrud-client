@@ -78,14 +78,10 @@
   ([ctx _old new]
    (with-entity-change-route! ctx new)))
 
-(defn with-entity-tx!
-  [ctx tx]
-  (runtime/with-tx (:runtime ctx) (:partition-id ctx) (context/dbname ctx) tx))
-
 (defn change-handler
   [ctx]
   (fn [e {rets :- adds :+}]
-    (with-entity-tx!
+    (runtime/with-tx
       ctx
       (into (mapv (fn [[a v]] [:db/retract e a v]) rets)
             (mapv (fn [[a v]] [:db/add e a v]) adds)))))
