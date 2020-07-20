@@ -22,6 +22,7 @@
     [hyperfiddle.fiddle :as fiddle]
     [hyperfiddle.route :as route]
     [hyperfiddle.runtime :as runtime]
+    [hyperfiddle.state :as state]
     [taoensso.timbre :as timbre]
     [contrib.expr :as expr]
     [hyperfiddle.def :as hf-def])
@@ -63,6 +64,9 @@
           r-response (from-result @(r/apply-inner-r (r/fmap->> r-request (nil-or-hydrate+ rt pid))))
           ;_ (timbre/debug "result" @r-fiddle :-> @r-result)
           [r-route-defaults r-result] (explode-result r-response)]
+
+      ;; FIXME this is a hack, a new runtime impl is needed
+      #?(:clj (state/dispatch! rt [:partition-route-defaults pid @r-route-defaults]))
 
       ; fiddle request can be nil for no-arg pulls (just draw readonly form)
       (context/result

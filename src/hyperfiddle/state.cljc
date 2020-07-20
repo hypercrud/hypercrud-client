@@ -97,6 +97,10 @@
                        (assert (some? (get partitions pid)) "Must create-partition before setting route") ; todo move this assertion to runtime boundaries
                        (assoc-in partitions [pid :route] route))
 
+    :partition-route-defaults (let [[pid route] args]
+                                (assert (some? (get partitions pid)) "Must create-partition before setting route") ; see :partition-route
+                                (assoc-in partitions [pid :route-defaults] route))
+
     :stage-route (let [[pid route] args]
                    (assert (some? (get partitions pid)) "Must create-partition before setting route") ; todo move this assertion to runtime boundaries
                    (assoc-in partitions [pid :pending-route] route))

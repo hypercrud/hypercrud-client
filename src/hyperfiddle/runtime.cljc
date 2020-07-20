@@ -165,6 +165,10 @@
     @(state-ref rt [::partitions pid :route])
     #_(assert (str "route not found for pid: " pid))))
 
+(defn get-route-defaults [rt pid]
+  {:pre [pid]}
+  @(state-ref rt [::partitions pid :route-defaults]))
+
 (defn get-pending-route [rt pid]
   {:pre [pid]}
   @(state-ref rt [::partitions pid :pending-route]))
