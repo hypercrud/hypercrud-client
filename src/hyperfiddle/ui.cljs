@@ -625,7 +625,7 @@ nil. call site must wrap with a Reagent component"          ; is this just hyper
                                     ^{:key (str pid)}
                                     [:<>
                                      [:dt
-                                      [iframe/route-editor (runtime/get-route rt pid) (runtime/get-route-defaults rt pid) (r/partial iframe/set-route rt pid)]]
+                                      [iframe/route-editor (iframe/get-route rt pid false) (iframe/get-route rt pid true) (r/partial iframe/set-route rt pid)]]
                                      [:dd
                                       (let [ctx (context/set-partition (context/map->Context {:runtime rt}) pid)]
                                         [iframe/stale-browse ctx

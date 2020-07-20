@@ -387,7 +387,7 @@
                       (do/! :Eval.get-var :eval/env)))
                   () (merge val
                        (-> (get-fiddle-def (:fiddle/ident val))
-                           (select-keys [:db/id :fiddle/type :fiddle/query :fiddle/pull])
+                           (select-keys [:db/id :fiddle/type :fiddle/query :fiddle/pull :fiddle/spec])
                            (update-existing :fiddle/query str)
                            (update-existing :fiddle/pull str)
                            (update-existing :fiddle/eval str)))))

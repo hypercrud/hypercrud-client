@@ -87,10 +87,9 @@
   (hf/set-route rt pid (if (map? route) route (spec/read-route route))))
 
 (defn route-editor
-  ([{rt             :runtime
-     pid            :partition-id
-     route-defaults :hypercrud.browser/route-defaults
-     :as            ctx}]
+  ([{rt  :runtime
+     pid :partition-id
+     :as ctx}]
    [route-editor (get-route rt pid false) (get-route rt pid true) (r/partial set-route rt pid)])
   ([route default on-change]
    (let [parse-string (fn [s]

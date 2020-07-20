@@ -81,17 +81,22 @@
 
 (s/def ::expr
   (s/and seq?
-    (comp symbol? first)))
+         (comp symbol? first)))
+
+(s/def ::expr-or-kw
+  (read-alt
+   ::expr
+   keyword?))
 
 (s/def ::link-expr
   (read-alt
     (s/cat :class #{:hf/new :hf/iframe :hf/edit}
-      :fiddle ::expr
+      :fiddle ::expr-or-kw
       :& (s/* any?))
     (s/cat :class #{:hf/remove}
       :& (s/* any?))
     (s/cat :class (s/? set?)
-      :fiddle ::expr
+      :fiddle ::expr-or-kw
       :& (s/* any?))))
 
 (s/def ::link-key
