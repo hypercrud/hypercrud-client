@@ -271,7 +271,10 @@
 
     (if-not is-many
       (fn [ctx {:keys [key] :as props} & args]
-        (let [this-value key
+        (let [this-value (condp some [(unqualify (contrib.datomic/parser-type (hf/qfind ctx)))]
+                           #{:find-coll :find-scalar} (hf/data ctx)
+                           #{:find-rel :find-tuple} (get (hf/data ctx) (::hf/option-element props 0)))
+              this-value (hf/id ctx this-value)
               row [:td {:class "hyperfiddle-table-picker-control-cell"}
                    [:input {:checked (= v this-value)
                             :type "radio"
@@ -281,8 +284,10 @@
       (fn [ctx props & args]
         (let [v (set (context/data parent-ctx))
               v (if is-ref (set (map (partial hf/id parent-ctx) v)) v);
-              this-value (context/data ctx)
-              this-value (if is-ref (hf/id ctx this-value) v)
+              this-value (condp some [(unqualify (contrib.datomic/parser-type (hf/qfind ctx)))]
+                                 #{:find-coll :find-scalar} (hf/data ctx)
+                                 #{:find-rel :find-tuple} (get (hf/data ctx) (::hf/option-element props 0)))
+              this-value (if is-ref (hf/id ctx this-value) this-value)
               checked (contains? v this-value)
               control [:td {:class "hyperfiddle-table-picker-control-cell"}
                         [:input {:checked checked
