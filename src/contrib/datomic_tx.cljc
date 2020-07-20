@@ -135,6 +135,7 @@
 
 (defn identifier->e
   [schema identifier]
+  (assert (not (empty? identifier)))
   (or (:db/id identifier)
       (:tempid identifier)
       (->> identifier
@@ -153,6 +154,9 @@
 
           (number? e)
           {:db/id e}
+
+          (keyword? e)
+          {:db/ident e}
 
           (vector? e)
           (conj {} e))
