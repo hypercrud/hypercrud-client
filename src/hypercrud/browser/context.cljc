@@ -670,7 +670,7 @@ a speculative db/id."
   [{:keys [:hypercrud.browser/route-defaults] :as ctx}]
   (-> ctx
       (assoc ;; Remove :hyperfiddle.route/fiddle from route defaults
-             :hypercrud.browser/result ((r/lift1 dissoc) route-defaults :hyperfiddle.route/fiddle)
+             :hypercrud.browser/result (r/fmap-> route-defaults (dissoc :hyperfiddle.route/fiddle))
              ;; We want to render as a form, so qfind is FindScalar
              :hypercrud.browser/qfind (r/pure (fiddle/shape 'FindScalar)))
       (dissoc :hypercrud.browser/route-defaults) ; avoid potential recursion
@@ -683,27 +683,29 @@ a speculative db/id."
   (let [{{db :symbol} :source} element]
     (some->> db str (runtime/get-schema+ rt pid) deref)))
 
-(defn schema-with-spec
-  ([ctx]
-   (update ctx :hypercrud.browser/schema (r/lift1 schema-with-spec ctx)))
-  ([ctx schema]
-   (contrib.datomic/->Schema (-> (spec/spec ctx)
-                                 (:attributes)
-                                 (spec-datomic/spec->schema)
-                                 (merge (.-schema-by-attr schema))))))
+(defn schema-with-spec [ctx]
+  (if-let [spec (spec/spec ctx)]
+    (-> spec
+        (:attributes)
+        (spec-datomic/spec->schema)
+        (merge (.-schema-by-attr (deref (:hypercrud.browser/schema ctx))))
+        (contrib.datomic/->Schema)
+        (r/pure)
+        (->> (assoc ctx :hypercrud.browser/schema)))
+    ctx))
 
 ; This complects two spread-elements concerns which are separate.
 ; 1. Setting Schema and element
 ; 2. Setting result and result related things
 (defn element-head [ctx i]
   (let [r-element (r/fmap-> (:hypercrud.browser/qfind ctx) datascript.parser/find-elements (get i))]
-    (assoc ctx
-      :hypercrud.browser/element r-element
-      ; stable-element-schema! can throw on schema lookup
-      ; this may need to be caught depending on when how/when this function is used
-      ; or with reactions; we may need to unlazily throw ASAP
-      :hypercrud.browser/schema (r/fmap->> r-element (stable-element-schema! (:runtime ctx) (:partition-id ctx))
-                                           (schema-with-spec ctx)))))
+    (-> ctx
+        (assoc :hypercrud.browser/element r-element
+        ; stable-element-schema! can throw on schema lookup
+        ; this may need to be caught depending on when how/when this function is used
+        ; or with reactions; we may need to unlazily throw ASAP
+               :hypercrud.browser/schema (r/fmap->> r-element (stable-element-schema! (:runtime ctx) (:partition-id ctx))))
+        (schema-with-spec))))
 
 (defn browse-element [ctx i]                                ; [nil :seattle/neighborhoods 1234345]
   {:pre []
