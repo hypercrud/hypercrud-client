@@ -3,7 +3,7 @@
     [cats.core :refer [mlet]]
     [cats.labs.promise]
     [clojure.set :as set]
-    [contrib.data :as data]
+    [contrib.data :as data :refer [seq->>] :refer-macros [seq->>]]
     [contrib.datomic]
     [contrib.datomic-tx :as tx]
     [contrib.reactive :as r]

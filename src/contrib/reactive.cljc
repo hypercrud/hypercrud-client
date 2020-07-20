@@ -162,13 +162,18 @@
     ; java.lang.RuntimeException: Can't have fixed arity function with more params than variadic function
    (apply f (cons rv rvs))))
 
-(defn lift [f]
-  (partial fmap f))
-
 (defn apply
   ([f rvs]
    (fmap (partial clojure.core/apply f) (sequence rvs)))
   #_(fmap->> (sequence rvs) (clojure.core/apply f)))        ; seems broken macro in cljs only `WARNING: Wrong number of args (1) passed to cljs.core/apply at line 219 reactive.cljc`
+
+(defn lift1
+  "Convenience for `clojure.core/update`
+  (update amap :reactive-value-at-key (lift1 assoc) :foo :bar)
+  Supports partial application: (lift1 f arg) == (lift1 (partial f arg))"
+  [f & partial-args]
+  (fn [rv & args]
+    (fmap #(clojure.core/apply f (concat partial-args) (list %) args) rv)))
 
 (defn >>= [fr rv]
   (track (comp deref fr deref) rv))

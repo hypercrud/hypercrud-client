@@ -670,9 +670,10 @@ a speculative db/id."
   [{:keys [:hypercrud.browser/route-defaults] :as ctx}]
   (-> ctx
       (assoc ;; Remove :hyperfiddle.route/fiddle from route defaults
-             :hypercrud.browser/result ((r/lift dissoc) route-defaults :hyperfiddle.route/fiddle)
+             :hypercrud.browser/result ((r/lift1 dissoc) route-defaults :hyperfiddle.route/fiddle)
              ;; We want to render as a form, so qfind is FindScalar
              :hypercrud.browser/qfind (r/pure (fiddle/shape 'FindScalar)))
+      (dissoc :hypercrud.browser/route-defaults) ; avoid potential recursion
       (as-> ctx
           (assoc ctx :hypercrud.browser/result-enclosure (r/track result-enclosure! ctx)
                      :hypercrud.browser/validation-hints (r/track validation-hints-enclosure! ctx)))
@@ -682,11 +683,14 @@ a speculative db/id."
   (let [{{db :symbol} :source} element]
     (some->> db str (runtime/get-schema+ rt pid) deref)))
 
-(defn schema-with-spec [ctx schema]
-  (contrib.datomic/->Schema (->(spec/spec ctx)
-                                   (:attributes)
-                                   (spec-datomic/spec->schema)
-                                   (merge (.-schema-by-attr schema)))))
+(defn schema-with-spec
+  ([ctx]
+   (update ctx :hypercrud.browser/schema (r/lift1 schema-with-spec ctx)))
+  ([ctx schema]
+   (contrib.datomic/->Schema (-> (spec/spec ctx)
+                                 (:attributes)
+                                 (spec-datomic/spec->schema)
+                                 (merge (.-schema-by-attr schema))))))
 
 ; This complects two spread-elements concerns which are separate.
 ; 1. Setting Schema and element

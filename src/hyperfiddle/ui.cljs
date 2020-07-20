@@ -348,7 +348,7 @@ User renderers should not be exposed to the reaction."
   (let [ctx (maybe-redirect-to-route ctx)]
     [:div {:class (css "field" (:class props))
            :style {:border-color (if (redirect-to-route? ctx)
-                                   :transparent ; fields writting to the route are colorless
+                                   "lightgrey" ; fields writting to the route are grey
                                    (domain/database-color (hf/domain (:runtime ctx)) (context/dbname ctx)))}}
      [Head ctx props]                                   ; suppress ?v in head even if defined
      [Body ctx (value-props props ctx)]]))
@@ -556,11 +556,19 @@ User renderers should not be exposed to the reaction."
        (mapcat identity)                                    ; Don't flatten the hiccup
        doall))
 
+(defn search-defaults [ctx & [props]]
+  (let [ctx (context/derive-for-search-defaults ctx)]
+    [:div {:class "hyperfiddle search-defaults"
+           :style {:margin-bottom "1rem"}}
+     [result (hf/data ctx) ctx props]]))
+
 (defn ^:export result "Default result renderer. Invoked as fn, returns seq-hiccup, hiccup or
 nil. call site must wrap with a Reagent component"          ; is this just hyper-control ?
   [val ctx & [props]]
   {:pre [(not= val clojure.core/val)]}                      ; check for busted call while we migrate away from this param
   [:<>
+   (when (some? (:hypercrud.browser/route-defaults ctx))
+     [search-defaults ctx props])
    (doall
      (for [[k ctx] (hypercrud.browser.context/spread-result ctx)]
        [:<> {:key k}
@@ -573,10 +581,6 @@ nil. call site must wrap with a Reagent component"          ; is this just hyper
             (condp some [qtype]                             ; spread-rows
               #{FindRel FindColl} [table ctx (assoc props :columns table-column-product)] ; identical result?
               #{FindTuple FindScalar} [form table-column-product val ctx props])))]))])
-
-(defn search-defaults [ctx & [props]]
-  (let [ctx (context/derive-for-search-defaults ctx)]
-    [result (hf/data ctx) ctx props]))
 
 ;(defmethod render :hf/blank [ctx props]
 ;  [iframe-field-default val ctx props])
@@ -611,18 +615,23 @@ nil. call site must wrap with a Reagent component"          ; is this just hyper
 (letfn [(render-edn [data]
           (let [edn-str (pprint-str data 160)]
             [contrib.ui/code {:value edn-str :read-only true}]))]
-  (defn ^:export fiddle-api [_ {rt :runtime :as ctx} & [props]]
+  (defn ^:export fiddle-api [_ {rt             :runtime
+                                route-defaults :hypercrud.browser/route-defaults
+                                :as            ctx} & [props]]
     [:div.hyperfiddle.display-mode-api (select-keys props [:class])
      (render-edn (some-> (:hypercrud.browser/result ctx) deref))
      (when-let [iframes (->> (disj (set (runtime/descendant-pids rt (:partition-id ctx))) (:partition-id ctx))
                              (map (fn [pid]
                                     ^{:key (str pid)}
                                     [:<>
-                                     [:dt [iframe/route-editor (runtime/get-route rt pid) (r/partial hf/set-route rt pid)]]
-                                     [:dd (let [ctx (context/set-partition (context/map->Context {:runtime rt}) pid)]
-                                            [iframe/stale-browse ctx
-                                             (fn [ctx e] [ui-error/error-block e])
-                                             (fn [ctx] (render-edn (some-> (:hypercrud.browser/result ctx) deref)))])]]))
+                                     [:dt
+                                      [iframe/route-editor (runtime/get-route rt pid) (runtime/get-route-defaults rt pid) (r/partial iframe/set-route rt pid)]]
+                                     [:dd
+                                      (let [ctx (context/set-partition (context/map->Context {:runtime rt}) pid)]
+                                        [iframe/stale-browse ctx
+                                         (fn [ctx e] [ui-error/error-block e])
+                                         (fn [ctx] (render-edn (some-> (:hypercrud.browser/result ctx) deref)))])]]))
+                             (doall)
                              seq)]
        [:div.container-fluid.iframes
         [:h4 "iframes"]

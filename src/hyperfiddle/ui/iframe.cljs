@@ -12,6 +12,7 @@
     [hyperfiddle.ui.error :as ui-error]
     [hyperfiddle.ui.stale :as stale]
     [hyperfiddle.api :as hf]
+    [hyperfiddle.spec :as spec]
     [taoensso.timbre :as timbre]
     [clojure.string :as str]))
 
@@ -67,22 +68,49 @@
      ; Cheaper to pass fiddle-value as a prop than to hash everything
      [fiddle-renderer-cmp value ctx props @(:hypercrud.browser/fiddle ctx)]]))
 
+(defn- drop-tail-while [f xs]
+  (reverse (drop-while f (reverse xs))))
+
+(defn- get-route [rt pid default?]
+  (let [{:keys [:hyperfiddle.route/fiddle] :as route} (if default?
+                                                        (runtime/get-route-defaults rt pid)
+                                                        (runtime/get-route rt pid))
+        fiddle                                        (some-> fiddle symbol)]
+    (when-let [error (s/explain-data :hyperfiddle/route route)]
+      (js/console.error "Invalid route" (::s/problems error)))
+    (if (s/get-spec fiddle)
+      (cond->> (spec/sexp (spec/parse fiddle) route)
+        (not default?) (drop-tail-while nil?))
+      route)))
+
+(defn set-route [rt pid route]
+  (hf/set-route rt pid (if (map? route) route (spec/read-route route))))
+
 (defn route-editor
-  ([{rt :runtime pid :partition-id :as ctx}]
-   [route-editor (runtime/get-route rt pid) (r/partial hf/set-route rt pid)])
-  ([route on-change]
+  ([{rt             :runtime
+     pid            :partition-id
+     route-defaults :hypercrud.browser/route-defaults
+     :as            ctx}]
+   [route-editor (get-route rt pid false) (get-route rt pid true) (r/partial set-route rt pid)])
+  ([route default on-change]
    (let [parse-string (fn [s]
-                        (let [route (reader/read-edn-string! s)]
-                          (s/assert :hyperfiddle/route route)
+                        (let [route (spec/read-route (reader/read-edn-string! s))]
+                          (when-let [error (s/explain-data :hyperfiddle/route route)]
+                            (js/console.error "Invalid route" (::s/problems error))
+                            (s/assert :hyperfiddle/route route))
                           route))
-         to-string pprint-str]
-     [contrib.ui/debounced
-      {:value route
-       :debounce/interval 500
-       :on-change (fn [o n] (when-not (= o n) (on-change n)))
-       :mode "clojure"
-       :lineNumbers false}
-      contrib.ui/validated-cmp parse-string to-string contrib.ui/code])))
+         to-string    pprint-str]
+     [:<>
+      [contrib.ui/debounced
+       {:value             route
+        :debounce/interval 500
+        :on-change         (fn [o n] (when-not (= o n) (on-change n)))
+        :mode              "clojure"
+        :lineNumbers       false}
+       contrib.ui/validated-cmp parse-string to-string contrib.ui/code]
+      [contrib.ui/code {:value     (pprint-str default)
+                        :read-only true
+                        :class     "foo"}]])))
 
 (defn stale-browse [ctx error success & args]
   [stale/loading
