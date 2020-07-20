@@ -685,13 +685,15 @@ a speculative db/id."
 
 (defn schema-with-spec [ctx]
   (if-let [spec (spec/spec ctx)]
-    (-> spec
-        (:attributes)
-        (spec-datomic/spec->schema)
-        (merge (.-schema-by-attr (deref (:hypercrud.browser/schema ctx))))
-        (contrib.datomic/->Schema)
-        (r/pure)
-        (->> (assoc ctx :hypercrud.browser/schema)))
+    (let [#?(:cljs ^js schema
+             :clj      schema) (deref (:hypercrud.browser/schema ctx))]
+      (-> spec
+          (:attributes)
+          (spec-datomic/spec->schema)
+          (merge (.-schema-by-attr schema))
+          (contrib.datomic/->Schema)
+          (r/pure)
+          (->> (assoc ctx :hypercrud.browser/schema))))
     ctx))
 
 ; This complects two spread-elements concerns which are separate.

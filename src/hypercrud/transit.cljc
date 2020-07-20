@@ -73,7 +73,7 @@
      Failure (t/write-handler (constantly "failure-v") (fn [v] (vector (cats/extract v))))
      Success (t/write-handler (constantly "success-v") (fn [v] (vector (cats/extract v))))
      ExceptionInfo (t/write-handler (constantly "ex-info") (fn [ex] [(ex-message ex) (ex-data ex) (ex-cause ex)]))
-     #?@(:cljs [URI (t/write-handler (constantly "r") (fn [v] (.-uri-str v)))])
+     #?@(:cljs [URI (t/write-handler (constantly "r") (fn [^js v] (.-uri-str v)))])
      #?@(:clj [clojure.lang.PersistentTreeMap (t/write-handler (constantly "sorted-map") (fn [v] (into {} v)))])
      #?@(:clj [contrib.orderedmap.PersistentOrderedMap (t/write-handler (constantly "ordered-map") (fn [omap] [(.backing-map omap) (.order omap)]))])
      }))
