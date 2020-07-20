@@ -1,4 +1,5 @@
 (ns contrib.data
+  (:refer-clojure :exclude [pmap])
   (:require
    [clojure.string :as str])
   #?(:cljs (:require-macros [contrib.data])))
@@ -311,3 +312,5 @@
        ~(if (empty? steps)
           g
           (last steps)))))
+
+(def pmap #?(:clj clojure.core/pmap, :cljs map))
