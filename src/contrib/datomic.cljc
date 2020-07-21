@@ -53,8 +53,14 @@
   (-repr-portable-hack [this])
   (attr [this a]))
 
+(def ^:private xf-attr-in-set
+  "A specific operation user in `attr?`, designed for performance."
+  (map (fn [kv]
+         (let [v (val kv)] ;; avoid destructuring, nth was too slow
+           (if (boolean? v) (key kv) v)))))
+
 (defn attr? [this a corcs]
-  (let [haystack (into #{} (map (fn [[k v]] (if (boolean? v) k v)) (attr this a)))            ; component
+  (let [haystack (into #{} xf-attr-in-set (attr this a))            ; component
         needles (contrib.data/xorxs corcs #{})]
     ; haystack must have all the needles
     (clojure.set/superset? haystack needles)))
@@ -104,7 +110,7 @@
            :db/valueType :db.type/long
            #_#_:db/unique :db.unique/identity})
 
-(defn- attr* [this a]
+(defn- attr** [this a]
   (when a
     (s/assert keyword? a)
     (let [is-reverse-nav (-> (name a) (subs 0 1) (= "_"))]
@@ -117,6 +123,8 @@
             (contrib.data/update-existing :db/cardinality smart-lookup-ref-no-tempids)
             (contrib.data/update-existing :db/isComponent smart-lookup-ref-no-tempids)
             (contrib.data/update-existing :db/unique smart-lookup-ref-no-tempids))))))
+
+(def attr* (memoize attr**))
 
 (defn- attr-as-spec
   "Parse the datomic schema as a spec tree, then get the attr like if it was a spec.
@@ -211,15 +219,14 @@
 Shape is normalized to match the shape of the Datomic result, e.g. [:user/a-ref] becomes {:user/a-ref [:db/id]}"
   [schema pull-pattern]
   (assert (sequential? pull-pattern) (pr-str pull-pattern))
-  (->> pull-pattern
-       (map (partial attr-spec->shape schema))
-       (map (fn [a]
-              (if (and (keyword? a)
-                       (attr? schema a :db.type/ref))
-                {a [:db/id]}
-                a)))
-       (remove nil?)
-       vec))
+  (into [] (comp (map (partial attr-spec->shape schema))
+                 (map (fn [a]
+                        (if (and (keyword? a)
+                                 (attr? schema a :db.type/ref))
+                          {a [:db/id]}
+                          a)))
+                 (remove nil?))
+        pull-pattern))
 
 (defn pull-union [& vs]
   ; they have to be the same data-shape (schema), which if this is a valid pull, they are
@@ -442,9 +449,9 @@ Shape is normalized to match the shape of the Datomic result, e.g. [:user/a-ref]
     :hf/aggregate []
     :hf/pull (let [{{pull-pattern :value} :pattern} element]
                (->> (pull-traverse schema (pull-shape schema pull-pattern))
-                    (remove empty?)
-                    (map last)
-                    (filter #(nil? (some-> schema (attr %)))) ; dont crash; reject good ones
+                    (sequence (comp (remove empty?)
+                                    (map last)
+                                    (filter #(nil? (some-> schema (attr %)))))) ; dont crash; reject good ones
                     #_empty?)
                #_(tree-seq map?
                            (fn [m]

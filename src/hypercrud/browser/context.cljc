@@ -946,16 +946,13 @@ a speculative db/id."
         ?pullpath (:hypercrud.browser/pull-path ctx)]
     (if-not (and ?element ?schema ?pullpath)                ; this if statement was causing chaos #909
       (links-at index criterias)
-      (let [as (reachable-attrs ctx)                        ; scan for anything reachable ?
-            links (->> as
-                       ; Places within reach
-                       (mapcat (fn [a]
-                                 (links-at index (conj criterias a))))
-
-                       ; This place is where we are now
-                       (concat (links-at index criterias)))] ; this causes duplicates, there are bugs here
-        (vec (distinct links))                              ; associative by index
-        #_(->> links r/sequence (r/fmap vec))))))
+      (->> (reachable-attrs ctx) ; scan for anything reachable ?
+           ; Places within reach
+           (map (fn [a] (links-at index (conj criterias a))))
+           ; This place is where we are now
+           (cons (links-at index criterias)) ; this causes duplicates, there are bugs here
+           (into [] (comp cat (distinct))) ; associative by index
+           ))))
 
 (defn links-in-dimension [ctx criterias]
   ; r/track
