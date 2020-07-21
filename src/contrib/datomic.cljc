@@ -130,7 +130,7 @@
         spec       (spec/map->Spec {:attributes attributes})]
     (attr spec a)))
 
-(deftype Schema [schema-by-attr]
+(deftype Schema [schema-by-attr hash]
   SchemaIndexedNormalized
   (-repr-portable-hack [this] (str "#schema " (pr-str (.-schema-by-attr this))))
   (attr [this a]
@@ -138,7 +138,7 @@
 
   #?@(:clj
       [Object (equals [o other] (and (instance? Schema other) (= (.-schema-by-attr o) (.-schema-by-attr other))))
-       IHashEq (hasheq [o] (hash (.-schema-by-attr o)))
+       IHashEq (hasheq [o] (.-hash o))
        ILookup
        (valAt [this k] (get (.-schema-by-attr this) k))
        (valAt [this k not-found] (get (.-schema-by-attr this) k not-found))
@@ -150,14 +150,18 @@
        (count [this] (count (.-schema-by-attr this)))       ; does not include virtual attrs like :db/id
        ;(cons [this o] (throw (UnsupportedOperationException.)))
        ;(empty [this] (throw (UnsupportedOperationException.)))
-       (equiv [this o] (= (.-schema-by-attr this) (.-schema-by-attr o)))]
+       (equiv [this o] (= (.-hash this) (.-hash o)))]
       :cljs
-      [IEquiv (-equiv [o other] (and (instance? Schema other) (= (.-schema-by-attr o) (.-schema-by-attr other))))
-       IHash (-hash [o] (hash (.-schema-by-attr o)))
+      [IEquiv (-equiv [o other] (and (instance? Schema other) (= (.-hash o) (.-hash other))))
+       IHash (-hash [o] (.-hash o))
        IPrintWithWriter (-pr-writer [o writer _] (-write writer (-repr-portable-hack o)))
        ILookup
        (-lookup [o k] (get (.-schema-by-attr o) k))
        (-lookup [o k not-found] (get (.-schema-by-attr o) k not-found))]))
+
+(ns-unmap 'contrib.datomic '->Schema)
+(defn ->Schema [schema-by-attr]
+  (Schema. schema-by-attr (hash schema-by-attr)))
 
 (comment
   (def s (Schema. {:user/a {:db/ident :user/a :db/valueType :db.type/string}}))
