@@ -88,7 +88,7 @@
           (map (fn [v] [selection-comp ctx {:value ((::hf/option-label props str) v)} v]) selected))))
 
 (defn ->options
-  [ctx {:keys [options] :as props} options-comp option-comp]
+  [ctx {:keys [::hf/options] :as props} options-comp option-comp]
   (let [cardinality (:db/cardinality (context/attr ctx))
         selected (condp = cardinality
                    :db.cardinality/many (set (context/data ctx))
@@ -124,7 +124,7 @@
 
 
 (defn select
-  [ctx {:keys [options components] :as props}]
+  [ctx {:keys [::hf/options ::components] :as props}]
   [input-group nil ctx props
    (when (or (:options components) (:option components))
      [->options ctx (merge {:options options} props) (:options components (fn [_ & args] (into [:div] args))) (:option components (fn [_ & args] (into [:div] args)))])
@@ -137,12 +137,12 @@
     :db.cardinality/many
     [select ctx
       (assoc props
-        :components
+        ::components
         {:option (fn [_ {:keys [value] :as props}]
                    [:div [easy-checkbox (assoc props :checked (:selected props)) value]])})]
 
     :db.cardinality/one
-    [select ctx (assoc props :components
+    [select ctx (assoc props ::components
                        {:option
                         (fn [ctx props]
                           (let [[e a] @(:hypercrud.browser/eav ctx)]
@@ -238,13 +238,13 @@
 
 (defn ^:export picklist "typeahead picker integrated with hyperfiddle IO, single- and multi-select"
   [ctx props]
-  (assert (:options props) "select: :options prop is required")
+  (assert (::hf/options props) "select: :options prop is required")
   (assert (::hf/view-change! ctx))                        ; good: (f e a adds rets) (f ctx selection) bad: (f ctx os ns)
   (assert (::hf/needle-key props))
   (assert (not (some? (:option-label props))) "migrate legacy prop")
   (let [is-ref (context/attr? ctx :db.type/ref)
         is-many (context/attr? ctx :db.cardinality/many)
-        options-ctx (context-of ctx (:options props))]
+        options-ctx (context-of ctx (::hf/options props))]
     (try
       [input-group nil ctx props
        [select-needle-typeahead options-ctx
@@ -298,17 +298,14 @@
           (into [ui/row ctx props] (cons control args)))))))
 
 (defn add-selected
-  [vals]
-  (concat selected vals))
+  [selected vals]
+  (into #{} (concat (map (partial into {}) selected) vals)))
 
 (defn ^:export table-picker
   [ctx props]
   (try
     (let [selected (set (context/data ctx))
-          options-ctx (context-of ctx (:options props))
-          options-ctx (update options-ctx
-                              :hypercrud.browser/result
-                              (r/partial r/fmap add-selected))]
+          options-ctx (context-of ctx (::hf/options props))]
       [input-group nil ctx props
        [ui/table options-ctx
         {:row (partial table-picker-row-renderer ctx)
