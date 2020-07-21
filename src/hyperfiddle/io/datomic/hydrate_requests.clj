@@ -6,7 +6,7 @@
     [clojure.edn :as edn]
     [clojure.set :as set]
     [clojure.string :as string]
-    [contrib.data :refer [cond-let map-values parse-query-element]]
+    [contrib.data :as data :refer [cond-let map-values parse-query-element]]
     [contrib.do :as do]
     [contrib.datomic]
     [contrib.pprint :refer [pprint-str]]
@@ -242,7 +242,7 @@
           local-basis (into {} local-basis)                 ; :: ([dbname 1234]), but there are some duck type shenanigans happening
           get-secure-db-with+ (build-get-secure-db-with+ domain (constantly partitions) db-with-lookup local-basis ?subject)
           pulled-trees (->> requests
-                            (map #(hydrate-request domain get-secure-db-with+ % ?subject))
+                            (data/pmap #(hydrate-request domain get-secure-db-with+ % ?subject))
                             (doall))
           tempid-lookups (map-values #(map-values extract-tempid-lookup+ %) @db-with-lookup)]
       {:pulled-trees   pulled-trees

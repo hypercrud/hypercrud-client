@@ -311,4 +311,20 @@
           g
           (last steps)))))
 
-(def pmap #?(:clj clojure.core/pmap, :cljs map))
+#?(:cljs (def pmap map)
+   :clj
+   (defn pmap
+     "Similar to `clojure.core/pmap`. Will execute `f` on a different thread for each
+  value (via `future`). Not lazy, not batched. Usefull if `f` is very expensive
+  and coll is small. Meant for parallel application of `f` and not for fast
+  collection processing."
+     [f coll]
+     (cond
+       (empty? coll)      ()
+       (= 1 (count coll)) (list (f (first coll)))
+       :else              (->> coll
+                               ;; A transducer would make it sequential. We want
+                               ;; to fire all futures at once.
+                               (map (fn [x] (future (f x))))
+                               (map (fn [x] (deref x)))
+                               (doall)))))
