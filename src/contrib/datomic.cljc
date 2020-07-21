@@ -82,6 +82,7 @@
 (defn ref? [this k] (valueType? this k :db.type/ref))
 (defn unique [this a] (get (attr this a) :db/unique))
 (defn unique? [this a k] (= k (unique this a)))
+(defn identity? [this a] (unique? this a :db.unique/identity))
 
 (defn attr-unreverse [a]
   {:pre [(-> (name a) (subs 0 1) (= "_"))]}
@@ -305,6 +306,12 @@ Shape is normalized to match the shape of the Datomic result, e.g. [:user/a-ref]
 (defn scalar-many? [schema a]
   (and (not (ref? schema a))
        (cardinality? schema a :db.cardinality/many)))
+
+(defn one? [schema a]
+  (cardinality? schema a :db.cardinality/one))
+
+(defn many? [schema a]
+  (cardinality? schema a :db.cardinality/many))
 
 (defn pullshape-get [pullshape a]                           ; arg order is like 'get
   (-> pullshape

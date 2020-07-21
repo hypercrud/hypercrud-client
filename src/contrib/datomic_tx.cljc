@@ -2,9 +2,9 @@
   (:require
     [clojure.walk :as walk]
     [clojure.set :as set]
+    [clojure.spec.alpha :as s]
     [contrib.data :refer [update-existing update-in-existing deep-merge dissoc-nils]]
-    [contrib.datomic.schema :refer [ref? identity? component?] :as schema]
-    [contrib.datomic :refer [tempid? ref-one? ref-many? scalar-one? scalar-many? isComponent unique]]))
+    [contrib.datomic :refer [tempid? ref-one? ref-many? scalar-one? scalar-many? isComponent unique identity? one? many? ref?]]))
 
 
 (defn- retract-entity [schema tx-data e]
@@ -13,7 +13,7 @@
                   (if (contains? #{:db/add :db/retract} (first next-stmt))
                     (let [[op' e' a' v'] next-stmt]
                       (cond
-                        (= e e') (if (and (component? schema a') (tempid? v'))
+                        (= e e') (if (and (isComponent schema a') (tempid? v'))
                                    (update acc :child-entids conj v')
                                    acc)
                         (= e v') (if (tempid? e')
@@ -52,6 +52,8 @@
                                       (= [op e a] [:db/add e-needle a-needle]))))]
     v))
 
+(declare stmt->identifier, identifier->e)
+
 (declare flatten-map-stmt)
 
 (defn flatten-ref-stmt
@@ -69,7 +71,8 @@
 (defn flatten-map-stmt
   "Flatten a single Datomic map-form statement into equivalent vector-form statements. Recursive. See test case."
   [schema m]
-  (let [e (or (:db/id m) (str (hash m) #_(gensym)))]                 ; gensym tempids are unstable for unit tests
+  (let [e (stmt->identifier schema m)
+        e (:db/id e (:tempid e (str (hash m))))]
     (->> (seq m)                                            ; iterate as seq for compatibility with #Entity
          (filter (fn [[a v]] (not= :db/id a)))              ; db/id is virtual attribute, not a statement
          ; Don't need to suupport (id, ident, lookup-ref) because transactor will unify the tempid
@@ -89,7 +92,7 @@
                      (->> v                                 ; [:movies :ice-cream :clojure]
                           (mapv (fn [v]
                                   [:db/add e a v])))
-                     :else (throw (ex-info "Flatten Map Statement | Attribute not defined as ref in schema" {:schema schema :attribute a}))))))))
+                     :else (throw (ex-info "Flatten Map Statement | Attribute not defined in schema" {:schema schema :attribute a}))))))))
 
 
 
@@ -133,33 +136,47 @@
       []
       forms)))
 
-(defn identifier->e
-  [schema identifier]
-  (assert (not (empty? identifier)))
-  (or (:db/id identifier)
-      (:tempid identifier)
-      (->> identifier
-           (filter (fn [[a v]] (identity? schema a)))
-           first)))
+(defmulti tx-meta
+  (fn [schema tx]
+    (if (map? tx)
+      ::map
+      (first tx))))
 
-(defn identifier
+(s/def ::cardinality (s/or :one :many))
+(s/def ::identifier map?)
+(s/def ::inverse fn?)
+(s/def ::special fn?)
+(s/def ::special fn?)
+
+(s/def ::transaction-meta
+  (s/keys :req [::cardinality ::identifier]
+          :opt [::inverse ::special ::conflicting?]))
+
+(s/fdef tx-meta
+  :ret ::transaction-meta)
+
+(defn val->identifier
+  [e]
+  (cond
+    (string? e)
+    {:tempid e}
+
+    (number? e)
+    {:db/id e}
+
+    (keyword? e)
+    {:db/ident e}
+
+    (vector? e)
+    (conj {} e)))
+
+(defn stmt->identifier
   [schema stmt]
   (cond
-    (vector? stmt)
+    (and (vector? stmt) (#{:db/add :db/retract :db/cas :db/retractEntity} (first stmt)))
     (let [[_ e a v] stmt]
       (merge {}
-        (cond
-          (string? e)
-          {:tempid e}
-
-          (number? e)
-          {:db/id e}
-
-          (keyword? e)
-          {:db/ident e}
-
-          (vector? e)
-          (conj {} e))
+        (val->identifier e)
 
         (when (identity? schema a)
           {a v})))
@@ -175,6 +192,63 @@
          {:db/id id})
        (when (vector? id)
          (conj {} id))))))
+
+(def identifier (comp ::identifier tx-meta))
+(def cardinality (comp ::cardinality tx-meta))
+(def inverse (comp ::inverse tx-meta))
+(def attribute (comp ::attribute tx-meta))
+
+(defmethod tx-meta :db/add
+  [schema [f e a v :as tx]]
+  {::inverse [:db/retract e a v]
+   ::cardinality (if (one? schema a)
+                   :one
+                   :many)
+   ::identifier (stmt->identifier schema tx)
+   ::conflicting? (fn [[tx-fn' _ a' :as tx']]
+                    (and (= :db/add tx-fn')
+                         (= a a')))})
+
+(defmethod tx-meta :db/retract
+  [schema [f e a v :as tx]]
+  {::inverse [:db/add e a v]
+   ::cardinality (if (one? schema a)
+                   :one
+                   :many)
+   ::identifier (stmt->identifier schema tx)
+   ::conflicting? (fn [[tx-fn' _ a' :as tx']]
+                    (and (= tx-fn' :db/retract)
+                         (= a a')))})
+
+(defmethod tx-meta :db/cas
+  [schema [_ e a o n]]
+  {::inverse [:db/cas e a n o]
+   ::cardinality :one
+   ::identifier (val->identifier e)
+   ::conflicting? (fn [[tx-fn' _ a' :as tx']]
+                    (and (#{:db/add :db/retract} tx-fn')
+                         (= a a')))})
+
+(defmethod tx-meta :db/retractEntity
+  [schema [_ e]]
+  (let [ident (val->identifier e)]
+    {::special (fn [txs] #{[:db/retractEntity e]})
+     ::cardinality :one
+     ::identifier ident
+     ::conflicting? (fn [[_ e' :as tx']] (= e' e))}))
+
+(defmethod tx-meta :default
+  [schema tx]
+  nil)
+
+(defn identifier->e
+  [schema identifier]
+  (assert (not (empty? identifier)))
+  (or (:db/id identifier)
+      (:tempid identifier)
+      (->> identifier
+           (filter (fn [[a v]] (identity? schema a)))
+           first)))
 
 (defn unified-identifier
   [id0 id1]
@@ -195,87 +269,35 @@
       ideals
       (range))))
 
-(defmulti absorb
-  (fn [schema identifier ideal stmt]
-    (cond
-      (map? stmt)
-      :map
-
-      (and (vector? stmt) (#{:db/add :db/retract :db/retractEntity} (first stmt)))
-      (first stmt)
-
-      :else :other)))
-
-(defmethod absorb :map
-  [schema id ideal stmt]
-  (reduce
-    (fn [[id ideal] [a v]]
-      (absorb schema id ideal [:db/add nil a v]))
-    [id ideal]
-    stmt))
-
-(defmethod absorb :db/add
-  [schema id ideal [_ e a v :as tx]]
-  [(merge id (identifier schema tx))
-   (if (schema/many? schema a)
-     (if (contains? (get ideal :-) a)
-       (update-existing ideal :- dissoc a)
-       (update-in ideal [:+ a]
-                  (fn [coll]
-                    (let [coll (or coll #{})]
-                      (if (and (not (string? v)) (seqable? v) (not (map? v))
-                               (not (and (vector? v) (= 2 (count v)) (schema/identity? schema (first v)))))
-                        (into coll v)
-                        (conj coll v))))))
-     (if (contains? (get ideal :-) a)
-       (if (= (get-in ideal [:- a]) v)
-         (update-existing ideal :- dissoc a)
-         (assoc-in ideal [:+ a] v))
-       (assoc-in ideal [:+ a] v)))])
-
-(defn retract-munge-value
-  [schema v]
-  (if (map? v)
-    (let [e (identifier->e schema v)]
-      (if (vector? e)
-        (second e)
-        e))
-    v))
-
-(defn- -disj
-  [coll v]
-  (cond
-    (or (vector? coll) (list? coll) (seq? coll))
-    (into (empty coll) (complement (partial = v)) coll)
-
-    (set? coll) (disj coll v)))
-
-(defmethod absorb :db/retract
-  [schema identifier ideal [_ _ a v]]
-  (let [v (retract-munge-value schema v)]
-    [identifier
-     (if (schema/many? schema a)
-       (if (contains? (get-in ideal [:+ a]) v)
-         (update-in ideal [:+ a] -disj v)
-         (update-in ideal [:- a] conj v))
-       (if (= v (get-in ideal [:+ a]))
-         (-> ideal
-             (update-existing :+ dissoc a))
-         (-> ideal
-             (update :- assoc a v))))]))
-
-(defmethod absorb :db/retractEntity
-  [schema identifier ideal _]
-  [identifier (assoc ideal :retracted true)])
-
-(defmethod absorb :other
+(defn absorb
   [schema identifier ideal tx]
-  [identifier
-   (update ideal :other #(conj (or % []) tx))])
+  (if (map? tx)
+    (reduce
+      (fn [[identifier ideal] tx]
+        (absorb schema identifier ideal tx))
+      [identifier ideal]
+      (flatten-map-stmt schema (merge tx identifier)))
+    (let [{:keys [::inverse ::cardinality ::conflicting? ::special]
+           :or {conflicting? (constantly false)}
+           :as meta} (tx-meta schema tx)
+          ideal (or ideal #{})]
+      [(merge identifier (::identifier meta))
+       (if special
+         (set (special ideal))
+         (if (contains? ideal inverse)
+           (disj ideal inverse)
+           (apply
+             (fn [txs]
+               (if (= :one cardinality)
+                 (conj
+                   (into #{} (remove conflicting? txs))
+                   tx)
+                 (conj txs tx)))
+             [ideal])))])))
 
 (defn absorb-stmt
   [schema ideals stmt]
-  (let [identifier (identifier schema stmt)]
+  (let [identifier (stmt->identifier schema stmt)]
     (if-let [idx (first (ideal-idx identifier ideals))]
       (update ideals idx (fn [[identifier ideal]] (absorb schema identifier ideal stmt)))
       (conj ideals (absorb schema identifier nil stmt)))))
@@ -296,27 +318,17 @@
              (let [[txfn e a v] tx]
                (or (= e [a v])
                    (and (= :db/add txfn)
-                        (schema/many? schema a)
+                        (many? schema a)
+                        (coll? v)
                         (empty? v))))))))
 
 
 (defn deconstruct-ideal
-  [schema identifier {adds :+ retracts :- :keys [retracted other] :as ideal}]
+  [schema identifier ideal]
   (let [e (identifier->e schema identifier)]
-    (if retracted
-      [[:db/retractEntity e]]
-      (into
-       []
-       (concat
-        (map (fn [[a v]] [:db/add e a v]) adds)
-        (->> retracts
-             (mapcat
-               (fn [[a v]]
-                 (if (schema/many? schema a)
-                   (map (fn [v] [a v]) v)
-                   [[a v]])))
-             (map (fn [[a v]] [:db/retract e a v])))
-        other)))))
+    (into
+      (mapv #(assoc % 1 e) (filter (fn [[tx-fn]] (= :db/add tx-fn)) ideal))
+      (remove (fn [[tx-fn]] (= :db/add tx-fn)) ideal))))
 
 (defn ideals->tx
   [schema ideals]
@@ -350,7 +362,9 @@
       (fn [[id group]]
         (reduce
           (fn [acc [_ _ a v]]
-            (assoc acc a v))
+            (if (ref-many? schema a)
+              (update acc a (fn [x] (conj (or x #{}) v)))
+              (assoc acc a v)))
           (cond
             (or (string? id) (number? id)) {:db/id id}
 
@@ -369,7 +383,7 @@
     (vals (update (group-by first tx) :db/add (partial mappify-add-statements schema)))))
 
 (defn into-tx [schema tx more-statements]
-  (mappify schema (deconstruct schema (construct schema (construct schema tx) more-statements))))
+  (mappify schema (deconstruct schema (construct schema (construct schema (flatten-tx schema tx)) more-statements))))
 
 (comment
  [[:db/add "a" :person/name "Alice"

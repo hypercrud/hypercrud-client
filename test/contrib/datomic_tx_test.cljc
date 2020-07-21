@@ -5,7 +5,7 @@
     [contrib.datomic-tx :refer [into-tx mappify-add-statements flatten-tx construct remove-tx
                                 absorb #?(:clj expand-hf-tx) find-datom identifier->e flatten-ref-stmt
                                 deconstruct-ideal flatten-map-stmt absorb-stmt ideal-idx remove-dangling-ids
-                                ideals->tx invalid? filter-tx unified-identifier mappify identifier deconstruct]]
+                                ideals->tx invalid? filter-tx unified-identifier mappify identifier deconstruct stmt->identifier]]
     [clojure.set :as set]
     [clojure.test :refer [deftest is testing]]))
 
@@ -376,18 +376,11 @@
                               [[:db/add "0" :a 1]
                                [:db/retract "0" :a 1]])))
 
-    (is (= [{:db/id 2 :neighborhood/name "qwer" :x 1}
-            {:db/id [:neighborhood/name "asdf"] :a 1}
-            {:db/id "1" :b 2}
-            [:db/retract "0" :a 2]
-            [:db/cas "0" :a 0 2]]
+    (is (= [{:db/id 2 :neighborhood/name "qwer" :x 1}]
            (into-tx seattle-schema []
                            [[:db/add [:neighborhood/name "qwer"] :x 1]
-                            [:db/add 2 :neighborhood/name "qwer"]
-                            [:db/add [:neighborhood/name "asdf"] :a 1]
-                            [:db/add "1" :b 2]
-                            [:db/retract "0" :a 2]
-                            [:db/cas "0" :a 0 2]])))))
+                            [:db/add 2 :neighborhood/name "qwer"]])))))
+
 
 (def datomic-schema
   (indexed-schema
@@ -584,14 +577,14 @@
             (expand-hf-tx '[[contrib.datomic-tx-test/f 1 2 3] [:db/add "asdf" "qwer" :zxcv]])))))
 
 (deftest test|identifier
-  (let [schema (map-by :db/ident seattle-schema-tx)]
-    (is (= (identifier schema [:db/add "tempid" :community/name "community"])
+  (let [schema seattle-schema]
+    (is (= (stmt->identifier schema [:db/add "tempid" :community/name "community"])
            {:tempid "tempid"}))
-    (is (= (identifier schema [:db/add 1234 :community/name "community"])
+    (is (= (stmt->identifier schema [:db/add 1234 :community/name "community"])
            {:db/id 1234}))
-    (is (= (identifier schema [:db/add "tempid" :neighborhood/name "name"])
+    (is (= (stmt->identifier schema [:db/add "tempid" :neighborhood/name "name"])
            {:tempid "tempid" :neighborhood/name "name"}))
-    (is (= (identifier schema [:db/add [:neighborhood/name "name"] :db/id 1234])
+    (is (= (stmt->identifier schema [:db/add 1234 :neighborhood/name "name"])
            {:db/id 1234 :neighborhood/name "name"}))))
 
 (deftest test|unified-identifier
@@ -603,23 +596,23 @@
          {:x 1})))
 
 (deftest test|absorb
-  (let [schema (map-by :db/ident seattle-schema-tx)]
-    (is (= (absorb schema {:db/id 1} {} {:neighborhood/name "name" :neighborhood/district [:distrinct/name "somename"]})
-           [{:db/id 1 :neighborhood/name "name"} {:+ {:neighborhood/name "name" :neighborhood/district [:distrinct/name "somename"]}}]))
-    (is (= (absorb schema {:db/id 1} {:+ {:community/name "name"}} [:db/add 1 :community/name "qwer"])
-           [{:db/id 1} {:+ {:community/name "qwer"}}]))
-    (is (= (absorb schema {:db/id 1} {:+ {:community/name "name"}} [:db/retract 1 :community/name "name"])
-           [{:db/id 1} {:+ {}}]))
-    (is (= (absorb schema {:db/id 1} {} [:db/cas "e" :community/name "asdf" "qwer"])
-           [{:db/id 1} {:other [[:db/cas "e" :community/name "asdf" "qwer"]]}]))
-    (is (= (absorb schema {:db/id 1} {} [:db/retractEntity 1])
-           [{:db/id 1} {:retracted true}]))
+  (let [schema seattle-schema]
+    (is (= (absorb schema {:db/id 1} #{} {:neighborhood/name "name" :neighborhood/district [:distrinct/name "somename"]})
+           [{:db/id 1 :neighborhood/name "name"} #{[:db/add 1 :neighborhood/name "name"] [:db/add 1 :neighborhood/district [:distrinct/name "somename"]]}]))
+    (is (= (absorb schema {:db/id 1} #{[:db/add 1 :community/name "name"]} [:db/add 1 :community/name "qwer"])
+           [{:db/id 1} #{[:db/add 1 :community/name "qwer"]}]))
+    (is (= (absorb schema {:db/id 1} #{[:db/add 1 :community/name "name"]} [:db/retract 1 :community/name "name"])
+           [{:db/id 1} #{}]))
+    (is (= (absorb schema {:db/id 1} #{} [:db/cas "e" :community/name "asdf" "qwer"])
+           [{:db/id 1 :tempid "e"} #{[:db/cas "e" :community/name "asdf" "qwer"]}]))
+    (is (= (absorb schema {:db/id 1} #{} [:db/retractEntity 1])
+           [{:db/id 1} #{[:db/retractEntity 1]}]))
     (let [some-fn (fn [] '...)]
-      (is (= (absorb schema {:db/id 1} {} [some-fn "arg0" 'arg1 :arg2])
-             [{:db/id 1} {:other [[some-fn "arg0" 'arg1 :arg2]]}])))))
+      (is (= (absorb schema {:db/id 1} #{} [some-fn "arg0" 'arg1 :arg2])
+             [{:db/id 1} #{[some-fn "arg0" 'arg1 :arg2]}])))))
 
 (deftest test|identifier->e
-  (let [schema (map-by :db/ident seattle-schema-tx)]
+  (let [schema seattle-schema]
     (is (= 1
            (identifier->e schema {:db/id 1 :tempid "asdf" :x/y "z" :neighborhood/name "qwer"})))
     (is (= "asdf"
@@ -635,7 +628,7 @@
     (is (invalid? schema [:some/tx [:a :v] :a :v]))))
 
 (deftest test|remove-dangling-ids
-  (let [schema (map-by :db/ident seattle-schema-tx)]
+  (let [schema seattle-schema]
     (is (= (remove-dangling-ids schema
                                 [[:db/add 1234 :community/neighborhood "dangling id"]
                                  [:db/add 1234 :some/attr :some/value]])
@@ -647,16 +640,16 @@
             [:db/add "not dangling id" :some/attr "some-value"]]))))
 
 (deftest test|deconstruct
-  (let [schema (map-by :db/ident seattle-schema-tx)]
-    (is (= (deconstruct schema [[{:db/id 1} {:+ {:attr0 1} :- {:attr1 2} :other [[:db/cas 1 :attr2 "v0" "v1"] [:db/some-custom-fn "arg0" 'arg1 "arge2"]]}]])
-           [[:db/add 1 :attr0 1]
-            [:db/retract 1 :attr1 2]
-            [:db/cas 1 :attr2 "v0" "v1"]
-            [:db/some-custom-fn "arg0" 'arg1 "arge2"]]))
-    (is (= (deconstruct schema [[{:db/id 1} {:+ {:attr0 1} :- {:attr1 2} :other [[:db/cas 1 :attr2 "v0" "v1"]] :retracted true}]])
-           [[:db/retractEntity 1]]))))
+  (let [schema seattle-schema]
+    (is (= (set (deconstruct schema [[{:db/id 1} #{[:db/add 1 :attr0 1] [:db/retract 1 :attr1 2] [:db/cas 1 :attr2 "v0" "v1"] [:db/some-custom-fn "arg0" 'arg1 "arge2"]}]]))
+           #{[:db/add 1 :attr0 1]
+             [:db/retract 1 :attr1 2]
+             [:db/cas 1 :attr2 "v0" "v1"]
+             [:db/some-custom-fn "arg0" 'arg1 "arge2"]}))
+    (is (= (set (deconstruct schema [[{:db/id 1} #{[:db/retractEntity 1]}]]))
+           #{[:db/retractEntity 1]}))))
 
 (deftest test|mappify
-  (let [schema (map-by :db/ident seattle-schema-tx)]
+  (let [schema seattle-schema]
     (is (= [{:db/id "0" :a 1 :b 2}] (mappify schema [[:db/add "0" :a 1] [:db/add "0" :b 2]])))
     (is (= [{:db/id 0 :a 1} {:db/id 1 :b 2}] (mappify schema [[:db/add 0 :a 1] [:db/add 1 :b 2]])))))
