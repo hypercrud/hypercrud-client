@@ -72,7 +72,7 @@
   "Flatten a single Datomic map-form statement into equivalent vector-form statements. Recursive. See test case."
   [schema m]
   (let [e (stmt->identifier schema m)
-        e (:db/id e (:tempid e (str (hash m))))]
+        e (identifier->e schema m)]
     (->> (seq m)                                            ; iterate as seq for compatibility with #Entity
          (filter (fn [[a v]] (not= :db/id a)))              ; db/id is virtual attribute, not a statement
          ; Don't need to suupport (id, ident, lookup-ref) because transactor will unify the tempid
