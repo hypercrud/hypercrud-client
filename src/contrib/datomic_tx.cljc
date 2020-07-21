@@ -72,7 +72,7 @@
   "Flatten a single Datomic map-form statement into equivalent vector-form statements. Recursive. See test case."
   [schema m]
   (let [e (stmt->identifier schema m)
-        e (identifier->e schema m)]
+        e (:db/id e (:tempid e (str (hash m))))]
     (->> (seq m)                                            ; iterate as seq for compatibility with #Entity
          (filter (fn [[a v]] (not= :db/id a)))              ; db/id is virtual attribute, not a statement
          ; Don't need to suupport (id, ident, lookup-ref) because transactor will unify the tempid
@@ -149,8 +149,8 @@
 (s/def ::special fn?)
 
 (s/def ::transaction-meta
-  (s/keys :req [::cardinality ::identifier]
-          :opt [::inverse ::special ::conflicting?]))
+  (s/keys :req [::identifier]
+          :opt [::cardinality ::inverse ::special ::conflicting?]))
 
 (s/fdef tx-meta
   :ret ::transaction-meta)
@@ -232,10 +232,9 @@
 (defmethod tx-meta :db/retractEntity
   [schema [_ e]]
   (let [ident (val->identifier e)]
-    {::special (fn [txs] #{[:db/retractEntity e]})
-     ::cardinality :one
+    {::cardinality :one
      ::identifier ident
-     ::conflicting? (fn [[_ e' :as tx']] (= e' e))}))
+     ::conflicting? (constantly true)}))
 
 (defmethod tx-meta :default
   [schema tx]
@@ -273,13 +272,14 @@
   [schema identifier ideal tx]
   (if (map? tx)
     (reduce
-      (fn [[identifier ideal] tx]
-        (absorb schema identifier ideal tx))
+      (fn [[identifier ideal] [a v]]
+        (absorb schema identifier ideal [:db/add (identifier->e schema identifier) a v]))
       [identifier ideal]
-      (flatten-map-stmt schema (merge tx identifier)))
+      tx)
     (let [{:keys [::inverse ::cardinality ::conflicting? ::special]
-           :or {conflicting? (constantly false)}
            :as meta} (tx-meta schema tx)
+          cardinality (or cardinality (if conflicting? :one :many))
+          conflicting? (or conflicting? (constantly false))
           ideal (or ideal #{})]
       [(merge identifier (::identifier meta))
        (if special
