@@ -191,7 +191,7 @@
        (when (number? id)
          {:db/id id})
        (when (vector? id)
-         (conj {} id))))))
+         (conj {:db/id id} id))))))
 
 (def identifier (comp ::identifier tx-meta))
 (def cardinality (comp ::cardinality tx-meta))
