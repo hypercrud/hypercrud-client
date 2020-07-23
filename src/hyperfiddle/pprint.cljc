@@ -53,7 +53,7 @@
     Failure (pprint-cats-extractable "#failure" o)
     Success (pprint-cats-extractable "#success" o)
     Schema (do (#?(:clj .write :cljs -write) *out* "#schema")
-               (clojure.pprint/write-out (.-schema-by-attr o)))
+               (clojure.pprint/write-out (.-schema-by-attr #?(:clj o, :cljs ^js o))))
     (clojure.pprint/simple-dispatch o)))
 
 (comment

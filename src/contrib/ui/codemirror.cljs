@@ -14,20 +14,20 @@
                (assoc acc (keyword (str/camel (name k))) v))
              {} m))
 
-(defn sync-changed-props! [ref props]
+(defn sync-changed-props! [^js ref props]
   (doseq [[prop val] props
           :let [option (str/camel (name prop))]             ; casing hacks see https://github.com/hyperfiddle/hyperfiddle/issues/497
           :when (not= val (.getOption ref option))]
     (.setOption ref option val)))
 
-(defn set-invalid! [cm is-invalid]
+(defn set-invalid! [^js cm is-invalid]
   ; placeholder addon manipulates DOM node classname this way too:
   ; https://codemirror.net/addon/display/placeholder.js
   (let [wrapper (.getWrapperElement cm)
         new-classname (str (string/replace (.-className wrapper) " invalid" "") (when is-invalid " invalid"))]
     (set! (.-className wrapper) new-classname)))
 
-(defn ensure-mode [ref new-mode]
+(defn ensure-mode [^js ref new-mode]
   (js/parinferCodeMirror.setMode ref new-mode)
   #_(js/parinferCodeMirror.setOptions ref #js {"locus" (= new-mode "indent")})
   (doto (-> ref .getWrapperElement .-classList)
@@ -83,18 +83,19 @@
                                        (on-change nil)
                                        (on-change value))))))))
 
-         (.on ref "blur" (fn [_ e]
+         (.on ref "blur" (fn [_ ^js e]
                            (when (and (some? (:default-value props)) (= (.getValue ref) ""))
                              (.setValue ref (:default-value props)))))))
 
      :component-will-unmount
      (fn [this]
-       (.toTextArea (object/get this "codeMirrorRef")))
+       (let [^js ref (object/get this "codeMirrorRef")]
+         (.toTextArea ref)))
 
      :component-did-update
      (fn [this]
        (let [[_ props] (reagent/argv this)
-             ref (object/get this "codeMirrorRef")
+             ^js ref (object/get this "codeMirrorRef")
              new-value (orp some? (:value props) (:default-value props) "")
              current-value (.getValue ref)]
          ; internal CM value state != ctor props

@@ -299,3 +299,15 @@
     (str/trim (str/replace s indent "\n"))
     (str/trim s)))
 
+(defmacro seq->>
+  "When expr is not an empty seq, threads it into the first form (via ->>),
+  and when that result is not an empty seq, through the next etc"
+  [expr & forms]
+  (let [g (gensym)
+        steps (map (fn [step] `(if (and (seqable? ~g) (seq ~g)) (->> ~g ~step) nil))
+                   forms)]
+    `(let [~g ~expr
+           ~@(interleave (repeat g) (butlast steps))]
+       ~(if (empty? steps)
+          g
+          (last steps)))))

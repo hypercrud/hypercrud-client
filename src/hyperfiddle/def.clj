@@ -81,17 +81,22 @@
 
 (s/def ::expr
   (s/and seq?
-    (comp symbol? first)))
+         (comp symbol? first)))
+
+(s/def ::expr-or-kw
+  (read-alt
+   ::expr
+   keyword?))
 
 (s/def ::link-expr
   (read-alt
     (s/cat :class #{:hf/new :hf/iframe :hf/edit}
-      :fiddle ::expr
+      :fiddle ::expr-or-kw
       :& (s/* any?))
     (s/cat :class #{:hf/remove}
       :& (s/* any?))
     (s/cat :class (s/? set?)
-      :fiddle ::expr
+      :fiddle ::expr-or-kw
       :& (s/* any?))))
 
 (s/def ::link-key
@@ -154,9 +159,12 @@
 
 (defn read-def [type ident attrs]
   (s/assert qualified-keyword? ident)
-  (let [attrs (read-spec ::def attrs)]
+  (let [attrs (read-spec ::def attrs)
+        spec (s/get-spec (symbol ident))]
     (map-attrs type
-      {:ident ident}
+               (cond-> {:ident       ident
+                        :fiddle/type :eval}
+                 spec (assoc :fiddle/spec (-> spec (hf-spec/parse) (hf-spec/fiddle-spec))))
       (when (= type :fiddle)
         {:fiddle/source (symbol (.name *ns*))})
       (dissoc attrs :&)
@@ -218,15 +226,9 @@
        {:fiddle/type  :query
         :fiddle/query (-> v one map-expr)}
 
-       :fiddle/eval
-       {:fiddle/type :eval
-        :fiddle/eval (-> v one map-expr)
-        :fiddle/spec (when-let [spec (s/get-spec (first v))]
-                       (-> (hf-spec/parse spec)
-                           (hf-spec/fiddle-spec)))}
 
        :fiddle/shape
-       {:fiddle/shape (-> v one map-expr)}
+       {:fiddle/shape (some-> v one map-expr)}
 
        :fiddle/links
        {:fiddle/links
@@ -325,3 +327,39 @@
                    (line-at form)))
           source)
         first))))
+
+
+(defn- fiddle-args [avar]
+  (let [args (:hyperfiddle.api/fiddle (meta avar))]
+    (cond
+      (map? args)  (mapcat identity args) ; account for hf-def rest-args syntax
+      (true? args) ()                     ; true is default meta value, fiddle with no extra args
+      )))
+
+(defn- fiddle-fn? [avar]
+  (some? (fiddle-args avar)))
+
+(defn- fiddles [ns]
+  (->> (ns-publics ns)
+       (vals)
+       (filter fiddle-fn?)))
+
+(defn- fiddle-name [avar]
+  (let [{:keys [ns name]} (meta avar)]
+    (symbol (str ns) (str name))))
+
+(defn serve-ns! [ns]
+  (let [ns (the-ns ns)]
+    (binding [reader/*alias-map* (ns-aliases ns)]
+      (->> (fiddles ns)
+           (map (fn [fiddle]
+                  (let [ident (keyword (fiddle-name fiddle))]
+                    (def! :fiddle ident "No source available for function fiddles" ; &form stub
+                      (read-def :fiddle ident (fiddle-args fiddle)))
+                    fiddle)))
+           (doall)))))
+
+(defn serve-nss!
+  "Serve all namesapces and return a map {ns (found fiddles, …)}"
+  [nss]
+  (into {} (map (juxt identity serve-ns!)) nss))

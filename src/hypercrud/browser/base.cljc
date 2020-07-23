@@ -22,6 +22,7 @@
     [hyperfiddle.fiddle :as fiddle]
     [hyperfiddle.route :as route]
     [hyperfiddle.runtime :as runtime]
+    [hyperfiddle.state :as state]
     [taoensso.timbre :as timbre]
     [contrib.expr :as expr]
     [hyperfiddle.def :as hf-def])
@@ -34,6 +35,13 @@
 (declare resolve-fiddle+)
 (declare request-for-fiddle+)
 (declare nil-or-hydrate+)
+
+(defn explode-result
+  "Extract a fiddle response into [route-defaults result]"
+  [r-response]
+  [(from-result (r/fmap (comp key first) r-response)) ; completed route
+   (from-result (r/fmap (comp val first) r-response))])
+
 
 ; internal bs abstraction to support hydrate-result-as-fiddle
 (defn- internal-browse-route+ [{rt :runtime pid :partition-id :as ctx} route]
@@ -53,9 +61,12 @@
           ;_ (timbre/debug "fiddle" @r-fiddle)
           r-request (from-result @(r/apply-inner-r (r/fmap->> r-fiddle (request-for-fiddle+ rt pid route))))
           ;_ (timbre/debug "request" @r-request)
-          r-result (from-result @(r/apply-inner-r (r/fmap->> r-request (nil-or-hydrate+ rt pid))))
+          r-response (from-result @(r/apply-inner-r (r/fmap->> r-request (nil-or-hydrate+ rt pid))))
           ;_ (timbre/debug "result" @r-fiddle :-> @r-result)
-          ]
+          [r-route-defaults r-result] (explode-result r-response)]
+
+      ;; FIXME this is a hack, a new runtime impl is needed
+      #?(:clj (state/dispatch! rt [:partition-route-defaults pid @r-route-defaults]))
 
       ; fiddle request can be nil for no-arg pulls (just draw readonly form)
       (context/result
@@ -65,6 +76,7 @@
               ; because it is not, this is obviously fragile and will break on any change to the route
               ; this is acceptable today (Jun-2019) because changing a route in ANY way assumes the entire iframe will be re-rendered
               (assoc :hypercrud.browser/route (r/pure route))
+              (assoc :hypercrud.browser/route-defaults r-route-defaults)
               (context/fiddle+ r-fiddle)))
         r-result))))
 
@@ -275,7 +287,7 @@
       ; todo, this path needs abstraction assistance for paging/offset
       ;(timbre/debug :eval "fiddle" (:fiddle/eval fiddle))
       ;(timbre/debug :eval "form" form)
-      (either/right (->EvalRequest (:fiddle/eval fiddle)
+      (either/right (->EvalRequest (:fiddle/ident fiddle)
                                    pid                      ; dbval is reconstructed from the pid on the backend
                                    ; ::route/where ::route/datomic-args
                                    route)))                 ; Other request types are able to abstract over the route; but the eval path needs full control
@@ -379,7 +391,7 @@
                       (do/! :Eval.get-var :eval/env)))
                   () (merge val
                        (-> (get-fiddle-def (:fiddle/ident val))
-                           (select-keys [:db/id :fiddle/type :fiddle/query :fiddle/pull])
+                           (select-keys [:db/id :fiddle/type :fiddle/query :fiddle/pull :fiddle/spec])
                            (update-existing :fiddle/query str)
                            (update-existing :fiddle/pull str)
                            (update-existing :fiddle/eval str)))))

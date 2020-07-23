@@ -369,7 +369,7 @@
        (select-keys props [:class :style ::hf/is-invalid :checked :on-change :disabled])])] ; readonly?
    (render-related-links val ctx)])
 
-(let [adapter (fn [e]
+(let [adapter (fn [^js e]
                 (case (.-target.value e)
                   "" nil
                   "true" true

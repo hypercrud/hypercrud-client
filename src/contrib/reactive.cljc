@@ -16,7 +16,7 @@
 
 (defn reactive? [v]
   #?(:clj  (instance? IDeref v)
-     :cljs (satisfies? IReactiveAtom v)))
+     :cljs (satisfies? IReactiveAtom ^js v)))
 
 (defn atom [x & rest]
   (clojure.core/apply #?(:clj clojure.core/atom :cljs reagent/atom) x rest))

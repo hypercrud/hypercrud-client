@@ -53,9 +53,7 @@
 (def pred-of (set/map-invert type-of))
 
 (defn to-spec [{:keys [db/ident db/cardinality db/valueType]}]
-  (let [cardinality (:db/ident cardinality)
-        valueType   (:db/ident valueType)
-        predicate   (pred-of valueType)]
+  (let [predicate   (pred-of valueType)]
     {:name      ident
      :type      (if predicate
                   :hyperfiddle.spec/predicate
@@ -77,10 +75,13 @@
   (when attr
     (let [{:keys [name type predicate]} attr]
       {:db/ident       name
-       :db/valueType   {:db/ident (case type
-                                    (:hyperfiddle.spec/coll :hyperfiddle.spec/keys) :db.type/ref
-                                    (type-of predicate))}
-       :db/cardinality {:db/ident (if (= :hyperfiddle.spec/coll type) :db.cardinality/many :db.cardinality/one)}})))
+       :db/valueType   (case type
+                         (:hyperfiddle.spec/coll :hyperfiddle.spec/keys) :db.type/ref
+                         (type-of predicate))
+       :db/cardinality (if (= :hyperfiddle.spec/coll type) :db.cardinality/many :db.cardinality/one)})))
+
+(defn spec->schema [spec]
+  (map-values from-spec spec))
 
 ;; -----------------------------------------------------------------
 

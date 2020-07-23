@@ -19,7 +19,7 @@
   (defn iso8601-string [props]
     [validated-cmp props parse-iso8601-string to-string contrib.ui/text]))
 
-(let [on-change (fn [v] (.-date v))]                        ; goog.date -> javascript Date
+(let [on-change (fn [^js v] (.-date v))]                    ; goog.date -> javascript Date
   (defn recom-date [props]
     ; (new goog.date.UtcDateTime(new Date())).toIsoString()
     (let [props (-> props

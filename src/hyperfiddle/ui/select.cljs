@@ -166,7 +166,7 @@
   [:div.alert.alert-warning (str "Warning: Options resultset has been truncated to " hf/browser-query-limit " records. Please add additional filters")])
 
 (defn- adapt-new-entry
-  [entry]
+  [^js entry]
   (if (and (object? entry) (.-customOption entry))
     (.-label entry) ; appears broken
     entry))

@@ -10,7 +10,7 @@
 #?(:cljs (declare PersistentOrderedMap))
 
 #?(:cljs
-   (deftype OrderedMapIter [m order-iter]
+   (deftype OrderedMapIter [m ^js order-iter]
      Object
      (hasNext [_]
        (.hasNext order-iter))

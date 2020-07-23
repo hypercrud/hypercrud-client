@@ -51,7 +51,9 @@
     {:type     :hyperfiddle.spec/cat
      :names    (map first names)
      :args     kvs
-     :children (map (comp parse last) names)}))
+     :children (map (fn [[name spec]]
+                      (assoc (parse spec) :name name))
+                    names)}))
 
 ; no spec defaults to predicate
 ; spec with {:args ()} defaults to predicate

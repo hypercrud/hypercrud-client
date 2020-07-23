@@ -31,7 +31,7 @@
 (def form (comp second serializer/serialize))
 
 (defn leaf? [node]
-  (not-empty (:children node)))
+  (empty? (:children node)))
 
 (def branch? (complement leaf?))
 
@@ -43,13 +43,14 @@
 (defn fiddle-spec
   "Index a spec `tree` and wrap it as a `Spec` type for further use a schema
   replacement."
-  [{:keys [type args ret] :as tree}]
+  [{:keys [type args ret] :as fspec}]
   (if (not= ::fn type)
     (throw (ex-info "A fiddle spec must be built from a function spec." {:type type}))
     (map->Spec
      {:args       args
       :ret        ret
-      :attributes (index ret)})))
+      :attributes (merge (index args)
+                         (index (assoc ret :name (keyword (:name fspec)))))})))
 
 (defn spec
   "Get fiddle spec in context, if any"
@@ -73,21 +74,59 @@
     ::keys (->> spec :children (map :name))
     ::cat  (:names spec)))
 
+(defn- args-spec [fspec]
+  (if (qualified-symbol? fspec)
+    (if (s/get-spec fspec)
+      (args-spec (parse fspec))
+      (throw (ex-info "No spec registered for this name." {:name fspec})))
+    (if (= ::fn (:type fspec))
+      (:args fspec)
+      (throw (ex-info "This spec is not a function spec, cannot extract argument spec from it." {:fspec fspec})))))
+
+(defn- no-args-error! [data]
+  (throw (ex-info "Couldn't find an `:args` spec for this function, unable to infer argument order" data)))
+
 (defn apply-map
   "Pass args from `m` to `f` in the order `f` expects them, based on `fspec` :args."
   ([f m]
-   (apply-map f (parse f) m))
+   (apply-map f f m))
   ([f fspec m]
    {:pre [(or (qualified-symbol? fspec)
               (= ::fn (:type fspec)))]}
-   (if (and (qualified-symbol? fspec)
-            (s/get-spec fspec))
-     (apply-map f (parse fspec) m)
-     (if-let [spec (:args fspec)]
-       (case (:type spec)
-         ::keys (f m)
-         ::cat  (if-let [args (seq (names spec))]
-                  (let [extract-args (apply juxt args)]
-                    (apply f (extract-args m)))
-                  (f)))
-       (throw (ex-info "Couldn't find an `:args` spec for this function, unable to infer argument order" {:fn f}))))))
+   (if-let [spec (args-spec fspec)]
+     (case (:type spec)
+       ::keys (f m)
+       ::cat  (if-let [args (seq (names spec))]
+                (let [extract-args (apply juxt args)]
+                  (apply f (extract-args m)))
+                (f)))
+     (no-args-error! {:fn f}))))
+
+(defn sexp
+  "Take a `spec` and a `route`, return a function call s-expression `(function args…)`"
+  [{:keys [name] :as spec} {:keys [:hyperfiddle.route/fiddle] :as route}]
+  (if-let [args (:args spec)]
+    (if-let [args (seq (names args))]
+      (->> ((apply juxt args) route)
+           (cons name))
+      (list name))
+    (no-args-error! {:hyperfiddle.route/fiddle fiddle})))
+
+(defn read-route
+  "Take route call sexp and parse it to a map, giving names to args."
+  [sexp]
+  (if (seq sexp)
+    (let [[sym & argv] sexp]
+      (if-let [args (args-spec (symbol sym))]
+        (->> (zipmap (names args) argv)
+             (data/filter-vals some?)
+             (into {:hyperfiddle.route/fiddle (keyword sym)}))
+        (no-args-error! {:sym sym})))
+    nil))
+
+(comment
+  (sexp (parse `user.demo.route-state/sub-request)
+        {:hyperfiddle.route/fiddle     :user.demo.route-state/sub-requests
+         :user.demo.route-state/since :inst
+         :user.demo.route-state/school :school})
+  (read-route `(user.demo.route-state/school-picklist "foo")))

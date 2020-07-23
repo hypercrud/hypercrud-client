@@ -17,9 +17,11 @@
     [hypercrud.types.DbName :refer [#?(:cljs DbName)]]
     [hypercrud.types.ThinEntity :refer [->ThinEntity #?(:cljs ThinEntity)]]
     [hyperfiddle.api :as hf]
-    [hyperfiddle.fiddle]
+    [hyperfiddle.fiddle :as fiddle]
     [hyperfiddle.route :as route]
     [hyperfiddle.runtime :as runtime]
+    [hyperfiddle.spec :as spec]
+    [hyperfiddle.spec.datomic :as spec-datomic]
     [taoensso.timbre :as timbre])
   #?(:clj
      (:import
@@ -663,21 +665,49 @@ a speculative db/id."
     ; Conceptually, it should be after qfind and before EAV.
     (index-result ctx)))                                    ; in row case, now indexed, but path is not aligned yet
 
+(defn derive-for-search-defaults
+  "Build a new context with route defaults as result so they can be rendered as a form."
+  [{:keys [:hypercrud.browser/route-defaults] :as ctx}]
+  (-> ctx
+      (assoc ;; Remove :hyperfiddle.route/fiddle from route defaults
+             :hypercrud.browser/result (r/fmap-> route-defaults (dissoc :hyperfiddle.route/fiddle))
+             ;; We want to render as a form, so qfind is FindScalar
+             :hypercrud.browser/qfind (r/pure (fiddle/shape 'FindScalar)))
+      (dissoc :hypercrud.browser/route-defaults) ; avoid potential recursion
+      (as-> ctx
+          (assoc ctx :hypercrud.browser/result-enclosure (r/track result-enclosure! ctx)
+                     :hypercrud.browser/validation-hints (r/track validation-hints-enclosure! ctx)))
+      (index-result)))
+
 (defn stable-element-schema! [rt pid element]
   (let [{{db :symbol} :source} element]
     (some->> db str (runtime/get-schema+ rt pid) deref)))
+
+(defn schema-with-spec [ctx]
+  (if-let [spec (spec/spec ctx)]
+    (let [#?(:cljs ^js schema
+             :clj      schema) (deref (:hypercrud.browser/schema ctx))]
+      (-> spec
+          (:attributes)
+          (spec-datomic/spec->schema)
+          (merge (.-schema-by-attr schema))
+          (contrib.datomic/->Schema)
+          (r/pure)
+          (->> (assoc ctx :hypercrud.browser/schema))))
+    ctx))
 
 ; This complects two spread-elements concerns which are separate.
 ; 1. Setting Schema and element
 ; 2. Setting result and result related things
 (defn element-head [ctx i]
   (let [r-element (r/fmap-> (:hypercrud.browser/qfind ctx) datascript.parser/find-elements (get i))]
-    (assoc ctx
-      :hypercrud.browser/element r-element
-      ; stable-element-schema! can throw on schema lookup
-      ; this may need to be caught depending on when how/when this function is used
-      ; or with reactions; we may need to unlazily throw ASAP
-      :hypercrud.browser/schema (r/fmap->> r-element (stable-element-schema! (:runtime ctx) (:partition-id ctx))))))
+    (-> ctx
+        (assoc :hypercrud.browser/element r-element
+        ; stable-element-schema! can throw on schema lookup
+        ; this may need to be caught depending on when how/when this function is used
+        ; or with reactions; we may need to unlazily throw ASAP
+               :hypercrud.browser/schema (r/fmap->> r-element (stable-element-schema! (:runtime ctx) (:partition-id ctx))))
+        (schema-with-spec))))
 
 (defn browse-element [ctx i]                                ; [nil :seattle/neighborhoods 1234345]
   {:pre []
@@ -745,12 +775,12 @@ a speculative db/id."
                 :hypercrud.browser/qfind]} ctx]
 
     ; Schema aliases can crash here https://github.com/hyperfiddle/hyperfiddle.net/issues/182
-    #_(if-not (contrib.datomic/cardinality @(:hypercrud.browser/schema ctx) a')
-        ctx)
+    ;; #_(if-not (contrib.datomic/cardinality @(:hypercrud.browser/schema ctx) a')
+    ;;     ctx)
     (as->
       ctx ctx
       (-infer-implicit-element ctx)                         ; ensure pull-enclosure
-      #_(-validate-qfind-element ctx)
+      ;; #_(-validate-qfind-element ctx)
       (set-parent ctx)
       (update ctx :hypercrud.browser/pull-path (fnil conj []) a') ; what is the cardinality? are we awaiting a row?
       (if (:hypercrud.browser/head-sentinel ctx)

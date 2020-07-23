@@ -3,7 +3,7 @@
     [cats.core :refer [mlet]]
     [cats.labs.promise]
     [clojure.set :as set]
-    [contrib.data :as data]
+    [contrib.data :as data :refer [seq->>] :refer-macros [seq->>]]
     [contrib.datomic]
     [contrib.datomic-tx :as tx]
     [contrib.reactive :as r]
@@ -164,6 +164,10 @@
   (doto
     @(state-ref rt [::partitions pid :route])
     #_(assert (str "route not found for pid: " pid))))
+
+(defn get-route-defaults [rt pid]
+  {:pre [pid]}
+  @(state-ref rt [::partitions pid :route-defaults]))
 
 (defn get-pending-route [rt pid]
   {:pre [pid]}

@@ -45,10 +45,11 @@
 ; without any refocusing. Only on the view side do we care about drawing things in some other place.
 
 (defn request-attr-level [ctx]
-  (doseq [[a ctx] (context/spread-attributes ctx)]
-    (requests-here ctx)
-    ; UnsupportedOperationException: Can only recur from tail position
-    (request-attr-level ctx)))
+  (let [ctx (context/schema-with-spec ctx)]
+    (doseq [[a ctx] (context/spread-attributes ctx)]
+      (requests-here ctx)
+      ; UnsupportedOperationException: Can only recur from tail position
+      (request-attr-level ctx))))
 
 ; Spread across the resultset
 ; Create the links at each slot

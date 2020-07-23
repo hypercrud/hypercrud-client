@@ -112,7 +112,7 @@
         (= a :db/id) dbid
         is-reverse-nav (make-reverse-attr this a)
         :else
-        (-> (a (.-schema-by-attr this))                   ; can be nil if UI asks for attribute that is missing from schema
+        (-> (a (.-schema-by-attr #?(:clj this, :cljs ^js this)))                   ; can be nil if UI asks for attribute that is missing from schema
             (contrib.data/update-existing :db/valueType smart-lookup-ref-no-tempids)
             (contrib.data/update-existing :db/cardinality smart-lookup-ref-no-tempids)
             (contrib.data/update-existing :db/isComponent smart-lookup-ref-no-tempids)
@@ -124,7 +124,8 @@
   smooth UI adaptation by providing a temporary fallback from spec to datomic
   schema."
   [this a]
-  (let [attributes (-> (.-schema-by-attr this)
+  (let [this       #?(:clj this, :cljs ^js this)
+        attributes (-> (.-schema-by-attr this)
                        (spec-datomic/schema->spec))
         spec       (spec/map->Spec {:attributes attributes})]
     (attr spec a)))

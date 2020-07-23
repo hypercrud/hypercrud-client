@@ -109,6 +109,6 @@
                         [pid (select-keys partition [:is-branched
                                                      :partition-children
                                                      :parent-pid
-                                                     :route :local-basis
+                                                     :route :route-defaults :local-basis
                                                      :attr-renderers :error :ptm :schemas :tempid-lookups])]))
                  (into {})))))))

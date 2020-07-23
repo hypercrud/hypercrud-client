@@ -158,7 +158,8 @@
    :fiddle/pull (constantly "[:db/id\n *]")
    :fiddle/pull-database (constantly "$")
    :fiddle/query (constantly "" #_(load-resource "fiddle-query-default.edn"))
-   :fiddle/type (constantly :blank)})                       ; Toggling default to :query degrades perf in ide
+   :fiddle/type (constantly :blank) ; Toggling default to :query degrades perf in ide
+   })
 
 (defn- composite-link?
   "See `:hyperfiddle.def/link-key` spec"
@@ -210,8 +211,9 @@
       :entity (-> fiddle
                   (update :fiddle/pull-database or-str ((:fiddle/pull-database fiddle-defaults) fiddle))
                   (cond->
-                    (empty? (:fiddle/pull fiddle)) (assoc :fiddle/pull ((:fiddle/pull fiddle-defaults) fiddle))))
-      (:eval :blank) fiddle)
+                      (empty? (:fiddle/pull fiddle)) (assoc :fiddle/pull ((:fiddle/pull fiddle-defaults) fiddle))))
+      :eval   (update fiddle :fiddle/shape (orf (:fiddle/shape fiddle-defaults)))
+      :blank  fiddle)
     (update fiddle :fiddle/markdown or-str ((:fiddle/markdown fiddle-defaults) fiddle))))
 
 (defn apply-fiddle-links-defaults+ "Link defaults require a parsed qfind, so has to be done separately later."
@@ -239,3 +241,14 @@
                       fake-q `[:find (~'pull ~source ~'?e ~pull) . :in ~source :where [~source ~'?e]]]
                   (datascript.parser/parse-query fake-q))))
     :query (do-result (datascript.parser/parse-query (from-result (as-expr query))))))
+
+(defn shape
+  "Build a fiddle shape by type. Useful to change a fiddle qfind on the fly."
+  [type]
+  (:qfind
+   (datascript.parser/parse-query
+    (from-result
+     (as-expr
+      (case type
+        FindScalar (template [:find (pull ?e [*]) . :where [?e]])
+        (throw (ex-info "Not implemented yet, feel free to add it." {:type type}))))))))

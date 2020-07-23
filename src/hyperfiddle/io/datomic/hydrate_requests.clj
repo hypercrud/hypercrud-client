@@ -62,7 +62,6 @@
                            :args (map #(parameter % get-secure-db-with) params)))]
     (q arg-map)))
 
-
 (defn- min-arity
   "0 if a function doesn't have args, otherwise the smallest amount of args it
   accepts"
@@ -70,26 +69,34 @@
   (->> avar meta :arglists (sort-by count) first count))
 
 
-(defn- parse-fiddle-eval [form]
-  (let [parsed (edn/read-string form)]
-    (if (seqable? parsed)
-      parsed
-      (list parsed))))
+(defn- resolve-fiddle-fn [form]
+  (cond
+    (string? form)  (let [parsed (edn/read-string form)]
+                     (if (seqable? parsed)
+                       parsed
+                       (list parsed)))
+    (keyword? form) (list (symbol form))
+    :else           (list form)))
+
+(defn legacy-form [form]
+  (first (:fiddle/eval (hf-def/get-fiddle form))))
 
 (defn- eval-fiddle! [form route]
-  (let [[fn-sym & args] (parse-fiddle-eval form)]
-    (if (and (qualified-symbol? fn-sym)
-             (empty? args))
-      ;; :eval is a function symbol
-      (let [fvar  (find-var fn-sym)
-            f     (deref fvar)
-            fspec (spec/parse fn-sym)]
-        (cond
-          (= ::spec/fn (:type fspec)) (spec/apply-map f fspec route)
-          (zero? (min-arity fvar))    (f)
-          :else                       (throw (ex-info "This fiddle's eval function expect some arguments, please provide a function spec for it." {:var fvar}))))
+  (let [[ident & _args] (resolve-fiddle-fn form)
+        defaults       (hf/defaults ident route)
+        route'         (merge defaults route)]
+    (if-let [legacy-form (legacy-form form)]
       ;; :eval is a legacy form, load it the old way
-      (load-string form))))
+      {route' (eval legacy-form)}
+      ;; :eval is a function symbol
+      (if-let [fvar (find-var ident)]
+        (let [f           (deref fvar)
+              fspec       (spec/parse ident)]
+          (cond
+            (= ::spec/fn (:type fspec)) {route' (spec/apply-map f fspec (dissoc route' :hyperfiddle.route/fiddle))}
+            (zero? (min-arity fvar))    {route' (f)}
+            :else                       (throw (ex-info "This fiddle function expect some arguments, please provide a fdef for it." {:var fvar}))))
+        (throw (ex-info "Fiddle not found" {:name ident}))))))
 
 (defmethod hydrate-request* EvalRequest [{:keys [form pid route]} domain get-secure-db-with]
   {:pre [form]}
