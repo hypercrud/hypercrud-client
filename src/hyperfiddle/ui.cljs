@@ -6,7 +6,7 @@
     [clojure.core.match :refer [match*]]
     [clojure.string :as string]
     [contrib.css :refer [css css-slugify]]
-    [contrib.data :refer [unqualify]]
+    [contrib.data :refer [unqualify orf]]
     [contrib.hfrecom]
     [contrib.pprint :refer [pprint-str]]
     [contrib.reactive :as r]
@@ -577,9 +577,9 @@ nil. call site must wrap with a Reagent component"          ; is this just hyper
           [needle-input2 ctx props])
         (let [qtype (type @(:hypercrud.browser/qfind ctx))] ; i think we need to make up a qfind for this case
           (if-not qtype
-            [table ctx (assoc props :columns table-column-product)]
+            [table ctx (update props :columns (orf table-column-product))]
             (condp some [qtype]                             ; spread-rows
-              #{FindRel FindColl} [table ctx (assoc props :columns table-column-product)] ; identical result?
+              #{FindRel FindColl} [table ctx (update props :columns (orf table-column-product))] ; identical result?
               #{FindTuple FindScalar} [form table-column-product val ctx props])))]))])
 
 ;(defmethod render :hf/blank [ctx props]
