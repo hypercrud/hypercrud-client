@@ -83,18 +83,19 @@
 
 (defn- eval-fiddle! [form route]
   (let [[ident & _args] (resolve-fiddle-fn form)
-        defaults       (hf/defaults ident route)
-        route'         (merge defaults route)]
+        defaults        (hf/defaults ident route)
+        route'          (merge defaults route)]
     (if-let [legacy-form (legacy-form form)]
       ;; :eval is a legacy form, load it the old way
       {route' (eval legacy-form)}
       ;; :eval is a function symbol
       (if-let [fvar (find-var ident)]
-        (let [f           (deref fvar)
-              fspec       (spec/parse ident)]
+        (let [f     (deref fvar)
+              fspec (spec/parse ident)]
           (cond
-            (= ::spec/fn (:type fspec)) {route' (spec/apply-map f fspec (dissoc route' :hyperfiddle.route/fiddle))}
+            (not (fn? f))               {route' f}
             (zero? (min-arity fvar))    {route' (f)}
+            (= ::spec/fn (:type fspec)) {route' (spec/apply-map f fspec (dissoc route' :hyperfiddle.route/fiddle))}
             :else                       (throw (ex-info "This fiddle function expect some arguments, please provide a fdef for it." {:var fvar}))))
         (throw (ex-info "Fiddle not found" {:name ident}))))))
 

@@ -268,3 +268,9 @@
   (str/includes?
    (.toLowerCase (or v ""))
    (.toLowerCase (or needle ""))))
+
+(defmacro serve!
+  "For demo purposes, avoid complex :require in demo nss so people can focus on
+  other aspects. What's hf-def? -> they shouldn't care."
+  []
+  `(hyperfiddle.def/serve-ns! ~*ns*))

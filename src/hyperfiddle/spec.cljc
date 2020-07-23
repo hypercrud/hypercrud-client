@@ -124,6 +124,16 @@
         (no-args-error! {:sym sym})))
     nil))
 
+(defn shape [fspec]
+  (when-let [ret (:ret fspec)]
+    (when-let [type (:type ret)]
+      (cond
+        (#{::coll} type) (if (leaf? (first (:children ret)))
+                           '[:find [?e ...] :where [?e]]
+                           '[:find [(pull ?e [*]) ...] :where [?e]])
+        (#{::keys} type) '[:find (pull ?e [*]) . :where [?e]]
+        :else            '[:find ?e . :where [?e]]))))
+
 (comment
   (sexp (parse `user.demo.route-state/sub-request)
         {:hyperfiddle.route/fiddle     :user.demo.route-state/sub-requests
