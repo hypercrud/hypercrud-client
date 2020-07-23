@@ -6,10 +6,8 @@
 (defn logo
   [props]
   [:div.hyperfiddle-logo props
-   [:div.hyperfiddle-logo-square-wrapper
-    [:div.hyperfiddle-logo-square]]
-   [:div.hyperfiddle-logo-square-wrapper {:delay "true"}
-    [:div.hyperfiddle-logo-square]]])
+   [:div.hyperfiddle-logo-square]
+   [:div.hyperfiddle-logo-square {:delay "true"}]])
 
 (defn page [domain & children]
   [:div.loading-page
