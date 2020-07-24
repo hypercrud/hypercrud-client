@@ -691,7 +691,8 @@ a speculative db/id."
   [{:keys [:hypercrud.browser/route-defaults] :as ctx}]
   (-> ctx
       (assoc ;; Remove :hyperfiddle.route/fiddle from route defaults
-             :hypercrud.browser/result (r/fmap-> route-defaults (dissoc :hyperfiddle.route/fiddle))
+             :hypercrud.browser/result (r/fmap-> route-defaults (dissoc :hyperfiddle.route/fiddle
+                                                                  :hyperfiddle.route/datomic-args)) ; hack
              ;; We want to render as a form, so qfind is FindScalar
              :hypercrud.browser/qfind (r/pure (fiddle/shape 'FindScalar)))
       (dissoc :hypercrud.browser/route-defaults) ; avoid potential recursion
