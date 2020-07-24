@@ -124,15 +124,22 @@
         (no-args-error! {:sym sym})))
     nil))
 
+(defn- composite?
+  "State if a spec defines a collection"
+  [x]
+  (or (not (leaf? x))
+      (#{map? set? vector? list? seq?} (:predicate x))))
+
 (defn shape [fspec]
   (when-let [ret (:ret fspec)]
     (when-let [type (:type ret)]
       (cond
-        (#{::coll} type) (if (leaf? (first (:children ret)))
-                           '[:find [?e ...] :where [?e]]
-                           '[:find [(pull ?e [*]) ...] :where [?e]])
-        (#{::keys} type) '[:find (pull ?e [*]) . :where [?e]]
-        :else            '[:find ?e . :where [?e]]))))
+        (#{::coll} type) (if (composite? (first (:children ret)))
+                           '[:find [(pull $ ?e [*]) ...] :in $ :where [$ ?e]] ; TODO not support yet as ?e doesn't have a source
+                           '[:find [?e ...] :in $ :where [$ ?e]])
+        (#{::keys} type) '[:find (pull $ ?e [*]) . :in $ :where [$ ?e]]
+        :else            '[:find ?e . :in $ :where [$ ?e]] ; TODO not support yet as ?e doesn't have a source
+        ))))
 
 (comment
   (sexp (parse `user.demo.route-state/sub-request)

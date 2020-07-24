@@ -165,7 +165,8 @@
                (cond-> {:ident       ident
                         :fiddle/type :eval}
                  spec (assoc :fiddle/spec (hf-spec/fiddle-spec spec))
-                 spec (update :fiddle/shape (orf (hf-spec/shape spec))))
+                 spec (update :fiddle/shape (orf [(hf-spec/shape spec)])) ; wrapped in [] for hf-def quoted syntax
+                 )
       (when (= type :fiddle)
         {:fiddle/source (symbol (.name *ns*))})
       (dissoc attrs :&)
@@ -232,8 +233,8 @@
         :fiddle/eval (-> v one map-expr)}
 
        ;; TODO remove, now defined by spec
-       ;; :fiddle/shape
-       ;; {:fiddle/shape (some-> v one map-expr)}
+       :fiddle/shape
+       {:fiddle/shape (some-> v one map-expr)}
 
        :fiddle/links
        {:fiddle/links
@@ -364,7 +365,7 @@
                     fiddle)))
            (doall)))))
 
-(defmacro serve []
+(defmacro serve! []
   `(serve-ns! *ns*))
 
 (defn serve-nss!
