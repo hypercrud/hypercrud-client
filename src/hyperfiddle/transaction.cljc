@@ -83,9 +83,11 @@
                      [[:db/add e a v]]                      ; "Bob"
 
                      (scalar-many? schema a)                ; :person/liked-tags
-                     (->> v                                 ; [:movies :ice-cream :clojure]
-                          (mapv (fn [v]
-                                  [:db/add e a v])))
+                     (if (coll? v)
+                       (->> v                                 ; [:movies :ice-cream :clojure]
+                            (mapv (fn [v]
+                                    [:db/add e a v])))
+                       [[:db/add e a v]])
                      :else (throw (ex-info "Flatten Map Statement | Attribute not defined in schema" {:schema schema :attribute a}))))))))
 
 (defn flatten-tx
@@ -135,8 +137,8 @@
   [schema [f e a v :as tx]]
   {::hf/tx-inverse [:db/retract e a v]
    ::hf/tx-cardinality (if (one? schema a)
-                         :one
-                         :many)
+                         ::hf/one
+                         ::hf/many)
    ::hf/tx-identifier (stmt->identifier schema tx)
    ::hf/conflicting? (fn [[tx-fn' _ a' :as tx']]
                        (and (= :db/add tx-fn')
@@ -146,8 +148,8 @@
   [schema [f e a v :as tx]]
   {::hf/tx-inverse [:db/add e a v]
    ::hf/tx-cardinality (if (one? schema a)
-                         :one
-                         :many)
+                         ::hf/one
+                         ::hf/many)
    ::hf/tx-identifier (stmt->identifier schema tx)
    ::hf/conflicting? (fn [[tx-fn' _ a' :as tx']]
                        (and (= tx-fn' :db/retract)
@@ -156,7 +158,7 @@
 (defmethod hf/tx-meta :db/cas
   [schema [_ e a o n]]
   {::hf/tx-inverse [:db/cas e a n o]
-   ::hf/tx-cardinality :one
+   ::hf/tx-cardinality ::hf/one
    ::hf/tx-identifier (val->identifier e)
    ::hf/conflicting? (fn [[tx-fn' _ a' :as tx']]
                        (and (#{:db/add :db/retract} tx-fn')
@@ -165,7 +167,7 @@
 (defmethod hf/tx-meta :db/retractEntity
   [schema [_ e]]
   (let [ident (val->identifier e)]
-    {::hf/tx-cardinality :one
+    {::hf/tx-cardinality ::hf/one
      ::hf/tx-identifier ident
      ::hf/conflicting? (constantly true)}))
 
@@ -211,7 +213,7 @@
       tx)
     (let [{:keys [::hf/tx-inverse ::hf/tx-cardinality ::hf/tx-conflicting? ::hf/tx-special]
            :as meta} (hf/tx-meta schema tx)
-          tx-cardinality (or tx-cardinality (if tx-conflicting? :one :many))
+          tx-cardinality (or tx-cardinality (if tx-conflicting? ::hf/one ::hf/many))
           tx-conflicting? (or tx-conflicting? (constantly false))
           ideal (or ideal #{})]
       [(merge identifier (::hf/tx-identifier meta))
@@ -221,7 +223,7 @@
            (disj ideal tx-inverse)
            (apply
              (fn [txs]
-               (if (= :one tx-cardinality)
+               (if (= ::hf/one tx-cardinality)
                  (conj
                    (into #{} (remove tx-conflicting? txs))
                    tx)
@@ -276,8 +278,9 @@
   (let [called-tempids (set (filter string? (map second tx)))]
     (vec
      (remove
-      (fn [[_ e a v :as stmt]]
-        (and (ref? schema a)
+      (fn [[tx-fn e a v :as stmt]]
+        (and (#{:db/add :db/retract} tx-fn)
+             (ref? schema a)
              (string? v)
              (not (contains? called-tempids v))))
       tx))))
@@ -295,7 +298,7 @@
       (fn [[id group]]
         (reduce
           (fn [acc [_ _ a v]]
-            (if (ref-many? schema a)
+            (if (many? schema a)
               (update acc a (fn [x] (conj (or x #{}) v)))
               (assoc acc a v)))
           (cond
