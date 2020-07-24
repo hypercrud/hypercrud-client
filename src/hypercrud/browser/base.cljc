@@ -167,7 +167,11 @@
                 (for-kv fiddle {}
                   (fn [fiddle' attr val]
                     (assoc fiddle' attr
-                      (normalize attr (interp-attr val))))))))))
+                           ;; We only have :eval (:static) fiddles for now, no
+                           ;; need to interpret attributes. But this might come
+                           ;; back. interp-attr is a costy function ATM.
+                           #_(normalize attr (interp-attr val))
+                           (normalize attr val)))))))))
 
       (either/branch-left
         (fn [e]
@@ -341,31 +345,27 @@
 
 (defn interp-attr [x]
   (let [eval-mode (= = (do/! :Eval.get-var :eval/mode) :eval :eval)]
+    (expr/unquote-via x
+     (fn eval-expr [x]
+       (cond (qualified-keyword? x) {:fiddle/ident (do (prn x) (str x))}
 
-    (mem-eval
-      (expr/unquote-via x
-        (fn eval-expr [x]
+             (expr/form? x)
+             (cond (qualified-keyword? (first x))
+                   {:fiddle/ident (first x)
+                    :fiddle/apply (vec (rest x))}
+                   () (if eval-mode x (list 'quote (list 'unquote x))))
 
-          (cond (qualified-keyword? x) {:fiddle/ident (do (prn x) (str x))}
+             (not eval-mode)
+             (list 'quote (list 'unquote x))
 
-                (expr/form? x)
-                (cond (qualified-keyword? (first x))
-                      {:fiddle/ident (first x)
-                       :fiddle/apply (vec (rest x))}
-                      () (if eval-mode x (list 'quote (list 'unquote x))))
+             (symbol? x)
+             (do/! :Eval.get-var x x)
 
-                (not eval-mode)
-                (list 'quote (list 'unquote x))
+             (simple-keyword? x)
+             (or (if (contains? (do/! :Eval.scope) x) (do/! :Eval.get-var x))
+                 (eval-error x (str "var " x " not defined in" (:fiddle/ident (do/! :Eval.fiddle)))))
 
-                (symbol? x)
-                (do/! :Eval.get-var x x)
-
-                (simple-keyword? x)
-                (or (if (contains? (do/! :Eval.scope) x) (do/! :Eval.get-var x))
-                    (eval-error x (str "var " x " not defined in" (:fiddle/ident (do/! :Eval.fiddle)))))
-
-                () (eval-error x (str "unknown form" x "in" (:fiddle/ident (do/! :Eval.fiddle))))
-                ))))))
+             () (eval-error x (str "unknown form" x "in" (:fiddle/ident (do/! :Eval.fiddle)))))))))
 
 (defn normalize [key val]
   (case key

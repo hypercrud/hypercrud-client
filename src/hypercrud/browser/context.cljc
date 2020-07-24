@@ -532,7 +532,7 @@ a speculative db/id."
                                               ::s/problems  (::s/problems ed)}))
       (either/right fiddle))))
 
-(defn- augment-with-spec [spec schema]
+(defn- augment-with-spec [spec #?(:cljs ^js schema, :clj schema)]
   (-> spec
       (:attributes)
       (spec-datomic/spec->schema)
@@ -541,7 +541,8 @@ a speculative db/id."
 
 (defn- augment-all-with-spec [spec schemas]
   (let [spec-schema (-> spec (:attributes) (spec-datomic/spec->schema))]
-    (map-values (fn [schema] (fmap #(contrib.datomic/->Schema (merge spec-schema (.-schema-by-attr %))) schema))
+    (map-values (fn [schema] (fmap (fn [#?(:cljs ^js schema, :clj schema)]
+                                     (contrib.datomic/->Schema (merge spec-schema (.-schema-by-attr schema)))) schema))
                 schemas)))
 
 (defn schema-with-spec [ctx]
