@@ -301,16 +301,22 @@
 
 (defn add-selected
   [selected vals]
-  (into #{} (concat (map (partial into {}) selected) vals)))
+  (into [] (distinct (concat selected vals))))
 
 (defn ^:export table-picker
   [ctx props]
-  (try
-    (let [selected (set (context/data ctx))
-          options-ctx (context-of ctx (::hf/options props))]
+ (try
+    (let [is-many (context/attr? ctx :db.cardinality/many)
+          selected ((if is-many vec vector) (context/data ctx))
+          options-ctx (context-of ctx (::hf/options props))
+
+          options-ctx (context/result options-ctx (r/fmap (r/partial add-selected selected)
+                                                          (get options-ctx :hypercrud.browser/result)))]
+
       [input-group nil ctx props
        [ui/table options-ctx
-        {:row (partial table-picker-row-renderer ctx)
+        {:class "hyperfiddle hyperfiddle-table-picker"
+         :row (partial table-picker-row-renderer ctx)
          :headers (if (::hf/allow-new props)
                     (fn [& args] (cons [:td [:button "NEW!"]] (apply ui/table-column-product args)))
                     (fn [& args] (cons [:td {:class "hyperfiddle-table-picker-control-cell"}] (apply ui/table-column-product args))))
