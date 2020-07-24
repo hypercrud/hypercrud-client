@@ -1,7 +1,7 @@
 (ns hyperfiddle.io.datomic.transact
   (:require
     [hyperfiddle.api :as hf]
-    [contrib.datomic-tx :refer [expand-hf-tx]]))
+    [hyperfiddle.transaction :refer [expand-hf-tx]]))
 
 
 (defn transact! [domain subject tx-groups]                  ; this is hf/transact

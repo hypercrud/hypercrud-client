@@ -2,7 +2,7 @@
   (:require
     [clojure.spec.alpha :as s]
     [contrib.data :refer [map-values update-existing for-kv]]
-    [contrib.datomic-tx :as tx]
+    [hyperfiddle.transaction :as tx]
     [contrib.reducers :as reducers]
     [contrib.pprint :refer [pprint-str]]
     [clojure.set :refer [superset? difference intersection]]

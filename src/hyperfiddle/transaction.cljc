@@ -1,58 +1,52 @@
-(ns contrib.datomic-tx
+(ns hyperfiddle.transaction
   (:require
-    [clojure.walk :as walk]
     [clojure.set :as set]
-    [clojure.spec.alpha :as s]
-    [contrib.data :refer [update-existing update-in-existing deep-merge dissoc-nils]]
-    [contrib.datomic :refer [tempid? ref-one? ref-many? scalar-one? scalar-many? isComponent unique identity? one? many? ref?]]))
+    [contrib.datomic :refer [tempid? ref-one? ref-many? scalar-one? scalar-many? isComponent unique identity? one? many? ref?]]
+    [hyperfiddle.api :as hf]))
 
+(defn val->identifier
+  [e]
+  (cond
+    (string? e)
+    {:tempid e}
 
-(defn- retract-entity [schema tx-data e]
-  (let [{:keys [tx child-entids orphaned-parent-check]}
-        (reduce (fn [acc next-stmt]
-                  (if (contains? #{:db/add :db/retract} (first next-stmt))
-                    (let [[op' e' a' v'] next-stmt]
-                      (cond
-                        (= e e') (if (and (isComponent schema a') (tempid? v'))
-                                   (update acc :child-entids conj v')
-                                   acc)
-                        (= e v') (if (tempid? e')
-                                   (update acc :orphaned-parent-check conj e')
-                                   acc)
-                        :else (update acc :tx conj next-stmt)))
-                    (update acc :tx conj next-stmt)))
-                {:tx []
-                 :child-entids []
-                 :orphaned-parent-check []}
-                tx-data)
-        tx (loop [[entid & rest] orphaned-parent-check
-                  tx tx]
-             (if entid
-               (if (some #(and (= :db/add (first %)) (= entid (second %))) tx)
-                 (recur rest tx)                            ; entid used in entity position in statements
-                 (let [{:keys [tx orphaned-parent-check]}
-                       (reduce (fn [acc next-stmt]
-                                 (if (and (= :db/add (first next-stmt)) (= entid (last next-stmt)))
-                                   (update acc :orphaned-parent-check conj (second next-stmt))
-                                   (update acc :tx conj next-stmt)))
-                               {:tx []
-                                :orphaned-parent-check []}
-                               tx)]
-                   (recur (concat rest orphaned-parent-check) tx)))
-               tx))]
-    (loop [[entid & rest] child-entids
-           tx tx]
-      (if entid
-        (recur rest (retract-entity schema tx entid))
-        tx))))
+    (number? e)
+    {:db/id e}
+
+    (keyword? e)
+    {:db/ident e}
+
+    (vector? e)
+    (conj {} e)))
+
+(defn stmt->identifier
+  [schema stmt]
+  (cond
+    (and (vector? stmt) (#{:db/add :db/retract :db/cas :db/retractEntity} (first stmt)))
+    (let [[_ e a v] stmt]
+      (merge {}
+        (val->identifier e)
+
+        (when (identity? schema a)
+          {a v})))
+
+    (map? stmt)
+    (let [idents (into {} (filter (fn [[a v]] (identity? schema a)) stmt))
+          {id :db/id tempid :tempid} stmt]
+      (merge
+       idents
+       (when (or tempid (string? id))
+         {:tempid (or tempid id)})
+       (when (number? id)
+         {:db/id id})
+       (when (vector? id)
+         (conj {:db/id id} id))))))
 
 
 (defn ^:export find-datom "not a good abstraction" [tx e-needle a-needle]
   (let [[[_ _ _ v]] (->> tx (filter (fn [[op e a v]]
                                       (= [op e a] [:db/add e-needle a-needle]))))]
     v))
-
-(declare stmt->identifier, identifier->e)
 
 (declare flatten-map-stmt)
 
@@ -94,9 +88,6 @@
                                   [:db/add e a v])))
                      :else (throw (ex-info "Flatten Map Statement | Attribute not defined in schema" {:schema schema :attribute a}))))))))
 
-
-
-
 (defn flatten-tx
   "Normalize a Datomic transaction by flattening any map-form Datomic statements into tuple-form"
   [schema mixed-form-tx]
@@ -136,107 +127,49 @@
       []
       forms)))
 
-(defmulti tx-meta
-  (fn [schema tx]
-    (if (map? tx)
-      ::map
-      (first tx))))
+(def identifier (comp ::hf/tx-identifier hf/tx-meta))
+(def cardinality (comp ::hf/tx-cardinality hf/tx-meta))
+(def inverse (comp ::hf/tx-inverse hf/tx-meta))
 
-(s/def ::cardinality (s/or :one :many))
-(s/def ::identifier map?)
-(s/def ::inverse fn?)
-(s/def ::special fn?)
-(s/def ::special fn?)
-
-(s/def ::transaction-meta
-  (s/keys :req [::identifier]
-          :opt [::cardinality ::inverse ::special ::conflicting?]))
-
-(s/fdef tx-meta
-  :ret ::transaction-meta)
-
-(defn val->identifier
-  [e]
-  (cond
-    (string? e)
-    {:tempid e}
-
-    (number? e)
-    {:db/id e}
-
-    (keyword? e)
-    {:db/ident e}
-
-    (vector? e)
-    (conj {} e)))
-
-(defn stmt->identifier
-  [schema stmt]
-  (cond
-    (and (vector? stmt) (#{:db/add :db/retract :db/cas :db/retractEntity} (first stmt)))
-    (let [[_ e a v] stmt]
-      (merge {}
-        (val->identifier e)
-
-        (when (identity? schema a)
-          {a v})))
-
-    (map? stmt)
-    (let [idents (into {} (filter (fn [[a v]] (identity? schema a)) stmt))
-          {id :db/id tempid :tempid} stmt]
-      (merge
-       idents
-       (when (or tempid (string? id))
-         {:tempid (or tempid id)})
-       (when (number? id)
-         {:db/id id})
-       (when (vector? id)
-         (conj {:db/id id} id))))))
-
-(def identifier (comp ::identifier tx-meta))
-(def cardinality (comp ::cardinality tx-meta))
-(def inverse (comp ::inverse tx-meta))
-(def attribute (comp ::attribute tx-meta))
-
-(defmethod tx-meta :db/add
+(defmethod hf/tx-meta :db/add
   [schema [f e a v :as tx]]
-  {::inverse [:db/retract e a v]
-   ::cardinality (if (one? schema a)
-                   :one
-                   :many)
-   ::identifier (stmt->identifier schema tx)
-   ::conflicting? (fn [[tx-fn' _ a' :as tx']]
-                    (and (= :db/add tx-fn')
-                         (= a a')))})
+  {::hf/tx-inverse [:db/retract e a v]
+   ::hf/tx-cardinality (if (one? schema a)
+                         :one
+                         :many)
+   ::hf/tx-identifier (stmt->identifier schema tx)
+   ::hf/conflicting? (fn [[tx-fn' _ a' :as tx']]
+                       (and (= :db/add tx-fn')
+                            (= a a')))})
 
-(defmethod tx-meta :db/retract
+(defmethod hf/tx-meta :db/retract
   [schema [f e a v :as tx]]
-  {::inverse [:db/add e a v]
-   ::cardinality (if (one? schema a)
-                   :one
-                   :many)
-   ::identifier (stmt->identifier schema tx)
-   ::conflicting? (fn [[tx-fn' _ a' :as tx']]
-                    (and (= tx-fn' :db/retract)
-                         (= a a')))})
+  {::hf/tx-inverse [:db/add e a v]
+   ::hf/tx-cardinality (if (one? schema a)
+                         :one
+                         :many)
+   ::hf/tx-identifier (stmt->identifier schema tx)
+   ::hf/conflicting? (fn [[tx-fn' _ a' :as tx']]
+                       (and (= tx-fn' :db/retract)
+                            (= a a')))})
 
-(defmethod tx-meta :db/cas
+(defmethod hf/tx-meta :db/cas
   [schema [_ e a o n]]
-  {::inverse [:db/cas e a n o]
-   ::cardinality :one
-   ::identifier (val->identifier e)
-   ::conflicting? (fn [[tx-fn' _ a' :as tx']]
-                    (and (#{:db/add :db/retract} tx-fn')
-                         (= a a')))})
+  {::hf/tx-inverse [:db/cas e a n o]
+   ::hf/tx-cardinality :one
+   ::hf/tx-identifier (val->identifier e)
+   ::hf/conflicting? (fn [[tx-fn' _ a' :as tx']]
+                       (and (#{:db/add :db/retract} tx-fn')
+                            (= a a')))})
 
-(defmethod tx-meta :db/retractEntity
+(defmethod hf/tx-meta :db/retractEntity
   [schema [_ e]]
   (let [ident (val->identifier e)]
-    {::cardinality :one
-     ::identifier ident
-     ::conflicting? (constantly true)}))
+    {::hf/tx-cardinality :one
+     ::hf/tx-identifier ident
+     ::hf/conflicting? (constantly true)}))
 
-(defmethod tx-meta :default
+(defmethod hf/tx-meta :default
   [schema tx]
   nil)
 
@@ -276,21 +209,21 @@
         (absorb schema identifier ideal [:db/add (identifier->e schema identifier) a v]))
       [identifier ideal]
       tx)
-    (let [{:keys [::inverse ::cardinality ::conflicting? ::special]
-           :as meta} (tx-meta schema tx)
-          cardinality (or cardinality (if conflicting? :one :many))
-          conflicting? (or conflicting? (constantly false))
+    (let [{:keys [::hf/tx-inverse ::hf/tx-cardinality ::hf/tx-conflicting? ::hf/tx-special]
+           :as meta} (hf/tx-meta schema tx)
+          tx-cardinality (or tx-cardinality (if tx-conflicting? :one :many))
+          tx-conflicting? (or tx-conflicting? (constantly false))
           ideal (or ideal #{})]
-      [(merge identifier (::identifier meta))
-       (if special
-         (set (special ideal))
-         (if (contains? ideal inverse)
-           (disj ideal inverse)
+      [(merge identifier (::hf/tx-identifier meta))
+       (if tx-special
+         (set (tx-special ideal))
+         (if (contains? ideal tx-inverse)
+           (disj ideal tx-inverse)
            (apply
              (fn [txs]
-               (if (= :one cardinality)
+               (if (= :one tx-cardinality)
                  (conj
-                   (into #{} (remove conflicting? txs))
+                   (into #{} (remove tx-conflicting? txs))
                    tx)
                  (conj txs tx)))
              [ideal])))])))
@@ -384,39 +317,3 @@
 
 (defn into-tx [schema tx more-statements]
   (mappify schema (deconstruct schema (construct schema (construct schema (flatten-tx schema tx)) more-statements))))
-
-(comment
- [[:db/add "a" :person/name "Alice"
-   {:person/name "Bob"
-    :person/parents [{:person/name "Cindy"}
-                     {:person/name "David"}]}
-   [:db/retract 42 :person/name "Ernie"]
-   [:db/retract [:person/name "Ernie"] :person/name "Ernie"]
-   [:db/retractEntity 43]
-   [:db/retractEntity [:person/name "Fred"]]
-   [:db/cas [:person/name "Gandalf"] :person/age 22 23]
-   [:user.fn/foo 'x 'y 'z 'q 'r]
-   [:esub.fn/sign-up-by-uuid (:db/id *user*) (java.util.UUID/fromString id)]
-   [:sub.fn/ensure-sub-status (:db/id *user*)]]
-
-
-  [[:db/add :db/retractEntity :hyperfiddle/whitelist-attribute true]
-   [:db/add :db/cas :hyperfiddle/whitelist-attribute true]]])
-
-
-
-;(defn ^:legacy entity-components [schema entity]
-;  (mapcat (fn [[attr v]]
-;            (let [{:keys [:db/cardinality :db/valueType :db/isComponent]} (get schema attr)]
-;              (if isComponent
-;                (case [(:db/ident valueType) (:db/ident cardinality)]
-;                  [:db.type/ref :db.cardinality/one] [v]
-;                  [:db.type/ref :db.cardinality/many] (vec v)
-;                  []))))
-;          entity))
-;
-;; pulled-tree->statements, respect component
-;(defn ^:legacy entity-and-components->statements [schema e]
-;  ; tree-seq lets us get component entities too
-;  (->> (tree-seq map? #(entity-components schema %) e)
-;       (mapcat entity->statements)))

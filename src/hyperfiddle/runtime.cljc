@@ -5,7 +5,7 @@
     [clojure.set :as set]
     [contrib.data :as data :refer [seq->>] :refer-macros [seq->>]]
     [contrib.datomic]
-    [contrib.datomic-tx :as tx]
+    [hyperfiddle.transaction :as tx]
     [contrib.reactive :as r]
     [hypercrud.types.DbRef :refer [->DbRef]]
     [hyperfiddle.api :as hf]

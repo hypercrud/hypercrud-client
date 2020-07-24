@@ -1,7 +1,7 @@
 (ns hyperfiddle.ui.util
   (:require
     [clojure.set :as set]
-    [contrib.datomic-tx :as tx]
+    [hyperfiddle.transaction :as tx]
     [contrib.reactive :as r]
     [contrib.string :refer [empty->nil]]
     [hypercrud.browser.context :as context]

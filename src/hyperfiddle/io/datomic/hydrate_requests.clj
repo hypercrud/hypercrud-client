@@ -20,7 +20,7 @@
     [taoensso.timbre :as timbre]
     [hyperfiddle.def :as hf-def]
     [hyperfiddle.spec :as spec]
-    [contrib.datomic-tx :refer [expand-hf-tx]])
+    [hyperfiddle.transaction :refer [expand-hf-tx]])
   (:import
     (hypercrud.types.DbRef DbRef)
     (hypercrud.types.EntityRequest EntityRequest)

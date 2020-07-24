@@ -1,17 +1,13 @@
-(ns contrib.datomic-tx-test
+(ns hyperfiddle.transaction-test
   (:require
     [contrib.data :as data]
     [contrib.datomic :refer [indexed-schema]]
-    [contrib.datomic-tx :refer [into-tx mappify-add-statements flatten-tx construct remove-tx
+    [hyperfiddle.transaction :refer [into-tx mappify-add-statements flatten-tx construct remove-tx
                                 absorb #?(:clj expand-hf-tx) find-datom identifier->e flatten-ref-stmt
                                 deconstruct-ideal flatten-map-stmt absorb-stmt ideal-idx remove-dangling-ids
                                 ideals->tx invalid? filter-tx unified-identifier mappify identifier deconstruct stmt->identifier]]
     [clojure.set :as set]
     [clojure.test :refer [deftest is testing]]))
-
-(defn map-by
-  [f xs]
-  (into {} (map (fn [x] [(f x) x]) xs)))
 
 (def schema
   (->> [{:db/ident :foo
@@ -572,9 +568,9 @@
 
 #?(:clj
    (deftest test|expand-hf-tx
-     (is (= [[:db/add 1 2 3]] (expand-hf-tx '[[contrib.datomic-tx-test/f 1 2 3]])))
+     (is (= [[:db/add 1 2 3]] (expand-hf-tx '[[hyperfiddle.transaction-test/f 1 2 3]])))
      (is (= [[:db/add 1 2 3] [:db/add "asdf" "qwer" :zxcv]]
-            (expand-hf-tx '[[contrib.datomic-tx-test/f 1 2 3] [:db/add "asdf" "qwer" :zxcv]])))))
+            (expand-hf-tx '[[hyperfiddle.transaction-test/f 1 2 3] [:db/add "asdf" "qwer" :zxcv]])))))
 
 (deftest test|identifier
   (let [schema seattle-schema]

@@ -3,7 +3,7 @@
     [cats.monad.either :refer [right left]]
     #?(:clj [hyperfiddle.io.datomic.core])
     #?(:clj [hyperfiddle.schema])
-    [contrib.datomic-tx :refer [remove-tx]]
+    [hyperfiddle.transaction :refer [remove-tx]]
     #?(:clj [contrib.pprint :refer [pprint-str pprint-datoms-str]])
     #?(:clj [taoensso.timbre :as timbre])
     [hyperfiddle.api :as hf])
