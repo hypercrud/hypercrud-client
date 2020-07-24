@@ -250,5 +250,5 @@
     (from-result
      (as-expr
       (case type
-        FindScalar (template [:find (pull ?e [*]) . :where [?e]])
+        FindScalar (template [:find (pull $ ?e [*]) . :in $ :where [?e]])
         (throw (ex-info "Not implemented yet, feel free to add it." {:type type}))))))))

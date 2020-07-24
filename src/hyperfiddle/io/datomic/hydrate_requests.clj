@@ -79,7 +79,7 @@
     :else           (list form)))
 
 (defn legacy-form [form]
-  (first (:fiddle/eval (hf-def/get-fiddle form))))
+  (:fiddle/eval (hf-def/get-fiddle form)))
 
 (defn- eval-fiddle! [form route]
   (let [[ident & _args] (resolve-fiddle-fn form)

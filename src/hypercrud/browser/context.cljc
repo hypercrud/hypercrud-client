@@ -1,12 +1,12 @@
 (ns hypercrud.browser.context
   (:require
-    [cats.core :as cats :refer [mlet return >>=]]
+    [cats.core :as cats :refer [mlet return >>= fmap]]
     [cats.monad.either :as either :refer [left right either?]]
     [clojure.core.match :refer [match #?(:cljs match*)]]
     [clojure.spec.alpha :as s]
     [contrib.do :refer [do-result from-result]]
     [contrib.ct :refer [unwrap]]
-    [contrib.data :refer [ancestry-common ancestry-divergence unqualify keywordize]]
+    [contrib.data :refer [ancestry-common ancestry-divergence unqualify keywordize map-values]]
     [contrib.datomic]
     [contrib.eval :as eval]
     [contrib.reactive :as r]
@@ -532,6 +532,25 @@ a speculative db/id."
                                               ::s/problems  (::s/problems ed)}))
       (either/right fiddle))))
 
+(defn- augment-with-spec [spec schema]
+  (-> spec
+      (:attributes)
+      (spec-datomic/spec->schema)
+      (merge (some-> schema .-schema-by-attr))
+      (contrib.datomic/->Schema)))
+
+(defn- augment-all-with-spec [spec schemas]
+  (let [spec-schema (-> spec (:attributes) (spec-datomic/spec->schema))]
+    (map-values (fn [schema] (fmap #(contrib.datomic/->Schema (merge spec-schema (.-schema-by-attr %))) schema))
+                schemas)))
+
+(defn schema-with-spec [ctx]
+  (if-let [spec (spec/spec ctx)]
+    (let [#?(:cljs ^js schema
+             :clj      schema) (deref (:hypercrud.browser/schema ctx))]
+      (assoc ctx :hypercrud.browser/schema (r/pure (augment-with-spec spec schema))))
+    ctx))
+
 (defn fiddle+ "Runtime sets this up, it's not public api.
   Responsible for setting defaults.
   Careful this is highly sensitive to order of initialization."
@@ -546,7 +565,9 @@ a speculative db/id."
              (either/left (ex-info "Invalid qfind" {}))     ; how would this ever happen?
              (either/right nil))
          _ @(r/apply contrib.datomic/validate-qfind-attrs+
-                     [(r/track runtime/get-schemas (:runtime ctx) (:partition-id ctx))
+                     [(r/fmap (fn [schema] (or (some-> @r-fiddle :fiddle/spec (augment-all-with-spec schema))
+                                               schema))
+                              (r/track runtime/get-schemas (:runtime ctx) (:partition-id ctx)))
                       (r/fmap :qfind r-qparsed)])
          r-fiddle @(r/apply-inner-r (r/apply hyperfiddle.fiddle/apply-fiddle-links-defaults+
                                              [r-fiddle
@@ -682,19 +703,6 @@ a speculative db/id."
 (defn stable-element-schema! [rt pid element]
   (let [{{db :symbol} :source} element]
     (some->> db str (runtime/get-schema+ rt pid) deref)))
-
-(defn schema-with-spec [ctx]
-  (if-let [spec (spec/spec ctx)]
-    (let [#?(:cljs ^js schema
-             :clj      schema) (deref (:hypercrud.browser/schema ctx))]
-      (-> spec
-          (:attributes)
-          (spec-datomic/spec->schema)
-          (merge (.-schema-by-attr schema))
-          (contrib.datomic/->Schema)
-          (r/pure)
-          (->> (assoc ctx :hypercrud.browser/schema))))
-    ctx))
 
 ; This complects two spread-elements concerns which are separate.
 ; 1. Setting Schema and element

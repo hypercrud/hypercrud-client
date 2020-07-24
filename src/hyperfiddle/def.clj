@@ -226,6 +226,9 @@
        {:fiddle/type  :query
         :fiddle/query (-> v one map-expr)}
 
+       :fiddle/eval
+       {:fiddle/type :eval
+        :fiddle/eval (-> v one map-expr)}
 
        :fiddle/shape
        {:fiddle/shape (some-> v one map-expr)}
