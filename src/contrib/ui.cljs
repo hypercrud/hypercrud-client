@@ -16,7 +16,7 @@
     [hyperfiddle.api :as hf]))
 
 
-(def default-debounce-ms 350)
+(def default-debounce-ms 300)
 
 (comment
   ; component-did-update
