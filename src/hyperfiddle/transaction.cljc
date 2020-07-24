@@ -140,7 +140,9 @@
                          ::hf/one
                          ::hf/many)
    ::hf/tx-identifier (stmt->identifier schema tx)
-   ::hf/conflicting? (fn [[tx-fn' _ a' :as tx']]
+   ::hf/tx-conflicting? (fn [[tx-fn' _ a' :as tx']]
+                       (println tx tx' (and (= :db/add tx-fn')
+                                            (= a a')))
                        (and (= :db/add tx-fn')
                             (= a a')))})
 
@@ -151,7 +153,7 @@
                          ::hf/one
                          ::hf/many)
    ::hf/tx-identifier (stmt->identifier schema tx)
-   ::hf/conflicting? (fn [[tx-fn' _ a' :as tx']]
+   ::hf/tx-conflicting? (fn [[tx-fn' _ a' :as tx']]
                        (and (= tx-fn' :db/retract)
                             (= a a')))})
 
@@ -160,7 +162,7 @@
   {::hf/tx-inverse [:db/cas e a n o]
    ::hf/tx-cardinality ::hf/one
    ::hf/tx-identifier (val->identifier e)
-   ::hf/conflicting? (fn [[tx-fn' _ a' :as tx']]
+   ::hf/tx-conflicting? (fn [[tx-fn' _ a' :as tx']]
                        (and (#{:db/add :db/retract} tx-fn')
                             (= a a')))})
 
@@ -169,7 +171,7 @@
   (let [ident (val->identifier e)]
     {::hf/tx-cardinality ::hf/one
      ::hf/tx-identifier ident
-     ::hf/conflicting? (constantly true)}))
+     ::hf/tx-conflicting? (constantly true)}))
 
 (defmethod hf/tx-meta :default
   [schema tx]
@@ -216,6 +218,7 @@
           tx-cardinality (or tx-cardinality (if tx-conflicting? ::hf/one ::hf/many))
           tx-conflicting? (or tx-conflicting? (constantly false))
           ideal (or ideal #{})]
+
       [(merge identifier (::hf/tx-identifier meta))
        (if tx-special
          (set (tx-special ideal))
