@@ -613,8 +613,7 @@ nil. call site must wrap with a Reagent component"          ; is this just hyper
    [entity-links-iframe ctx props]])
 
 (letfn [(render-edn [data]
-          (let [edn-str (pprint-str data 160)]
-            [contrib.ui/code {:value edn-str :read-only true}]))]
+          [contrib.ui/async-code {:value data :read-only true}])]
   (defn ^:export fiddle-api [_ {rt             :runtime
                                 route-defaults :hypercrud.browser/route-defaults
                                 :as            ctx} & [props]]

@@ -3,7 +3,7 @@
   (:require
     [cats.core :as cats]
     [contrib.data :refer [update-existing for-kv unqualify]]
-    [contrib.pprint :refer [pprint-str]]
+    [contrib.pprint :refer [pprint-str pprint-async]]
     [contrib.reactive :as r]
     [contrib.reader]
     [contrib.string :refer [blank->nil]]
@@ -184,6 +184,17 @@
                    :on-change (r/partial swap! r not))
    label])
 
+(defn async-props [_ _ _]
+  (let [a-state (r/atom nil)]
+    (fn [comp updatef & props]
+      (let [state @a-state]
+        (apply updatef (fn [value] (when-not (= state value)
+                                     (reset! a-state value)))
+               props)
+        (if-not state
+          [:<>]
+          (into [comp] (list state)))))))
+
 (defn ^:export code [props]                                 ; Adapt props to codemirror props
   (let [defaults {:lineNumbers true
                   :matchBrackets true
@@ -200,6 +211,12 @@
 (defn ^:export code-inline-block [props]
   ; (when (::hf/is-invalid props) {:class "invalid"})
   (text props))
+
+(defn- stable-pprint-async [set-props props]
+  (pprint-async (:value props) #(set-props (assoc props :value %))))
+
+(defn async-code [props]
+  [async-props code stable-pprint-async props])
 
 (defn ^:export cm-edn [props]
   [validated-cmp (assoc props :mode "clojure") contrib.reader/read-edn-string! pprint-str code])

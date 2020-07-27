@@ -2,7 +2,7 @@
   (:require
     [clojure.spec.alpha :as s]
     [contrib.css :refer [css css-slugify]]
-    [contrib.pprint :refer [pprint-str]]
+    [contrib.pprint :refer [pprint-str pprint-async]]
     [contrib.reactive :as r]
     [contrib.reader :as reader]
     [contrib.ui]
@@ -107,9 +107,9 @@
         :mode              "clojure"
         :lineNumbers       false}
        contrib.ui/validated-cmp parse-string to-string contrib.ui/code]
-      [contrib.ui/code {:value     (pprint-str default)
-                        :read-only true
-                        :class     "foo"}]])))
+      [contrib.ui/async-code {:value     default
+                              :read-only true
+                              :class     "foo"}]])))
 
 (defn stale-browse [ctx error success & args]
   [stale/loading
