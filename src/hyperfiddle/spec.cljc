@@ -128,7 +128,7 @@
   "State if a spec defines a collection"
   [x]
   (or (not (leaf? x))
-      (#{map? set? vector? list? seq?} (:predicate x))))
+      (#{`map? `set? `vector? `list? `seq?} (:predicate x))))
 
 (defn shape [fspec]
   (when-let [ret (:ret fspec)]
