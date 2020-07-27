@@ -129,6 +129,7 @@
 
 ; clj only
 (def ^:dynamic *$* nil)
+(def ^:dynamic *get-db* nil)
 (def ^:dynamic *domain* nil)
 (def ^:dynamic *subject*)                              ; FK into $hyperfiddle-users, e.g. #uuid "b7a4780c-8106-4219-ac63-8f8df5ea11e3"
 (def ^:dynamic *route* nil)
@@ -194,6 +195,12 @@
 (defmulti render-fiddle (fn [_val ctx _props] (fiddle ctx)))
 
 (defmulti formula (fn [_ctx link _value] (:link/formula link)))
+
+(defn route
+  "Get route, with default values. Rember default route values get overwritten by
+  user-provided values"
+  [ctx]
+  @(:hypercrud.browser/route-defaults ctx))
 
 (defmulti defaults (fn [ident _route] ident))
 (defmethod defaults :default [_ route] route) ;; identity

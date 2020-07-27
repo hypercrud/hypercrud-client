@@ -1099,19 +1099,19 @@ a speculative db/id."
     ;; Don't normalize, must handle tuple dimension properly. For now assume no
     ;; tuple.
     ;; !link[⬅︎ Slack Storm](:dustingetz.storm/view)
-    (if arg [arg])))
+    arg))
 
 (defn ^:export build-route+ "There may not be a route! Fiddle is sometimes optional" ; build-route+
-  [args ctx]
-  {:pre [ctx]
+  [{:keys [::route/datomic-args] :as route} ctx]
+  {:pre  [ctx]
    :post [(s/assert either? %)]}
   (mlet [fiddle-id (let [link @(:hypercrud.browser/link ctx)]
                      (if-let [fiddle (:link/fiddle link)]
                        (right (:fiddle/ident fiddle))
                        (left {:message ":link/fiddle required" :data {:link link}})))
          ; Why must we reverse into tempids? For the URL, of course.
-         :let [colored-args (mapv (partial tag-v-with-color ctx) args) ; this ctx is refocused to some eav
-               route (cond-> {::route/fiddle fiddle-id}
+         :let [colored-args (mapv (partial tag-v-with-color ctx) datomic-args) ; this ctx is refocused to some eav
+               route (cond-> (assoc route ::route/fiddle fiddle-id)
                        (seq colored-args) (assoc ::route/datomic-args colored-args))
                route (route/invert-route route (partial runtime/id->tempid! (:runtime ctx) (:partition-id ctx)))]
          ; why would this function ever construct an invalid route? this check seems unnecessary
@@ -1138,7 +1138,7 @@ a speculative db/id."
     (let [args (build-args ctx @link-ref)
           ; :hf/remove doesn't have route by default, :hf/new does, both can be customized
           route (from-result (build-route+ args ctx))
-          ctx (occlude-eav ctx args)]
+          ctx (occlude-eav ctx (::route/datomic-args args))]
       [ctx route])))
 
 (defn refocus-build-route-and-occlude+ "focus a link ctx, accounting for link/formula which occludes the natural eav"

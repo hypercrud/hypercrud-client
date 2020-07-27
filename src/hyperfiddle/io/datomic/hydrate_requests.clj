@@ -95,14 +95,20 @@
           (cond
             (not (fn? f))               {route' f}
             (zero? (min-arity fvar))    {route' (f)}
+            (and (= 1 (min-arity fvar))
+                 (not (:args fspec)))   {route' (f (dissoc route' :hyperfiddle.route/fiddle))}
             (= ::spec/fn (:type fspec)) {route' (spec/apply-map f fspec (dissoc route' :hyperfiddle.route/fiddle))}
             :else                       (throw (ex-info "This fiddle function expect some arguments, please provide a fdef for it." {:var fvar}))))
         (throw (ex-info "Fiddle not found" {:name ident}))))))
 
+(defn- get-db [getterf pid dbname]
+  (:db (getterf dbname pid)))
+
 (defmethod hydrate-request* EvalRequest [{:keys [form pid route]} domain get-secure-db-with]
   {:pre [form]}
-  (binding [hf/*route* route
-            hf/*$*     (:db (get-secure-db-with "$" pid))]
+  (binding [hf/*route*  route
+            hf/*$*      (get-db get-secure-db-with pid "$")
+            hf/*get-db* (partial get-db get-secure-db-with pid)]
     (eval-fiddle! form route)))
 
 ; todo i18n

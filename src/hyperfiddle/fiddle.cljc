@@ -100,20 +100,21 @@
     xorxs))
 
 (defmethod hf/formula :default [ctx {:keys [link/formula link/class link/fiddle]} value]
-  (cond
-    (some #{:hf/new} class) (hyperfiddle.api/tempid! ctx)
-    ;; If there is a fiddle-target, infer the expected :in shape
-    fiddle                  (case (get fiddle :fiddle/type ((:fiddle/type fiddle-defaults) fiddle))
-                              (:query :entity :eval) value
-                              ;; this is the case where the v is inferred but we
-                              ;; don't actually want it, like a toplevel iframe
-                              ;; for a FindScalar. Update: can use :db/id for
-                              ;; the dependent iframe, use :fiddleident for a
-                              ;; standalone iframe ? or naked (no :link/attr)
-                              :blank                 nil)
-    ;; TODO: What if :txfn is combined with :target-fiddle :blank, or
-    ;; :target-fiddle :FindTuple?
-    :else                   value))
+  (when-let [value (cond
+                     (some #{:hf/new} class) (hyperfiddle.api/tempid! ctx)
+                     ;; If there is a fiddle-target, infer the expected :in shape
+                     fiddle                  (case (get fiddle :fiddle/type ((:fiddle/type fiddle-defaults) fiddle))
+                                               (:query :entity :eval) value
+                                               ;; this is the case where the v is inferred but we
+                                               ;; don't actually want it, like a toplevel iframe
+                                               ;; for a FindScalar. Update: can use :db/id for
+                                               ;; the dependent iframe, use :fiddleident for a
+                                               ;; standalone iframe ? or naked (no :link/attr)
+                                               :blank                 nil)
+                     ;; TODO: What if :txfn is combined with :target-fiddle :blank, or
+                     ;; :target-fiddle :FindTuple?
+                     :else                   value)]
+    {:hyperfiddle.route/datomic-args [value]}))
 
 (def link-defaults
   {:link/tx-fn (fn [schemas qin link]
