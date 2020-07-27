@@ -4,12 +4,6 @@
             [clojure.spec.alpha :as s]
             [contrib.data :as data]))
 
-;; Implemented as a record temporarily during the UI transition from datomic
-;; schema to spec.
-(defrecord Spec [args ret attributes])
-
-;; -----------------------------------------------------------------------------
-
 (defmacro with-local-semantics
   "Rebinds the clojure.spec global registry to a temporary atom. Specs defined in
   body will therefor only be defined locally.
@@ -41,16 +35,12 @@
   (data/index-by :name (tree-seq branch? :children tree)))
 
 (defn fiddle-spec
-  "Index a spec `tree` and wrap it as a `Spec` type for further use a schema
-  replacement."
+  "Extract important info from a ::fn spec so they can be stored in a fiddle."
   [{:keys [type args ret] :as fspec}]
   (if (not= ::fn type)
     (throw (ex-info "A fiddle spec must be built from a function spec." {:type type}))
-    (map->Spec
-     {:args       args
-      :ret        ret
-      :attributes (merge (index args)
-                         (index (assoc ret :name (keyword (:name fspec)))))})))
+    {:args args
+     :ret  ret}))
 
 (defn spec
   "Get fiddle spec in context, if any"

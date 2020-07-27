@@ -539,19 +539,6 @@ a speculative db/id."
       (merge (some-> schema .-schema-by-attr))
       (contrib.datomic/->Schema)))
 
-(defn- augment-all-with-spec [spec schemas]
-  (let [spec-schema (-> spec (:attributes) (spec-datomic/spec->schema))]
-    (map-values (fn [schema] (fmap (fn [#?(:cljs ^js schema, :clj schema)]
-                                     (contrib.datomic/->Schema (merge spec-schema (.-schema-by-attr schema)))) schema))
-                schemas)))
-
-(defn schema-with-spec [ctx]
-  (if-let [spec (spec/spec ctx)]
-    (let [#?(:cljs ^js schema
-             :clj      schema) (deref (:hypercrud.browser/schema ctx))]
-      (assoc ctx :hypercrud.browser/schema (r/pure (augment-with-spec spec schema))))
-    ctx))
-
 (defn fiddle+ "Runtime sets this up, it's not public api.
   Responsible for setting defaults.
   Careful this is highly sensitive to order of initialization."
@@ -566,9 +553,7 @@ a speculative db/id."
              (either/left (ex-info "Invalid qfind" {}))     ; how would this ever happen?
              (either/right nil))
          _ @(r/apply contrib.datomic/validate-qfind-attrs+
-                     [(r/fmap (fn [schema] (or (some-> @r-fiddle :fiddle/spec (augment-all-with-spec schema))
-                                               schema))
-                              (r/track runtime/get-schemas (:runtime ctx) (:partition-id ctx)))
+                     [(r/track runtime/get-schemas (:runtime ctx) (:partition-id ctx))
                       (r/fmap :qfind r-qparsed)])
          r-fiddle @(r/apply-inner-r (r/apply hyperfiddle.fiddle/apply-fiddle-links-defaults+
                                              [r-fiddle
@@ -716,8 +701,7 @@ a speculative db/id."
         ; stable-element-schema! can throw on schema lookup
         ; this may need to be caught depending on when how/when this function is used
         ; or with reactions; we may need to unlazily throw ASAP
-               :hypercrud.browser/schema (r/fmap->> r-element (stable-element-schema! (:runtime ctx) (:partition-id ctx))))
-        (schema-with-spec))))
+               :hypercrud.browser/schema (r/fmap->> r-element (stable-element-schema! (:runtime ctx) (:partition-id ctx)))))))
 
 (defn browse-element [ctx i]                                ; [nil :seattle/neighborhoods 1234345]
   {:pre []
