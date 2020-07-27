@@ -2,7 +2,8 @@
   (:require
     [clojure.pprint]
     [clojure.string :as string]
-    [hyperfiddle.pprint]))
+    [hyperfiddle.pprint]
+    #?(:cljs [contrib.printer :as printer])))
 
 (defn ^:export pprint [o]
   (binding [clojure.pprint/*print-pprint-dispatch* hyperfiddle.pprint/simple-dispatch]
@@ -27,3 +28,9 @@
                   vec)]
       (->> (cons "[" (conj vs "]"))
            (apply str)))))
+
+(defn pprint-async
+  "Like pprint, but run in another thread."
+  [o callback]
+  #?(:clj  (callback (pprint o))
+     :cljs (printer/pprint o callback)))

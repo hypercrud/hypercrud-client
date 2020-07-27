@@ -84,25 +84,44 @@
   (swap! read-handlers assoc tag (t/read-handler from-rep))
   (swap! write-handlers assoc c (t/write-handler (constantly tag) rep-fn)))
 
+(defn with-refresh
+  "Recompute and remember the return value of `buildf` if `get-new-valuef` return
+  a different value than the previous call."
+  [get-new-valuef buildf]
+  (let [state (volatile! nil)] ; don't need STM
+    (fn []
+      (if-not (= @state (get-new-valuef))
+        (vreset! state (buildf))
+        @state))))
+
+(def ^:private default-reader (with-refresh #(deref read-handlers) #(t/reader :json {:handlers @read-handlers})))
+(def ^:private default-writer (with-refresh #(deref write-handlers) #(t/writer :json {:handlers @write-handlers})))
+
 (defn decode
   "Transit decode an object from `s`."
-  [s & {:keys [type opts]
-        :or {type :json opts {:handlers @read-handlers}}}]
-  #?(:clj  (let [in (ByteArrayInputStream. (.getBytes s *string-encoding*))
-                 rdr (t/reader in type opts)]
+  [s & {:keys [type opts]}]
+  #?(:clj  (let [type (or type :json)
+                 opts (or opts {:handlers @read-handlers})
+                 in   (ByteArrayInputStream. (.getBytes s *string-encoding*))
+                 rdr  (t/reader in type opts)]
              (t/read rdr))
-     :cljs (let [rdr (t/reader type opts)]
+     :cljs (let [rdr (if (or type opts)
+                       (t/reader type opts)
+                       (default-reader))]
              (t/read rdr s))))
 
 (defn encode
   "Transit encode `x` into a String."
-  [x & {:keys [type opts]
-        :or {type :json opts {:handlers @write-handlers}}}]
-  #?(:clj  (let [out (ByteArrayOutputStream.)
+  [x & {:keys [type opts]}]
+  #?(:clj  (let [type   (or type :json)
+                 opts   (or opts {:handlers @write-handlers})
+                 out    (ByteArrayOutputStream.)
                  writer (t/writer out type opts)]
              (t/write writer x)
              (.toString out))
-     :cljs (let [wrtr (t/writer type opts)]
+     :cljs (let [wrtr (if (or type opts)
+                        (t/writer type opts)
+                        (default-writer))]
              (t/write wrtr x))))
 
 #?(:cljs (extend-type com.cognitect.transit.types/UUID IUUID)) ; https://github.com/hyperfiddle/hyperfiddle/issues/728

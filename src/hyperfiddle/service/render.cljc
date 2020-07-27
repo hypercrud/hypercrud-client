@@ -91,6 +91,7 @@
            "domain" (-> (hf/domain rt) omit-secure-keys hc-t/encode)
            "state"  (hc-t/encode @(hf/state rt))})
         [[:script {:id "preamble" :src (domain/api-path-for (hf/domain rt) :static-resource :build (:git/describe config) :resource-name "browser.js")}]
+         [:script {:id "shared" :src (domain/api-path-for (hf/domain rt) :static-resource :build (:git/describe config) :resource-name "shared.js")}]
          [:script {:id "main" :src (domain/api-path-for (hf/domain rt) :static-resource :build (:git/describe config) :resource-name "main.js")}]]))]])
 
 (defn- inner-html
