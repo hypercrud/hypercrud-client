@@ -66,9 +66,8 @@
 
 (defn- args-spec [fspec]
   (if (qualified-symbol? fspec)
-    (if (s/get-spec fspec)
-      (args-spec (parse fspec))
-      (throw (ex-info "No spec registered for this name." {:name fspec})))
+    (when (s/get-spec fspec)
+      (args-spec (parse fspec)))
     (if (= ::fn (:type fspec))
       (:args fspec)
       (throw (ex-info "This spec is not a function spec, cannot extract argument spec from it." {:fspec fspec})))))
@@ -91,6 +90,12 @@
                   (apply f (extract-args m)))
                 (f)))
      (no-args-error! {:fn f}))))
+
+(defn nil-args
+  "Generate a map where keys come from a fn args and all values are nil."
+  [fspec]
+  (when-let [args (args-spec fspec)]
+    (zipmap (names args) (repeat nil))))
 
 (defn sexp
   "Take a `spec` and a `route`, return a function call s-expression `(function args…)`"

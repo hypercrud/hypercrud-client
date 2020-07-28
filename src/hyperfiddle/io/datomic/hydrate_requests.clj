@@ -81,6 +81,9 @@
 (defn legacy-form [form]
   (:fiddle/eval (hf-def/get-fiddle form)))
 
+(defmethod hf/defaults :default [ident route]
+  (merge (spec/nil-args ident) route))
+
 (defn- eval-fiddle! [form route]
   (let [[ident & _args] (resolve-fiddle-fn form)
         defaults        (hf/defaults ident route)
