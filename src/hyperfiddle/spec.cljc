@@ -75,21 +75,17 @@
 (defn- no-args-error! [data]
   (throw (ex-info "Couldn't find an `:args` spec for this function, unable to infer argument order" data)))
 
-(defn apply-map
-  "Pass args from `m` to `f` in the order `f` expects them, based on `fspec` :args."
-  ([f m]
-   (apply-map f f m))
-  ([f fspec m]
-   {:pre [(or (qualified-symbol? fspec)
-              (= ::fn (:type fspec)))]}
-   (if-let [spec (args-spec fspec)]
-     (case (:type spec)
-       ::keys (f m)
-       ::cat  (if-let [args (seq (names spec))]
-                (let [extract-args (apply juxt args)]
-                  (apply f (extract-args m)))
-                (f)))
-     (no-args-error! {:fn f}))))
+(defn positional
+  "Extract values from `m` in s/cat order"
+  [fspec m]
+  {:pre [(or (qualified-symbol? fspec)
+             (= ::fn (:type fspec)))]}
+  (if-let [spec (args-spec fspec)]
+    (case (:type spec)
+      ::cat  (if-let [args (seq (names spec))]
+               ((apply juxt args) m)
+               ()))
+    (no-args-error! {:fspec fspec})))
 
 (defn nil-args
   "Generate a map where keys come from a fn args and all values are nil."
@@ -99,11 +95,10 @@
 
 (defn sexp
   "Take a `spec` and a `route`, return a function call s-expression `(function args…)`"
-  [{:keys [name] :as spec} {:keys [:hyperfiddle.route/fiddle] :as route}]
-  (if-let [args (:args spec)]
-    (if-let [args (seq (names args))]
-      (->> ((apply juxt args) route)
-           (cons name))
+  [{:keys [name args] :as spec} {:keys [:hyperfiddle.route/fiddle] :as route}]
+  (if args
+    (if-let [names (seq (names args))]
+      (cons name ((apply juxt names) route))
       (list name))
     (no-args-error! {:hyperfiddle.route/fiddle fiddle})))
 

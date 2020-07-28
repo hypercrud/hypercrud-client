@@ -239,18 +239,21 @@
 (s/def :hf/where any?)
 (s/def :hf/where-spec any?)
 
+(defn arg* [e]
+  (cond
+    (thinentity? e) (.-id e)
+    (number? e) e                                        ; dbid
+    (string? e) e                                        ; tempid
+    (some? e) (throw (ex-info "unrecognized route param type" {}))
+    () nil ; don't crash if missing entirely
+    ))
+
 (defn arg "Silly extractor for a HF deftype with poor ergonomics. Todo cleanup.
   Used by Rosie"
   ;([] (hf-arg hf/*route*))
   ([hf-route] (arg hf-route 0))
   ([hf-route ix]
-   (let [e (get (:hyperfiddle.route/datomic-args hf-route) ix)]
-     (cond
-       (thinentity? e) (.-id e)
-       (number? e) e                                        ; dbid
-       (string? e) e                                        ; tempid
-       (some? e) (throw (ex-info "unrecognized route param type" {}))
-       () nil))))                                           ; don't crash if missing entirely
+   (arg* (get (:hyperfiddle.route/datomic-args hf-route) ix))))
 
 (defn with-hf-args [f] (f *$* (arg *route*)))
 

@@ -99,8 +99,8 @@
             (not (fn? f))               {route' f}
             (zero? (min-arity fvar))    {route' (f)}
             (and (= 1 (min-arity fvar))
-                 (not (:args fspec)))   {route' (f (dissoc route' :hyperfiddle.route/fiddle))}
-            (= ::spec/fn (:type fspec)) {route' (spec/apply-map f fspec (dissoc route' :hyperfiddle.route/fiddle))}
+                 (not (:args fspec)))   {route' (f route')}
+            (= ::spec/fn (:type fspec)) {route' (apply f (spec/positional fspec route'))}
             :else                       (throw (ex-info "This fiddle function expect some arguments, please provide a fdef for it." {:var fvar}))))
         (throw (ex-info "Fiddle not found" {:name ident}))))))
 
