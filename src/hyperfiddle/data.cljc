@@ -14,8 +14,7 @@
 
 (defn select-many "All links we can reach (for this entire dimension)"
   [ctx ?corcs]
-  {:pre [#_(:hypercrud.browser/qfind ctx)                   ; :blank ?
-         #_(:hypercrud.browser/element ctx)                 ; database color
+  {:pre [#_(:hypercrud.browser/element ctx)                 ; database color
          (:hypercrud.browser/link-index ctx)
          (s/assert :hypercrud/context ctx)
          #_(:hypercrud.browser/eav ctx)]                    ; it can be Reaction of [nil nil nil]

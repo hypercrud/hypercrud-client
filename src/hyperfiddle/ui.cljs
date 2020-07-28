@@ -251,7 +251,6 @@ User renderers should not be exposed to the reaction."
                            (if (not= nil $1)                ; todo check conn
                              (either/right ?route)
                              (either/left {:message "malformed entity param" :data {:params params}})))
-                 ; nil means :blank
                  (either/right ?route)))))
       (either/branch
         (fn [e]
@@ -505,7 +504,6 @@ User renderers should not be exposed to the reaction."
              [:div.hyperfiddle.alert.alert-warning
               (str/format "Warning: Query resultset has been truncated to %s records."
                           hf/browser-query-limit)])
-    :blank nil
     :eval nil
     ))
 

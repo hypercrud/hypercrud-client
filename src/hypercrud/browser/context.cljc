@@ -525,12 +525,10 @@ a speculative db/id."
           [?k (row ctx k)])))))
 
 (defn- validate-fiddle [fiddle]
-  (if (= (:fiddle/type fiddle) :blank)
-    (either/right fiddle)
-    (if-let [ed (s/explain-data :hyperfiddle/fiddle fiddle)]
-      (either/left (ex-info "Invalid fiddle" {:fiddle/ident (:fiddle/ident fiddle)
-                                              ::s/problems  (::s/problems ed)}))
-      (either/right fiddle))))
+  (if-let [ed (s/explain-data :hyperfiddle/fiddle fiddle)]
+    (either/left (ex-info "Invalid fiddle" {:fiddle/ident (:fiddle/ident fiddle)
+                                            ::s/problems  (::s/problems ed)}))
+    (either/right fiddle)))
 
 (defn- augment-with-spec [spec #?(:cljs ^js schema, :clj schema)]
   (-> spec
@@ -547,8 +545,7 @@ a speculative db/id."
   ; todo applying fiddle defaults should happen above here
   ; todo fiddle should already be valid
   (mlet [r-qparsed @(r/apply-inner-r (r/fmap hyperfiddle.fiddle/parse-fiddle-query+ r-fiddle))
-         _ (if (and (not= :blank @(r/cursor r-fiddle [:fiddle/type]))
-                    (not= :eval @(r/cursor r-fiddle [:fiddle/type]))
+         _ (if (and (not= :eval @(r/cursor r-fiddle [:fiddle/type]))
                     @(r/fmap (r/comp nil? :qfind) r-qparsed))
              (either/left (ex-info "Invalid qfind" {}))     ; how would this ever happen?
              (either/right nil))
@@ -837,13 +834,12 @@ a speculative db/id."
               :else (assert false (str "illegal focus: " p))))
           ctx relative-path))
 
-(defn ^:export spread-result "Guards :fiddle/type :blank to guarantee a qfind.
-  Use this with `for` which means reagent needs the key."
+(defn ^:export spread-result
+  "Use this with `for` which means reagent needs the key."
   [ctx]
   (let [r-fiddle (:hypercrud.browser/fiddle ctx)]
     ; could also dispatch on qfind. Is fiddle/type unnecessary now?
     (condp some [(:fiddle/type @r-fiddle)]
-      #{:blank} []
       #{:eval} [[(:fiddle/ident @r-fiddle) ctx]]            ; Option[Tuple[_]]
       #{:query :entity} [[(:fiddle/ident @r-fiddle)
                           ; inference is lazy
@@ -1047,8 +1043,6 @@ a speculative db/id."
 
       is-element-level                                      ; includes hf/new
       (do
-        #_(assert (:hypercrud.browser/qfind ctx) ":blank fiddle (no qfind) with hf/new is illegal, specify a qfind.")
-
         ; Includes FindColl and FindScalar inferred above
         ; We can hack in FindRel-1 support here too
         (let [ctx (-infer-implicit-element ctx)             ; don't infer FindRel-1, the result index isn't shaped right
@@ -1181,8 +1175,6 @@ a speculative db/id."
   (defn tempid! "Generate a stable unique tempid that will never collide and also can be deterministicly
   reproduced in any tab or the server"
     ([ctx]
-     ; :blank can assume $; otherwise user should specify a qfind
-     ; ^ is old comment and can't this be removed now?
      (tempid! (or (dbname ctx) "$") ctx))
     ([dbname ctx]
      ; Use hash of current dbval, which changes with each edit
