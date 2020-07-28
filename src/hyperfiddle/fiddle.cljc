@@ -159,7 +159,7 @@
    :fiddle/pull (constantly "[:db/id\n *]")
    :fiddle/pull-database (constantly "$")
    :fiddle/query (constantly "" #_(load-resource "fiddle-query-default.edn"))
-   :fiddle/type (constantly :blank) ; Toggling default to :query degrades perf in ide
+   :fiddle/type (constantly :eval) ; Toggling default to :query degrades perf in ide
    })
 
 (defn- composite-link?
