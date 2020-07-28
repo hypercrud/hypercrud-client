@@ -215,7 +215,7 @@
            :as meta} (hf/tx-meta schema tx)
           tx-cardinality (or tx-cardinality (if tx-conflicting? ::hf/one ::hf/many))
           tx-conflicting? (or tx-conflicting? (constantly false))
-          tx-identifier (if (map? tx-identifier) tx-identifier (val->identifier schema tx-identifier))
+          tx-identifier (if (map? tx-identifier) tx-identifier (val->identifier tx-identifier))
           ideal (or ideal #{})]
 
       [(merge identifier tx-identifier)
