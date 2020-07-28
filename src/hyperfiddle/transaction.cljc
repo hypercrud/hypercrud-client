@@ -141,10 +141,8 @@
                          ::hf/many)
    ::hf/tx-identifier (stmt->identifier schema tx)
    ::hf/tx-conflicting? (fn [[tx-fn' _ a' :as tx']]
-                       (println tx tx' (and (= :db/add tx-fn')
-                                            (= a a')))
-                       (and (= :db/add tx-fn')
-                            (= a a')))})
+                          (and (= :db/add tx-fn')
+                               (= a a')))})
 
 (defmethod hf/tx-meta :db/retract
   [schema [f e a v :as tx]]
@@ -154,8 +152,8 @@
                          ::hf/many)
    ::hf/tx-identifier (stmt->identifier schema tx)
    ::hf/tx-conflicting? (fn [[tx-fn' _ a' :as tx']]
-                       (and (= tx-fn' :db/retract)
-                            (= a a')))})
+                          (and (= tx-fn' :db/retract)
+                               (= a a')))})
 
 (defmethod hf/tx-meta :db/cas
   [schema [_ e a o n]]
@@ -163,8 +161,8 @@
    ::hf/tx-cardinality ::hf/one
    ::hf/tx-identifier (val->identifier e)
    ::hf/tx-conflicting? (fn [[tx-fn' _ a' :as tx']]
-                       (and (#{:db/add :db/retract} tx-fn')
-                            (= a a')))})
+                          (and (#{:db/add :db/retract} tx-fn')
+                               (= a a')))})
 
 (defmethod hf/tx-meta :db/retractEntity
   [schema [_ e]]
@@ -213,13 +211,14 @@
         (absorb schema identifier ideal [:db/add (identifier->e schema identifier) a v]))
       [identifier ideal]
       tx)
-    (let [{:keys [::hf/tx-inverse ::hf/tx-cardinality ::hf/tx-conflicting? ::hf/tx-special]
+    (let [{:keys [::hf/tx-inverse ::hf/tx-cardinality ::hf/tx-conflicting? ::hf/tx-special ::hf/tx-identifier]
            :as meta} (hf/tx-meta schema tx)
           tx-cardinality (or tx-cardinality (if tx-conflicting? ::hf/one ::hf/many))
           tx-conflicting? (or tx-conflicting? (constantly false))
+          tx-identifier (if (map? tx-identifier) tx-identifier (val->identifier schema tx-identifier))
           ideal (or ideal #{})]
 
-      [(merge identifier (::hf/tx-identifier meta))
+      [(merge identifier tx-identifier)
        (if tx-special
          (set (tx-special ideal))
          (if (contains? ideal tx-inverse)
