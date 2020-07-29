@@ -202,7 +202,7 @@
   [ctx]
   @(:hypercrud.browser/route-defaults ctx))
 
-(defmulti defaults (fn [ident _route] ident))
+(defmulti defaults (fn [ident _route] ident))               ; multiple params can depend on each other so set defaults centrally per fiddle
 
 (defmethod tx :default [ctx eav props]
   nil)
