@@ -1,8 +1,9 @@
 (ns hyperfiddle.spec
-  (:require [hyperfiddle.spec.parser :as parser]
-            [hyperfiddle.spec.serializer :as serializer]
+  (:require [clojure.set :as set]
             [clojure.spec.alpha :as s]
-            [contrib.data :as data]))
+            [contrib.data :as data]
+            [hyperfiddle.spec.parser :as parser]
+            [hyperfiddle.spec.serializer :as serializer]))
 
 (defmacro with-local-semantics
   "Rebinds the clojure.spec global registry to a temporary atom. Specs defined in
@@ -47,22 +48,27 @@
   [ctx]
   (:fiddle/spec @(:hypercrud.browser/fiddle ctx)))
 
+(defn names [spec]
+  (case (:type spec)
+    ::keys (->> spec :children (map :name))
+    ::cat  (:names spec)
+    ::alt  (reduce (fn [acc names] (assoc acc (count names) names))
+                   {}
+                  (map names (:children spec)))))
+
 (defn spec-keys [spec]
-  (set
-   (case (:type spec)
-     ::keys (:keys spec)
-     ::cat  (:names spec))))
+  (case (:type spec)
+    ::keys (:keys spec)
+    ::cat  (:names spec)
+    ::alt  (->> (names spec)
+                (mapcat val)
+                (distinct))))
 
 (defn arg?
   "State if `attribute` belongs to `spec` :args"
   [spec attr]
   (when-let [args (:args spec)]
-    (contains? (spec-keys args) attr)))
-
-(defn names [spec]
-  (case (:type spec)
-    ::keys (->> spec :children (map :name))
-    ::cat  (:names spec)))
+    (contains? (set (spec-keys args)) attr)))
 
 (defn- args-spec [fspec]
   (if (qualified-symbol? fspec)
@@ -75,29 +81,70 @@
 (defn- no-args-error! [data]
   (throw (ex-info "Couldn't find an `:args` spec for this function, unable to infer argument order" data)))
 
+(defn best-match-for [names m]
+  (->> (sort-by first > names)
+       (filter (fn [[arity names]]
+                 (let [keyset    (set (keys m))
+                       names-set (set names)]
+                   (and (set/subset? names-set keyset)
+                        (= arity (count (set/intersection keyset names-set)))))))
+       (map second)
+       (first)))
+
+(comment
+  (-> `user.hello-world/submission-master
+      (parse)
+      (:args)
+      (names)
+      (best-match-for {:user.hello-world/needle 0
+                       :user.hello-world/ignored 0
+                       :bar 9
+                       }))
+  (-> `user.hello-world/submission-master
+      (parse)
+      (:args)
+      (spec-keys)))
+
 (defn positional
   "Extract values from `m` in s/cat order"
   [fspec m]
   {:pre [(or (qualified-symbol? fspec)
              (= ::fn (:type fspec)))]}
   (if-let [spec (args-spec fspec)]
-    (case (:type spec)
-      ::cat  (if-let [args (seq (names spec))]
-               ((apply juxt args) m)
-               ()))
+    (if-let [names (seq (names spec))]
+      (let [args (case (:type spec)
+                   ::cat names
+                   ::alt (best-match-for names m))]
+        ((apply juxt args) m))
+      ())
     (no-args-error! {:fspec fspec})))
+
+(defn max-arity [alt]
+  (case (:type alt)
+    ::cat alt
+    ::alt (->> (:children alt)
+               (sort-by :count >)
+               (first))))
 
 (defn nil-args
   "Generate a map where keys come from a fn args and all values are nil."
-  [fspec]
-  (when-let [args (args-spec fspec)]
-    (zipmap (names args) (repeat nil))))
+  [spec]
+  (case (:type spec)
+    ::fn  (nil-args (:args spec))
+    ::cat (zipmap (names spec) (repeat nil))
+    ::alt (nil-args (max-arity spec))
+    nil))
+
+(comment
+  (-> `user.hello-world/submission-master
+      (parse)
+      (sexp {})))
 
 (defn sexp
   "Take a `spec` and a `route`, return a function call s-expression `(function args…)`"
   [{:keys [name args] :as spec} {:keys [:hyperfiddle.route/fiddle] :as route}]
   (if args
-    (if-let [names (seq (names args))]
+    (if-let [names (seq (names (max-arity args)))]
       (cons name ((apply juxt names) route))
       (list name))
     (no-args-error! {:hyperfiddle.route/fiddle fiddle})))
@@ -108,11 +155,17 @@
   (if (seq sexp)
     (let [[sym & argv] sexp]
       (if-let [args (args-spec (symbol sym))]
-        (->> (zipmap (names args) argv)
-             (data/filter-vals some?)
-             (into {:hyperfiddle.route/fiddle (keyword sym)}))
+        (let [names (case (:type args)
+                      ::cat args
+                      ::alt (names (max-arity args)))]
+          (->> (zipmap names argv)
+               (data/filter-vals some?)
+               (into {:hyperfiddle.route/fiddle (keyword sym)})))
         (no-args-error! {:sym sym})))
     nil))
+
+(comment
+  (read-route '(user.hello-world/submission-master "foo" "" "")))
 
 (defn- composite?
   "State if a spec defines a collection"
