@@ -158,8 +158,11 @@
        (-lookup [o k] (get (.-schema-by-attr o) k))
        (-lookup [o k not-found] (get (.-schema-by-attr o) k not-found))]))
 
-(ns-unmap 'contrib.datomic '->Schema)
-(defn ->Schema [schema-by-attr]
+;; Suppress a cljs compiler warning `:redef-in-file`
+#?(:cljs (ns-unmap 'contrib.datomic '->Schema))
+(defn ->Schema
+  "@suppress {duplicate}"
+  [schema-by-attr]
   (Schema. schema-by-attr (hash schema-by-attr)))
 
 (comment

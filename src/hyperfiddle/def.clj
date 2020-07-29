@@ -371,4 +371,6 @@
 (defn serve-nss!
   "Serve all namesapces and return a map {ns (found fiddles, …)}"
   [nss]
-  (into {} (map (juxt identity serve-ns!)) nss))
+  (into {} (comp (map (juxt identity serve-ns!))
+                 (filter (comp seq second)))
+        nss))

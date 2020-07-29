@@ -334,8 +334,6 @@
         (either/left e)))
     from-result))
 
-(def mem-eval (memoize eval))
-
 (defn interp-attr [x]
   (let [eval-mode (= = (do/! :Eval.get-var :eval/mode) :eval :eval)]
     (expr/unquote-via x
