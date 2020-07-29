@@ -6,7 +6,7 @@
     [clojure.core.match :refer [match*]]
     [clojure.string :as string]
     [contrib.css :refer [css css-slugify]]
-    [contrib.data :refer [unqualify]]
+    [contrib.data :refer [unqualify orf]]
     [contrib.hfrecom]
     [contrib.pprint :refer [pprint-str]]
     [contrib.reactive :as r]
@@ -251,7 +251,6 @@ User renderers should not be exposed to the reaction."
                            (if (not= nil $1)                ; todo check conn
                              (either/right ?route)
                              (either/left {:message "malformed entity param" :data {:params params}})))
-                 ; nil means :blank
                  (either/right ?route)))))
       (either/branch
         (fn [e]
@@ -505,7 +504,6 @@ User renderers should not be exposed to the reaction."
              [:div.hyperfiddle.alert.alert-warning
               (str/format "Warning: Query resultset has been truncated to %s records."
                           hf/browser-query-limit)])
-    :blank nil
     :eval nil
     ))
 
@@ -577,9 +575,9 @@ nil. call site must wrap with a Reagent component"          ; is this just hyper
           [needle-input2 ctx props])
         (let [qtype (type @(:hypercrud.browser/qfind ctx))] ; i think we need to make up a qfind for this case
           (if-not qtype
-            [table ctx (assoc props :columns table-column-product)]
+            [table ctx (update props :columns (orf table-column-product))]
             (condp some [qtype]                             ; spread-rows
-              #{FindRel FindColl} [table ctx (assoc props :columns table-column-product)] ; identical result?
+              #{FindRel FindColl} [table ctx (update props :columns (orf table-column-product))] ; identical result?
               #{FindTuple FindScalar} [form table-column-product val ctx props])))]))])
 
 ;(defmethod render :hf/blank [ctx props]
@@ -613,8 +611,7 @@ nil. call site must wrap with a Reagent component"          ; is this just hyper
    [entity-links-iframe ctx props]])
 
 (letfn [(render-edn [data]
-          (let [edn-str (pprint-str data 160)]
-            [contrib.ui/code {:value edn-str :read-only true}]))]
+          [contrib.ui/async-code {:value data :read-only true}])]
   (defn ^:export fiddle-api [_ {rt             :runtime
                                 route-defaults :hypercrud.browser/route-defaults
                                 :as            ctx} & [props]]

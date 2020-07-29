@@ -8,11 +8,9 @@
     [contrib.data :refer [group-by-pred]]
     [contrib.try$ :refer [try-either]]
     [datascript.parser #?@(:cljs [:refer [FindRel FindColl FindTuple FindScalar Variable Aggregate Pull]])]
-    #?(:cljs [hyperfiddle.spec :refer [Spec]])
     [hyperfiddle.spec :as spec]
     [hyperfiddle.spec.datomic :as spec-datomic])
   #?(:clj (:import
-            (hyperfiddle.spec Spec)
             (datascript.parser FindRel FindColl FindTuple FindScalar Variable Aggregate Pull)
             [clojure.lang IHashEq ILookup IPersistentSet IPersistentCollection])))
 
@@ -53,8 +51,14 @@
   (-repr-portable-hack [this])
   (attr [this a]))
 
+(def ^:private xf-attr-in-set
+  "A specific operation user in `attr?`, designed for performance."
+  (map (fn [kv]
+         (let [v (val kv)] ;; avoid destructuring, nth was too slow
+           (if (boolean? v) (key kv) v)))))
+
 (defn attr? [this a corcs]
-  (let [haystack (into #{} (map (fn [[k v]] (if (boolean? v) k v)) (attr this a)))            ; component
+  (let [haystack (into #{} xf-attr-in-set (attr this a))            ; component
         needles (contrib.data/xorxs corcs #{})]
     ; haystack must have all the needles
     (clojure.set/superset? haystack needles)))
@@ -104,6 +108,11 @@
            :db/valueType :db.type/long
            #_#_:db/unique :db.unique/identity})
 
+(defn- attr-spec [a]
+  (some-> (s/get-spec a)
+          (spec/parse)
+          (spec-datomic/from-spec)))
+
 (defn- attr* [this a]
   (when a
     (s/assert keyword? a)
@@ -112,25 +121,15 @@
         (= a :db/id) dbid
         is-reverse-nav (make-reverse-attr this a)
         :else
-        (-> (a (.-schema-by-attr #?(:clj this, :cljs ^js this)))                   ; can be nil if UI asks for attribute that is missing from schema
-            (contrib.data/update-existing :db/valueType smart-lookup-ref-no-tempids)
-            (contrib.data/update-existing :db/cardinality smart-lookup-ref-no-tempids)
-            (contrib.data/update-existing :db/isComponent smart-lookup-ref-no-tempids)
-            (contrib.data/update-existing :db/unique smart-lookup-ref-no-tempids))))))
+        (if-let [attr (a (.-schema-by-attr #?(:clj this, :cljs ^js this)))]
+          (-> attr
+              (contrib.data/update-existing :db/valueType smart-lookup-ref-no-tempids)
+              (contrib.data/update-existing :db/cardinality smart-lookup-ref-no-tempids)
+              (contrib.data/update-existing :db/isComponent smart-lookup-ref-no-tempids)
+              (contrib.data/update-existing :db/unique smart-lookup-ref-no-tempids))
+          (attr-spec a))))))
 
-(defn- attr-as-spec
-  "Parse the datomic schema as a spec tree, then get the attr like if it was a spec.
-  Useful to ensure (Schema -> Spec -> Schema) forms an identity and allows
-  smooth UI adaptation by providing a temporary fallback from spec to datomic
-  schema."
-  [this a]
-  (let [this       #?(:clj this, :cljs ^js this)
-        attributes (-> (.-schema-by-attr this)
-                       (spec-datomic/schema->spec))
-        spec       (spec/map->Spec {:attributes attributes})]
-    (attr spec a)))
-
-(deftype Schema [schema-by-attr]
+(deftype Schema [schema-by-attr hash]
   SchemaIndexedNormalized
   (-repr-portable-hack [this] (str "#schema " (pr-str (.-schema-by-attr this))))
   (attr [this a]
@@ -138,7 +137,7 @@
 
   #?@(:clj
       [Object (equals [o other] (and (instance? Schema other) (= (.-schema-by-attr o) (.-schema-by-attr other))))
-       IHashEq (hasheq [o] (hash (.-schema-by-attr o)))
+       IHashEq (hasheq [o] (.-hash o))
        ILookup
        (valAt [this k] (get (.-schema-by-attr this) k))
        (valAt [this k not-found] (get (.-schema-by-attr this) k not-found))
@@ -150,14 +149,21 @@
        (count [this] (count (.-schema-by-attr this)))       ; does not include virtual attrs like :db/id
        ;(cons [this o] (throw (UnsupportedOperationException.)))
        ;(empty [this] (throw (UnsupportedOperationException.)))
-       (equiv [this o] (= (.-schema-by-attr this) (.-schema-by-attr o)))]
+       (equiv [this o] (= (.-hash this) (.-hash o)))]
       :cljs
-      [IEquiv (-equiv [o other] (and (instance? Schema other) (= (.-schema-by-attr o) (.-schema-by-attr other))))
-       IHash (-hash [o] (hash (.-schema-by-attr o)))
+      [IEquiv (-equiv [o other] (and (instance? Schema other) (= (.-hash o) (.-hash other))))
+       IHash (-hash [o] (.-hash o))
        IPrintWithWriter (-pr-writer [o writer _] (-write writer (-repr-portable-hack o)))
        ILookup
        (-lookup [o k] (get (.-schema-by-attr o) k))
        (-lookup [o k not-found] (get (.-schema-by-attr o) k not-found))]))
+
+;; Suppress a cljs compiler warning `:redef-in-file`
+#?(:cljs (ns-unmap 'contrib.datomic '->Schema))
+(defn ->Schema
+  "@suppress {duplicate}"
+  [schema-by-attr]
+  (Schema. schema-by-attr (hash schema-by-attr)))
 
 (comment
   (def s (Schema. {:user/a {:db/ident :user/a :db/valueType :db.type/string}}))
@@ -172,9 +178,6 @@
 
 ; this has to be a hack, when ever are we asking questions about a schema that does not exist
 (extend-protocol SchemaIndexedNormalized
-  Spec
-  (-repr-portable-hack [this] (str "#schema " (pr-str (:attributes this))))
-  (attr [this a] (spec-datomic/attr this a))
   nil
   (-repr-portable-hack [this] (str "#schema " (pr-str nil)))
   (attr [this a] nil))
@@ -207,15 +210,14 @@
 Shape is normalized to match the shape of the Datomic result, e.g. [:user/a-ref] becomes {:user/a-ref [:db/id]}"
   [schema pull-pattern]
   (assert (sequential? pull-pattern) (pr-str pull-pattern))
-  (->> pull-pattern
-       (map (partial attr-spec->shape schema))
-       (map (fn [a]
-              (if (and (keyword? a)
-                       (attr? schema a :db.type/ref))
-                {a [:db/id]}
-                a)))
-       (remove nil?)
-       vec))
+  (into [] (comp (map (partial attr-spec->shape schema))
+                 (map (fn [a]
+                        (if (and (keyword? a)
+                                 (attr? schema a :db.type/ref))
+                          {a [:db/id]}
+                          a)))
+                 (remove nil?))
+        pull-pattern))
 
 (defn pull-union [& vs]
   ; they have to be the same data-shape (schema), which if this is a valid pull, they are
@@ -232,21 +234,31 @@ Shape is normalized to match the shape of the Datomic result, e.g. [:user/a-ref]
     (map? (first vs))
     (apply merge-with pull-union vs)))
 
+(defn- scalar? [value]
+  (not (map? value)))
+
 (defn tree-derivative "Derive a pull-shape which describes a pulled-tree"
   [schema pulled-tree]
-  {:pre [schema #_pulled-tree]}
+  {:pre [schema]}
   ; nil pulled-tree is legal, see https://github.com/hyperfiddle/hyperfiddle/issues/298
   ; Can't normalize {:user/a-ref [:db/id]}, you have to work with what they asked for, our UI will deal with it.
   (->> pulled-tree
        (reduce-kv
-         (fn [acc k v]
-           (conj acc (cond
-                       (= :db/id k) k
-                       (ref? schema k) {k (condp = (cardinality schema k) ; what if not found? What if wonky shape that doesn't fit Datomic shapes? what if cardinality/relations? Spec, polymorphism w/o schema. Have the v
-                                            :db.cardinality/one (tree-derivative schema v)
-                                            :db.cardinality/many (apply pull-union (map (partial tree-derivative schema) v)))}
-                       :else k)))
-         [])))
+        (fn [acc k v]
+          (conj acc (cond
+                      (= :db/id k) k
+                      (ref? schema k)
+                      (condp = (cardinality schema k)
+                        ;; what if not found? What if wonky shape that
+                        ;; doesn't fit Datomic shapes? what if
+                        ;; cardinality/relations? Spec, polymorphism w/o
+                        ;; schema. Have the v
+                        :db.cardinality/one  (if (scalar? v) k {k (tree-derivative schema v)})
+                        :db.cardinality/many (if (every? scalar? v)
+                                               k
+                                               {k (apply pull-union (map (partial tree-derivative schema) v))}))
+                      :else        k)))
+        [])))
 
 (defn pull-enclosure "Union the requested pull-pattern-shape with the actual result shape"
   [schema shape coll]
@@ -438,9 +450,9 @@ Shape is normalized to match the shape of the Datomic result, e.g. [:user/a-ref]
     :hf/aggregate []
     :hf/pull (let [{{pull-pattern :value} :pattern} element]
                (->> (pull-traverse schema (pull-shape schema pull-pattern))
-                    (remove empty?)
-                    (map last)
-                    (filter #(nil? (some-> schema (attr %)))) ; dont crash; reject good ones
+                    (sequence (comp (remove empty?)
+                                    (map last)
+                                    (filter #(nil? (some-> schema (attr %)))))) ; dont crash; reject good ones
                     #_empty?)
                #_(tree-seq map?
                            (fn [m]

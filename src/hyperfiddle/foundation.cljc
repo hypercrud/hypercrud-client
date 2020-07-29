@@ -185,7 +185,8 @@
         [:div.p [:div {:style {:margin-bottom "1em"}}]]
         [ui/field [:user/user-id] ctx]])))
 
-(hf-def/fiddle :hyperfiddle.ide/please-login)
+(hf-def/fiddle :hyperfiddle.ide/please-login
+               :eval (do))
 
 (defmethod hf/render-fiddle :hyperfiddle.ide/please-login [val ctx props]
   #?(:cljs

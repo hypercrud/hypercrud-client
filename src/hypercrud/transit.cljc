@@ -7,7 +7,6 @@
     #?(:cljs [com.cognitect.transit.types])
     [contrib.datomic :refer [->Schema #?(:cljs Schema)]]
     [contrib.uri :refer [->URI #?(:cljs URI)]]
-    [hyperfiddle.spec :refer [->Spec #?(:cljs Spec)]]
     [hypercrud.types.DbName :refer [->DbName #?(:cljs DbName)]]
     [hypercrud.types.DbRef :refer [->DbRef #?(:cljs DbRef)]]
     [hypercrud.types.EntityRequest :refer [->EntityRequest #?(:cljs EntityRequest)]]
@@ -22,7 +21,6 @@
        (cats.monad.exception Failure Success)
        (clojure.lang ExceptionInfo)
        (contrib.datomic Schema)
-       (hyperfiddle.spec Spec)
        (hypercrud.types.DbName DbName)
        (hypercrud.types.DbRef DbRef)
        (hypercrud.types.EntityRequest EntityRequest)
@@ -54,7 +52,6 @@
      "ex-info" (t/read-handler #(apply ex-info %))
      "sorted-map" (t/read-handler #(into (sorted-map) %))
      "ordered-map" (t/read-handler #(apply with-order %))
-     "spec" (t/read-handler #(apply ->Spec %))
      }))
 
 (def write-handlers
@@ -69,7 +66,6 @@
      ThinEntity (t/write-handler (constantly "entity") (fn [^ThinEntity v] [(.-dbname v) (.-id v)]))
      Left (t/write-handler (constantly "left-v") (fn [v] (vector (cats/extract v))))
      Right (t/write-handler (constantly "right-v") (fn [v] (vector (cats/extract v))))
-     Spec (t/write-handler (constantly "spec") (fn [v] [(:args v) (:ret v) (:attributes v)]))
      Failure (t/write-handler (constantly "failure-v") (fn [v] (vector (cats/extract v))))
      Success (t/write-handler (constantly "success-v") (fn [v] (vector (cats/extract v))))
      ExceptionInfo (t/write-handler (constantly "ex-info") (fn [ex] [(ex-message ex) (ex-data ex) (ex-cause ex)]))
@@ -84,25 +80,44 @@
   (swap! read-handlers assoc tag (t/read-handler from-rep))
   (swap! write-handlers assoc c (t/write-handler (constantly tag) rep-fn)))
 
+(defn with-refresh
+  "Recompute and remember the return value of `buildf` if `get-new-valuef` return
+  a different value than the previous call."
+  [get-new-valuef buildf]
+  (let [state (volatile! nil)] ; don't need STM
+    (fn []
+      (if-not (= @state (get-new-valuef))
+        (vreset! state (buildf))
+        @state))))
+
+(def ^:private default-reader (with-refresh #(deref read-handlers) #(t/reader :json {:handlers @read-handlers})))
+(def ^:private default-writer (with-refresh #(deref write-handlers) #(t/writer :json {:handlers @write-handlers})))
+
 (defn decode
   "Transit decode an object from `s`."
-  [s & {:keys [type opts]
-        :or {type :json opts {:handlers @read-handlers}}}]
-  #?(:clj  (let [in (ByteArrayInputStream. (.getBytes s *string-encoding*))
-                 rdr (t/reader in type opts)]
+  [s & {:keys [type opts]}]
+  #?(:clj  (let [type (or type :json)
+                 opts (or opts {:handlers @read-handlers})
+                 in   (ByteArrayInputStream. (.getBytes s *string-encoding*))
+                 rdr  (t/reader in type opts)]
              (t/read rdr))
-     :cljs (let [rdr (t/reader type opts)]
+     :cljs (let [rdr (if (or type opts)
+                       (t/reader type opts)
+                       (default-reader))]
              (t/read rdr s))))
 
 (defn encode
   "Transit encode `x` into a String."
-  [x & {:keys [type opts]
-        :or {type :json opts {:handlers @write-handlers}}}]
-  #?(:clj  (let [out (ByteArrayOutputStream.)
+  [x & {:keys [type opts]}]
+  #?(:clj  (let [type   (or type :json)
+                 opts   (or opts {:handlers @write-handlers})
+                 out    (ByteArrayOutputStream.)
                  writer (t/writer out type opts)]
              (t/write writer x)
              (.toString out))
-     :cljs (let [wrtr (t/writer type opts)]
+     :cljs (let [wrtr (if (or type opts)
+                        (t/writer type opts)
+                        (default-writer))]
              (t/write wrtr x))))
 
 #?(:cljs (extend-type com.cognitect.transit.types/UUID IUUID)) ; https://github.com/hyperfiddle/hyperfiddle/issues/728

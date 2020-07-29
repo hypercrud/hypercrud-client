@@ -153,21 +153,20 @@
                       (:fiddle/with fiddle))]
               (do/! :Eval.set-var! name (eval-attr x)))
 
-            (case (do/! :Eval.get-var :eval/mode)
+            (let [fiddle
+                  (-> fiddle
+                      (dissoc :fiddle/args :fiddle/with :fiddle/apply)
+                      (assoc :fiddle/ident
+                             (or (do/! :Eval.get-var :ident) (:fiddle/ident fiddle))))]
 
-              :skip (merge {:fiddle/type :blank}
-                      (select-keys fiddle [:fiddle/source]))
-
-              (let [fiddle
-                    (-> fiddle
-                        (dissoc :fiddle/args :fiddle/with :fiddle/apply)
-                        (assoc :fiddle/ident
-                          (or (do/! :Eval.get-var :ident) (:fiddle/ident fiddle))))]
-
-                (for-kv fiddle {}
-                  (fn [fiddle' attr val]
-                    (assoc fiddle' attr
-                      (normalize attr (interp-attr val))))))))))
+              (for-kv fiddle {}
+                      (fn [fiddle' attr val]
+                        (assoc fiddle' attr
+                               ;; We only have :eval (:static) fiddles for now, no
+                               ;; need to interpret attributes. But this might come
+                               ;; back. interp-attr is a costy function ATM.
+                               #_(normalize attr (interp-attr val))
+                               (normalize attr val))))))))
 
       (either/branch-left
         (fn [e]
@@ -307,9 +306,7 @@
                            ; and invalid edn should just fail, not nil-pun
                            ['*])]
           (either/right (->EntityRequest (or (:db/id ?e) ?e) db pull-exp)))
-        (either/left (ex-info "Missing :fiddle/pull-database" {:fiddle (:fiddle/ident fiddle)}))))
-
-    :blank (either/right nil)))
+        (either/left (ex-info "Missing :fiddle/pull-database" {:fiddle (:fiddle/ident fiddle)}))))))
 
 (defn- nil-or-hydrate+ [rt pid request]
   (if request
@@ -339,31 +336,27 @@
 
 (defn interp-attr [x]
   (let [eval-mode (= = (do/! :Eval.get-var :eval/mode) :eval :eval)]
+    (expr/unquote-via x
+     (fn eval-expr [x]
+       (cond (qualified-keyword? x) {:fiddle/ident (do (prn x) (str x))}
 
-    (eval
-      (expr/unquote-via x
-        (fn eval-expr [x]
+             (expr/form? x)
+             (cond (qualified-keyword? (first x))
+                   {:fiddle/ident (first x)
+                    :fiddle/apply (vec (rest x))}
+                   () (if eval-mode x (list 'quote (list 'unquote x))))
 
-          (cond (qualified-keyword? x) {:fiddle/ident (do (prn x) (str x))}
+             (not eval-mode)
+             (list 'quote (list 'unquote x))
 
-                (expr/form? x)
-                (cond (qualified-keyword? (first x))
-                      {:fiddle/ident (first x)
-                       :fiddle/apply (vec (rest x))}
-                      () (if eval-mode x (list 'quote (list 'unquote x))))
+             (symbol? x)
+             (do/! :Eval.get-var x x)
 
-                (not eval-mode)
-                (list 'quote (list 'unquote x))
+             (simple-keyword? x)
+             (or (if (contains? (do/! :Eval.scope) x) (do/! :Eval.get-var x))
+                 (eval-error x (str "var " x " not defined in" (:fiddle/ident (do/! :Eval.fiddle)))))
 
-                (symbol? x)
-                (do/! :Eval.get-var x x)
-
-                (simple-keyword? x)
-                (or (if (contains? (do/! :Eval.scope) x) (do/! :Eval.get-var x))
-                    (eval-error x (str "var " x " not defined in" (:fiddle/ident (do/! :Eval.fiddle)))))
-
-                () (eval-error x (str "unknown form" x "in" (:fiddle/ident (do/! :Eval.fiddle))))
-                ))))))
+             () (eval-error x (str "unknown form" x "in" (:fiddle/ident (do/! :Eval.fiddle)))))))))
 
 (defn normalize [key val]
   (case key

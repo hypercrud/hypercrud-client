@@ -6,7 +6,7 @@
     [clojure.edn :as edn]
     [clojure.set :as set]
     [clojure.string :as string]
-    [contrib.data :refer [cond-let map-values parse-query-element]]
+    [contrib.data :as data :refer [cond-let map-values parse-query-element]]
     [contrib.do :as do]
     [contrib.datomic]
     [contrib.pprint :refer [pprint-str]]
@@ -81,27 +81,38 @@
 (defn legacy-form [form]
   (:fiddle/eval (hf-def/get-fiddle form)))
 
+(defmethod hf/defaults :default [ident route]
+  (merge (spec/nil-args (spec/parse ident))
+         route))
+
 (defn- eval-fiddle! [form route]
   (let [[ident & _args] (resolve-fiddle-fn form)
-        defaults       (hf/defaults ident route)
-        route'         (merge defaults route)]
+        defaults        (hf/defaults ident route)
+        route'          (merge defaults route)]
     (if-let [legacy-form (legacy-form form)]
       ;; :eval is a legacy form, load it the old way
       {route' (eval legacy-form)}
       ;; :eval is a function symbol
       (if-let [fvar (find-var ident)]
-        (let [f           (deref fvar)
-              fspec       (spec/parse ident)]
+        (let [f     (deref fvar)
+              fspec (spec/parse ident)]
           (cond
-            (= ::spec/fn (:type fspec)) {route' (spec/apply-map f fspec (dissoc route' :hyperfiddle.route/fiddle))}
+            (not (fn? f))               {route' f}
             (zero? (min-arity fvar))    {route' (f)}
+            (and (= 1 (min-arity fvar))
+                 (not (:args fspec)))   {route' (f route')}
+            (= ::spec/fn (:type fspec)) {route' (apply f (spec/positional fspec route'))}
             :else                       (throw (ex-info "This fiddle function expect some arguments, please provide a fdef for it." {:var fvar}))))
         (throw (ex-info "Fiddle not found" {:name ident}))))))
 
+(defn- get-db [getterf pid dbname]
+  (:db (getterf dbname pid)))
+
 (defmethod hydrate-request* EvalRequest [{:keys [form pid route]} domain get-secure-db-with]
   {:pre [form]}
-  (binding [hf/*route* route
-            hf/*$*     (:db (get-secure-db-with "$" pid))]
+  (binding [hf/*route*  route
+            hf/*$*      (get-db get-secure-db-with pid "$")
+            hf/*get-db* (partial get-db get-secure-db-with pid)]
     (eval-fiddle! form route)))
 
 ; todo i18n
@@ -242,7 +253,7 @@
           local-basis (into {} local-basis)                 ; :: ([dbname 1234]), but there are some duck type shenanigans happening
           get-secure-db-with+ (build-get-secure-db-with+ domain (constantly partitions) db-with-lookup local-basis ?subject)
           pulled-trees (->> requests
-                            (map #(hydrate-request domain get-secure-db-with+ % ?subject))
+                            (data/pmap #(hydrate-request domain get-secure-db-with+ % ?subject))
                             (doall))
           tempid-lookups (map-values #(map-values extract-tempid-lookup+ %) @db-with-lookup)]
       {:pulled-trees   pulled-trees

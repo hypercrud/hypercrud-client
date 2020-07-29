@@ -25,7 +25,7 @@
 (s/def :swing/quux string?)
 (s/def :fiddle/ident keyword?)
 (s/def :fiddle/uuid uuid?)
-(s/def :fiddle/type #{:blank :entity :query :eval})
+(s/def :fiddle/type #{:entity :query :eval})
 (s/def :fiddle/query (some-fn string? coll?))
 #_(s/def :fiddle/query-needle string?)
 (s/def :fiddle/pull (some-fn string? coll?))
@@ -44,7 +44,6 @@
 (s/def :hyperfiddle/owners (s/coll-of uuid?))
 
 (defmulti fiddle-type :fiddle/type)
-(defmethod fiddle-type :blank [_] (s/keys :req [:fiddle/ident]))
 (defmethod fiddle-type :eval [_] (s/keys :req [:fiddle/ident]))
 (defmethod fiddle-type :query [_]
   (s/keys :req [:fiddle/ident
@@ -100,20 +99,13 @@
     xorxs))
 
 (defmethod hf/formula :default [ctx {:keys [link/formula link/class link/fiddle]} value]
-  (cond
-    (some #{:hf/new} class) (hyperfiddle.api/tempid! ctx)
-    ;; If there is a fiddle-target, infer the expected :in shape
-    fiddle                  (case (get fiddle :fiddle/type ((:fiddle/type fiddle-defaults) fiddle))
-                              (:query :entity :eval) value
-                              ;; this is the case where the v is inferred but we
-                              ;; don't actually want it, like a toplevel iframe
-                              ;; for a FindScalar. Update: can use :db/id for
-                              ;; the dependent iframe, use :fiddleident for a
-                              ;; standalone iframe ? or naked (no :link/attr)
-                              :blank                 nil)
-    ;; TODO: What if :txfn is combined with :target-fiddle :blank, or
-    ;; :target-fiddle :FindTuple?
-    :else                   value))
+  (when-let [value (cond
+                     (some #{:hf/new} class) (hyperfiddle.api/tempid! ctx)
+                     ;; If there is a fiddle-target, infer the expected :in shape
+                     fiddle                  (case (get fiddle :fiddle/type ((:fiddle/type fiddle-defaults) fiddle))
+                                               (:query :entity :eval) value)
+                     :else                   value)]
+    {:hyperfiddle.route/datomic-args [value]}))
 
 (def link-defaults
   {:link/tx-fn (fn [schemas qin link]
@@ -158,7 +150,7 @@
    :fiddle/pull (constantly "[:db/id\n *]")
    :fiddle/pull-database (constantly "$")
    :fiddle/query (constantly "" #_(load-resource "fiddle-query-default.edn"))
-   :fiddle/type (constantly :blank) ; Toggling default to :query degrades perf in ide
+   :fiddle/type (constantly :eval) ; Toggling default to :query degrades perf in ide
    })
 
 (defn- composite-link?
@@ -212,8 +204,7 @@
                   (update :fiddle/pull-database or-str ((:fiddle/pull-database fiddle-defaults) fiddle))
                   (cond->
                       (empty? (:fiddle/pull fiddle)) (assoc :fiddle/pull ((:fiddle/pull fiddle-defaults) fiddle))))
-      :eval   (update fiddle :fiddle/shape (orf (:fiddle/shape fiddle-defaults)))
-      :blank  fiddle)
+      :eval   (update fiddle :fiddle/shape (orf (:fiddle/shape fiddle-defaults))))
     (update fiddle :fiddle/markdown or-str ((:fiddle/markdown fiddle-defaults) fiddle))))
 
 (defn apply-fiddle-links-defaults+ "Link defaults require a parsed qfind, so has to be done separately later."
@@ -229,7 +220,6 @@
 
 (defn parse-fiddle-query+ [{:keys [fiddle/type fiddle/query fiddle/shape fiddle/pull fiddle/pull-database]}]
   (case type
-    :blank (right nil)
     :eval (do-result
            (datascript.parser/parse-query (if shape
                                             (from-result (as-expr shape))

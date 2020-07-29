@@ -129,6 +129,7 @@
 
 ; clj only
 (def ^:dynamic *$* nil)
+(def ^:dynamic *get-db* nil)
 (def ^:dynamic *domain* nil)
 (def ^:dynamic *subject*)                              ; FK into $hyperfiddle-users, e.g. #uuid "b7a4780c-8106-4219-ac63-8f8df5ea11e3"
 (def ^:dynamic *route* nil)
@@ -195,8 +196,13 @@
 
 (defmulti formula (fn [_ctx link _value] (:link/formula link)))
 
+(defn route
+  "Get route, with default values. Rember default route values get overwritten by
+  user-provided values"
+  [ctx]
+  @(:hypercrud.browser/route-defaults ctx))
+
 (defmulti defaults (fn [ident _route] ident))
-(defmethod defaults :default [_ route] route) ;; identity
 
 (defmethod tx :default [ctx eav props]
   nil)
@@ -233,18 +239,21 @@
 (s/def :hf/where any?)
 (s/def :hf/where-spec any?)
 
+(defn arg* [e]
+  (cond
+    (thinentity? e) (.-id e)
+    (number? e) e                                        ; dbid
+    (string? e) e                                        ; tempid
+    (some? e) (throw (ex-info "unrecognized route param type" {}))
+    () nil ; don't crash if missing entirely
+    ))
+
 (defn arg "Silly extractor for a HF deftype with poor ergonomics. Todo cleanup.
   Used by Rosie"
   ;([] (hf-arg hf/*route*))
   ([hf-route] (arg hf-route 0))
   ([hf-route ix]
-   (let [e (get (:hyperfiddle.route/datomic-args hf-route) ix)]
-     (cond
-       (thinentity? e) (.-id e)
-       (number? e) e                                        ; dbid
-       (string? e) e                                        ; tempid
-       (some? e) (throw (ex-info "unrecognized route param type" {}))
-       () nil))))                                           ; don't crash if missing entirely
+   (arg* (get (:hyperfiddle.route/datomic-args hf-route) ix))))
 
 (defn with-hf-args [f] (f *$* (arg *route*)))
 
@@ -268,3 +277,9 @@
   (str/includes?
    (.toLowerCase (or v ""))
    (.toLowerCase (or needle ""))))
+
+(defmacro serve!
+  "For demo purposes, avoid complex :require in demo nss so people can focus on
+  other aspects. What's hf-def? -> they shouldn't care."
+  []
+  `(hyperfiddle.def/serve-ns! ~*ns*))

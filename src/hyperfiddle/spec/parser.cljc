@@ -51,6 +51,17 @@
     {:type     :hyperfiddle.spec/cat
      :names    (map first names)
      :args     kvs
+     :count    (count names)
+     :children (map (fn [[name spec]]
+                      (assoc (parse spec) :name name))
+                    names)}))
+
+(defmethod parse-spec `s/alt [[_ & kvs]]
+  (let [names (partition 2 kvs)]
+    {:type     :hyperfiddle.spec/alt
+     :names    (map first names)
+     :args     kvs
+     :count    (count names)
      :children (map (fn [[name spec]]
                       (assoc (parse spec) :name name))
                     names)}))

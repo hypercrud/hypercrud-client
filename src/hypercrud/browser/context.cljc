@@ -525,31 +525,17 @@ a speculative db/id."
           [?k (row ctx k)])))))
 
 (defn- validate-fiddle [fiddle]
-  (if (= (:fiddle/type fiddle) :blank)
-    (either/right fiddle)
-    (if-let [ed (s/explain-data :hyperfiddle/fiddle fiddle)]
-      (either/left (ex-info "Invalid fiddle" {:fiddle/ident (:fiddle/ident fiddle)
-                                              ::s/problems  (::s/problems ed)}))
-      (either/right fiddle))))
+  (if-let [ed (s/explain-data :hyperfiddle/fiddle fiddle)]
+    (either/left (ex-info "Invalid fiddle" {:fiddle/ident (:fiddle/ident fiddle)
+                                            ::s/problems  (::s/problems ed)}))
+    (either/right fiddle)))
 
-(defn- augment-with-spec [spec schema]
+(defn- augment-with-spec [spec #?(:cljs ^js schema, :clj schema)]
   (-> spec
       (:attributes)
       (spec-datomic/spec->schema)
       (merge (some-> schema .-schema-by-attr))
       (contrib.datomic/->Schema)))
-
-(defn- augment-all-with-spec [spec schemas]
-  (let [spec-schema (-> spec (:attributes) (spec-datomic/spec->schema))]
-    (map-values (fn [schema] (fmap #(contrib.datomic/->Schema (merge spec-schema (.-schema-by-attr %))) schema))
-                schemas)))
-
-(defn schema-with-spec [ctx]
-  (if-let [spec (spec/spec ctx)]
-    (let [#?(:cljs ^js schema
-             :clj      schema) (deref (:hypercrud.browser/schema ctx))]
-      (assoc ctx :hypercrud.browser/schema (r/pure (augment-with-spec spec schema))))
-    ctx))
 
 (defn fiddle+ "Runtime sets this up, it's not public api.
   Responsible for setting defaults.
@@ -559,15 +545,12 @@ a speculative db/id."
   ; todo applying fiddle defaults should happen above here
   ; todo fiddle should already be valid
   (mlet [r-qparsed @(r/apply-inner-r (r/fmap hyperfiddle.fiddle/parse-fiddle-query+ r-fiddle))
-         _ (if (and (not= :blank @(r/cursor r-fiddle [:fiddle/type]))
-                    (not= :eval @(r/cursor r-fiddle [:fiddle/type]))
+         _ (if (and (not= :eval @(r/cursor r-fiddle [:fiddle/type]))
                     @(r/fmap (r/comp nil? :qfind) r-qparsed))
              (either/left (ex-info "Invalid qfind" {}))     ; how would this ever happen?
              (either/right nil))
          _ @(r/apply contrib.datomic/validate-qfind-attrs+
-                     [(r/fmap (fn [schema] (or (some-> @r-fiddle :fiddle/spec (augment-all-with-spec schema))
-                                               schema))
-                              (r/track runtime/get-schemas (:runtime ctx) (:partition-id ctx)))
+                     [(r/track runtime/get-schemas (:runtime ctx) (:partition-id ctx))
                       (r/fmap :qfind r-qparsed)])
          r-fiddle @(r/apply-inner-r (r/apply hyperfiddle.fiddle/apply-fiddle-links-defaults+
                                              [r-fiddle
@@ -715,8 +698,7 @@ a speculative db/id."
         ; stable-element-schema! can throw on schema lookup
         ; this may need to be caught depending on when how/when this function is used
         ; or with reactions; we may need to unlazily throw ASAP
-               :hypercrud.browser/schema (r/fmap->> r-element (stable-element-schema! (:runtime ctx) (:partition-id ctx))))
-        (schema-with-spec))))
+               :hypercrud.browser/schema (r/fmap->> r-element (stable-element-schema! (:runtime ctx) (:partition-id ctx)))))))
 
 (defn browse-element [ctx i]                                ; [nil :seattle/neighborhoods 1234345]
   {:pre []
@@ -852,13 +834,12 @@ a speculative db/id."
               :else (assert false (str "illegal focus: " p))))
           ctx relative-path))
 
-(defn ^:export spread-result "Guards :fiddle/type :blank to guarantee a qfind.
-  Use this with `for` which means reagent needs the key."
+(defn ^:export spread-result
+  "Use this with `for` which means reagent needs the key."
   [ctx]
   (let [r-fiddle (:hypercrud.browser/fiddle ctx)]
     ; could also dispatch on qfind. Is fiddle/type unnecessary now?
     (condp some [(:fiddle/type @r-fiddle)]
-      #{:blank} []
       #{:eval} [[(:fiddle/ident @r-fiddle) ctx]]            ; Option[Tuple[_]]
       #{:query :entity} [[(:fiddle/ident @r-fiddle)
                           ; inference is lazy
@@ -946,16 +927,13 @@ a speculative db/id."
         ?pullpath (:hypercrud.browser/pull-path ctx)]
     (if-not (and ?element ?schema ?pullpath)                ; this if statement was causing chaos #909
       (links-at index criterias)
-      (let [as (reachable-attrs ctx)                        ; scan for anything reachable ?
-            links (->> as
-                       ; Places within reach
-                       (mapcat (fn [a]
-                                 (links-at index (conj criterias a))))
-
-                       ; This place is where we are now
-                       (concat (links-at index criterias)))] ; this causes duplicates, there are bugs here
-        (vec (distinct links))                              ; associative by index
-        #_(->> links r/sequence (r/fmap vec))))))
+      (->> (reachable-attrs ctx) ; scan for anything reachable ?
+           ; Places within reach
+           (map (fn [a] (links-at index (conj criterias a))))
+           ; This place is where we are now
+           (cons (links-at index criterias)) ; this causes duplicates, there are bugs here
+           (into [] (comp cat (distinct))) ; associative by index
+           ))))
 
 (defn links-in-dimension [ctx criterias]
   ; r/track
@@ -1065,8 +1043,6 @@ a speculative db/id."
 
       is-element-level                                      ; includes hf/new
       (do
-        #_(assert (:hypercrud.browser/qfind ctx) ":blank fiddle (no qfind) with hf/new is illegal, specify a qfind.")
-
         ; Includes FindColl and FindScalar inferred above
         ; We can hack in FindRel-1 support here too
         (let [ctx (-infer-implicit-element ctx)             ; don't infer FindRel-1, the result index isn't shaped right
@@ -1101,19 +1077,19 @@ a speculative db/id."
     ;; Don't normalize, must handle tuple dimension properly. For now assume no
     ;; tuple.
     ;; !link[⬅︎ Slack Storm](:dustingetz.storm/view)
-    (if arg [arg])))
+    arg))
 
 (defn ^:export build-route+ "There may not be a route! Fiddle is sometimes optional" ; build-route+
-  [args ctx]
-  {:pre [ctx]
+  [{:keys [::route/datomic-args] :as route} ctx]
+  {:pre  [ctx]
    :post [(s/assert either? %)]}
   (mlet [fiddle-id (let [link @(:hypercrud.browser/link ctx)]
                      (if-let [fiddle (:link/fiddle link)]
                        (right (:fiddle/ident fiddle))
                        (left {:message ":link/fiddle required" :data {:link link}})))
          ; Why must we reverse into tempids? For the URL, of course.
-         :let [colored-args (mapv (partial tag-v-with-color ctx) args) ; this ctx is refocused to some eav
-               route (cond-> {::route/fiddle fiddle-id}
+         :let [colored-args (mapv (partial tag-v-with-color ctx) datomic-args) ; this ctx is refocused to some eav
+               route (cond-> (assoc route ::route/fiddle fiddle-id)
                        (seq colored-args) (assoc ::route/datomic-args colored-args))
                route (route/invert-route route (partial runtime/id->tempid! (:runtime ctx) (:partition-id ctx)))]
          ; why would this function ever construct an invalid route? this check seems unnecessary
@@ -1140,7 +1116,7 @@ a speculative db/id."
     (let [args (build-args ctx @link-ref)
           ; :hf/remove doesn't have route by default, :hf/new does, both can be customized
           route (from-result (build-route+ args ctx))
-          ctx (occlude-eav ctx args)]
+          ctx (occlude-eav ctx (::route/datomic-args args))]
       [ctx route])))
 
 (defn refocus-build-route-and-occlude+ "focus a link ctx, accounting for link/formula which occludes the natural eav"
@@ -1199,8 +1175,6 @@ a speculative db/id."
   (defn tempid! "Generate a stable unique tempid that will never collide and also can be deterministicly
   reproduced in any tab or the server"
     ([ctx]
-     ; :blank can assume $; otherwise user should specify a qfind
-     ; ^ is old comment and can't this be removed now?
      (tempid! (or (dbname ctx) "$") ctx))
     ([dbname ctx]
      ; Use hash of current dbval, which changes with each edit

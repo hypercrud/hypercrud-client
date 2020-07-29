@@ -1,4 +1,5 @@
 (ns contrib.data
+  (:refer-clojure :exclude [pmap])
   (:require
    [clojure.string :as str])
   #?(:cljs (:require-macros [contrib.data])))
@@ -36,20 +37,18 @@
        (into {})))
 
 (defn group-by-unique [kf xs]                                ; i think args are flipped, this is more like update-in than map
-  (->> xs
-       (map (juxt kf identity))
-       (reduce (fn [acc [k _ :as kv]]
-                 ; https://github.com/hyperfiddle/hyperfiddle/issues/298
-                 ; nil key is legal for sparse entity that pulls to empty.
-                 #_(assert k (str "group-by-unique, nil key: " k))
+  ; https://github.com/hyperfiddle/hyperfiddle/issues/298
+  ; nil key is legal for sparse entity that pulls to empty.
 
-                 ; Legal duplicates happen for entity without identity.
-                 ; When indexing this is not a problem, because they have equal value and actually should coalesce.
-                 #_(assert (not (contains? acc k)) (str "group-by-unique, duplicate key: " k))
-                 (conj acc kv))
-               {})
-       doall                                                ; catch duplicate key errors sooner
-       ))
+  ; Legal duplicates happen for entity without identity.
+  ; When indexing this is not a problem, because they have equal value and actually should coalesce.
+  (persistent!
+   (reduce (fn [acc x]
+             #_(assert k (str "group-by-unique, nil key: " k))
+             #_(assert (not (contains? acc k)) (str "group-by-unique, duplicate key: " k))
+             (assoc! acc (kf x) x))
+           (transient {})
+           xs)))
 
 (defn group-by-unique-ordered "Take care to never update this value, it will lose the ordered type.
   Unused, has linear lookup, needs clj-commons/ordered which needs to be ported to CLJC."
@@ -311,3 +310,21 @@
        ~(if (empty? steps)
           g
           (last steps)))))
+
+#?(:cljs (def pmap map)
+   :clj
+   (defn pmap
+     "Similar to `clojure.core/pmap`. Will execute `f` on a different thread for each
+  value (via `future`). Not lazy, not batched. Usefull if `f` is very expensive
+  and coll is small. Meant for parallel application of `f` and not for fast
+  collection processing."
+     [f coll]
+     (cond
+       (empty? coll)      ()
+       (= 1 (count coll)) (list (f (first coll)))
+       :else              (->> coll
+                               ;; A transducer would make it sequential. We want
+                               ;; to fire all futures at once.
+                               (map (fn [x] (future (f x))))
+                               (map (fn [x] (deref x)))
+                               (doall)))))

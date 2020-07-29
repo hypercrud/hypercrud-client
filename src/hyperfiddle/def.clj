@@ -6,7 +6,7 @@
     [clojure.tools.reader.reader-types :as reader-types]
     [contrib.expr :refer :all]
     [contrib.do :refer [do-result]]
-    [contrib.data :refer [qualify trim-str for-kv]]
+    [contrib.data :refer [qualify trim-str for-kv orf]]
     [hyperfiddle.fiddle]
     [hyperfiddle.spec :as hf-spec]))
 
@@ -160,11 +160,13 @@
 (defn read-def [type ident attrs]
   (s/assert qualified-keyword? ident)
   (let [attrs (read-spec ::def attrs)
-        spec (s/get-spec (symbol ident))]
+        spec (some-> (s/get-spec (symbol ident)) (hf-spec/parse))]
     (map-attrs type
                (cond-> {:ident       ident
                         :fiddle/type :eval}
-                 spec (assoc :fiddle/spec (-> spec (hf-spec/parse) (hf-spec/fiddle-spec))))
+                 spec (assoc :fiddle/spec (hf-spec/fiddle-spec spec))
+                 spec (update :fiddle/shape (orf [(hf-spec/shape spec)])) ; wrapped in [] for hf-def quoted syntax
+                 )
       (when (= type :fiddle)
         {:fiddle/source (symbol (.name *ns*))})
       (dissoc attrs :&)
@@ -230,6 +232,7 @@
        {:fiddle/type :eval
         :fiddle/eval (-> v one map-expr)}
 
+       ;; TODO remove, now defined by spec
        :fiddle/shape
        {:fiddle/shape (some-> v one map-expr)}
 
@@ -362,7 +365,12 @@
                     fiddle)))
            (doall)))))
 
+(defmacro serve! []
+  `(serve-ns! *ns*))
+
 (defn serve-nss!
   "Serve all namesapces and return a map {ns (found fiddles, …)}"
   [nss]
-  (into {} (map (juxt identity serve-ns!)) nss))
+  (into {} (comp (map (juxt identity serve-ns!))
+                 (filter (comp seq second)))
+        nss))

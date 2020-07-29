@@ -29,9 +29,12 @@
   ([s]
    (read-edn-string! {:eof nil} s))
   ([opts s]
-   (clojure.tools.reader.edn/read-string
-     (update opts :readers merge hyperfiddle.readers/hf-edn-readers)
-     s)))
+   (try
+     (clojure.tools.reader.edn/read-string
+      (update opts :readers merge hyperfiddle.readers/hf-edn-readers)
+      s)
+     (catch #?(:clj Exception :cljs js/Error) e
+       (throw (ex-info "Unable to read string" {:str s} e))))))
 
 (defn read-edn-string+ [& args] (try-either (apply read-edn-string! args)))
 
