@@ -14,7 +14,6 @@
             (datascript.parser FindRel FindColl FindTuple FindScalar Variable Aggregate Pull)
             [clojure.lang IHashEq ILookup IPersistentSet IPersistentCollection])))
 
-
 (defn tempid? [id]
   (string? id))
 

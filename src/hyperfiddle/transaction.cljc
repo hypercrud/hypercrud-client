@@ -2,6 +2,7 @@
   (:require
     [clojure.set :as set]
     [contrib.datomic :refer [tempid? ref-one? ref-many? scalar-one? scalar-many? isComponent unique identity? one? many? ref?]]
+    #?(:clj [datomic.api :as d])
     [hyperfiddle.api :as hf]))
 
 (defn val->identifier
@@ -322,3 +323,44 @@
 
 (defn into-tx [schema tx more-statements]
   (mappify schema (deconstruct schema (construct schema (construct schema (flatten-tx schema tx)) more-statements))))
+
+
+
+; Wrapper for listening to transactions
+; Likely to be replaced with an event stream in api
+; so use sparringly
+
+#?(:clj
+    (defn datom->stmt
+      "Convert a Datomic datom into a vector to be sent down to the client as a tx to be applied."
+      [conn {:keys [e a v added] :as datom}]
+      [(if added :db/add :db/retract) e (d/ident (d/db conn) a) v]))
+
+#?(:clj
+   (do
+     (defprotocol ITransactionPublisher
+       (subscribe [_ f])
+       (unsubscribe [_ f])
+       (close! [_]))
+
+     (defn- ->tx-publisher*
+       [conn]
+       (let [subs (atom #{})
+             queue (d/tx-report-queue conn)
+             is-done (atom false)
+             pub (reify ITransactionPublisher
+                   (subscribe [_ f] (swap! subs conj f))
+                   (unsubscribe [_ f] (swap! subs disj f))
+                   (close! [_] (reset! is-done true)))]
+
+         (.start
+          (java.lang.Thread.
+           (fn []
+             (let [tx (.take queue)]
+               (doseq [sub @subs]
+                 (sub tx)))
+             (when-not @is-done (recur)))))
+
+         pub))
+
+     (def ->tx-publisher (memoize ->tx-publisher*))))
