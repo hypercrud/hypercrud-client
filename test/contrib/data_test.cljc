@@ -6,7 +6,7 @@
                           cond-let map-pad rtrim-coll fix-arity fvor take-to ungroup dissoc-nils
                           compare-by-index ancestry-common ancestry-divergence merge-by collect orp
                           assoc-if keywordize
-                          qualify unqualify]]))
+                          qualify unqualify distinct-by]]))
 
 
 (comment
@@ -183,4 +183,5 @@
   )
 
 (deftest distinct-by'
-  (is (= (list 1 2 3 5 7 9) (distinct-by even? (range 1 10)))))
+  (is (= (list 1 2) (distinct-by even? (range 1 10))))
+  (is (= (list {:x 1} {:x 2} {:x 3}) (distinct-by :x (concat [{:x 1} {:x 2}] (repeat 10 {:x 3}))))))

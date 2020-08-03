@@ -348,6 +348,6 @@
                      (when-let [s (seq xs)]
                        (if (contains? seen (f x))
                          (recur (rest s) seen)
-                         (cons (f x) (step (rest s) (conj seen (f x)))))))
+                         (cons x (step (rest s) (conj seen (f x)))))))
                    xs seen)))]
      (step coll #{}))))
