@@ -181,3 +181,6 @@
   (is (thrown? #?(:clj AssertionError :cljs js/Error) (qualify :baz/flux :bar)))
   (is (thrown? #?(:clj AssertionError :cljs js/Error) (qualify nil :bar)))
   )
+
+(deftest distinct-by'
+  (is (= (list 1 2 3 5 7 9) (distinct-by even? (range 1 10)))))
