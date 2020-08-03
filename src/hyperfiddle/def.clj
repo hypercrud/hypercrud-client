@@ -354,16 +354,21 @@
   (let [{:keys [ns name]} (meta avar)]
     (symbol (str ns) (str name))))
 
+(defn- serve-fiddle! [fiddle]
+  (let [ident (keyword (fiddle-name fiddle))]
+    (def! :fiddle ident "No source available for function fiddles" ; &form stub
+      (read-def :fiddle ident (fiddle-args fiddle)))
+    fiddle))
+
+(defn- watch-and-serve! [fiddle]
+  (add-watch fiddle ::serve! (fn [_ _ _ _]
+                               (timbre/infof "Refreshing fiddle %s" fiddle)
+                               (serve-fiddle! fiddle))))
+
 (defn serve-ns! [ns]
   (let [ns (the-ns ns)]
     (binding [reader/*alias-map* (ns-aliases ns)]
-      (->> (fiddles ns)
-           (map (fn [fiddle]
-                  (let [ident (keyword (fiddle-name fiddle))]
-                    (def! :fiddle ident "No source available for function fiddles" ; &form stub
-                      (read-def :fiddle ident (fiddle-args fiddle)))
-                    fiddle)))
-           (doall)))))
+      (doall (map watch-and-serve! (fiddles ns))))))
 
 (defmacro serve! []
   `(serve-ns! *ns*))
