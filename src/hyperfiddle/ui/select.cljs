@@ -171,18 +171,43 @@
     (.-label entry) ; appears broken
     entry))
 
+(defn lookup-ref [key x]
+  ;; key might be provided by the user, and it might be `clojure.core/identity`
+  (if (= identity key)
+    x
+    [key (key x)]))
+
+(defn ref-match?
+  "Does a lookup-ref match an entity value?"
+  [ref e]
+  (let [[attr value] ref]
+    (= (attr e) value)))
+
+(defn find-by-lookup-ref
+  "Search by lookup ref in a collection"
+  [ref xs]
+  (filter (partial ref-match? ref) xs))
+
+(defn lookup-ref? [x]
+  ;; [:ns/attr whatever]
+  (and (vector? x)
+       (= 2 (count x))
+       (qualified-keyword? (first x))))
+
 (defn- typeahead-success [ctx {:keys [selected multiple] :as props}]
   [:<>
    #_[truncated-options (count @(:hypercrud.browser/result ctx))]
-   ^{:key :async-typeahead}
    [:> AsyncTypeahead
     (-> props
         (assoc :on-change (fn [jxs]
                             (hf/swap-route! ctx dissoc (::hf/needle-key props))
                             (let [selected (if multiple selected #{selected})
                                   current (array-seq jxs)
-                                  [selected current] (if-let [ident-key (::hf/ident-key props (::hf/option-label props identity))]
-                                                       [(map ident-key selected) (map ident-key current)]
+                                  [selected current] (if-let [ident-key (or (::hf/ident-key props)
+                                                                            (::hf/option-label props)
+                                                                            identity)]
+                                                       [(map (partial lookup-ref ident-key) selected)
+                                                        (map (partial lookup-ref ident-key) current)]
                                                        [selected current])
                                   current (cond->> current
                                                    (:allow-new props)
@@ -194,12 +219,15 @@
         (assoc :label-key (comp str (::hf/option-label props identity)))
 
         (update :selected (fn [selected]
-                            (if (:multiple props)
-                              (object-array selected)
-                              (if selected
-                                #js [selected]
-                                #js []))))
-
+                            (cond
+                              (:multiple props)     (object-array
+                                                     (if (every? lookup-ref? selected)
+                                                       ;; TODO O(n²) ! find a better way.
+                                                       (map (fn [ref] (find-by-lookup-ref ref (:options props))) selected)
+                                                       selected))
+                              (lookup-ref? selected) #js [(first (find-by-lookup-ref selected (:options props)))]
+                              selected               #js [selected]
+                              :else                  #js [])))
         (update :options to-array))]])
 
 
