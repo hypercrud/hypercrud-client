@@ -16,7 +16,7 @@
     [hyperfiddle.data]
     [hyperfiddle.runtime :as runtime]
     #_[hyperfiddle.ui]
-    [hyperfiddle.ui.util :refer [entity-change->tx ]]
+    [hyperfiddle.ui.util :refer [entity-change->tx]]
     [taoensso.timbre :as timbre]))
 
 
@@ -215,11 +215,11 @@
                  (hf-iframe val ctx))])
 
 (defn ^:export instant [val ctx & [props]]
-  (let [props (assoc props :value val :on-change ((::hf/view-change! ctx) ctx))]
+  (let [props (assoc props :value val :on-change (partial ((::hf/view-change! ctx) ctx) val))]
     [:<> [recom-date props] [recom-time props]]))
 
 (defn ^:export date [val ctx & [props]]                     ; unused by default
-  (let [props (assoc props :value val :on-change ((::hf/view-change! ctx) ctx))]
+  (let [props (assoc props :value val :on-change (partial ((::hf/view-change! ctx) ctx) val))]
     [:<> [recom-date props]]))
 
 (defn value-validator [ctx]
