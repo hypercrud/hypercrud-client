@@ -1,5 +1,6 @@
 (ns hyperfiddle.spec-test
   (:require [hyperfiddle.spec :as sut]
+            [hyperfiddle.spec.datomic :as sd]
             [clojure.test :as t :refer [deftest are is testing]]
             [clojure.spec.alpha :as s]))
 
@@ -41,3 +42,27 @@
       (s/def ::bar (s/coll-of (s/keys :req [::foo])))) (do (s/def ::foo string?)
                                                            (s/def ::bar (s/coll-of (s/keys :req [::foo])))
                                                            (defs ::bar))))
+
+
+(def datomic-attr (comp sd/from-spec sut/parse))
+
+(deftest ref-and-cardinality
+  (testing "A coll-spec should pick the :ref type when appropriate"
+    (are [spec result] (= result ((juxt :db/valueType :db/cardinality) (datomic-attr spec)))
+      `(s/coll-of map?)     [:db.type/ref :db.cardinality/many]
+      `(s/coll-of (s/keys)) [:db.type/ref :db.cardinality/many]
+      `(s/coll-of keyword?) [:db.type/keyword :db.cardinality/many]
+      `(s/coll-of string?)  [:db.type/string :db.cardinality/many]
+      `(s/coll-of double?)  [:db.type/double :db.cardinality/many]
+      `(s/coll-of number?)  [:db.type/long :db.cardinality/many]
+      `(s/coll-of inst?)    [:db.type/instant :db.cardinality/many]
+      `(s/coll-of symbol?)  [:db.type/symbol :db.cardinality/many]
+      `(s/coll-of uuid?)    [:db.type/uuid :db.cardinality/many]
+      `map?                 [:db.type/ref :db.cardinality/one]
+      `(s/keys)             [:db.type/ref :db.cardinality/one]
+      `keyword?             [:db.type/keyword :db.cardinality/one]
+      `string?              [:db.type/string :db.cardinality/one]
+      `number?              [:db.type/long :db.cardinality/one]
+      `inst?                [:db.type/instant :db.cardinality/one]
+      `symbol?              [:db.type/symbol :db.cardinality/one]
+      `uuid?                [:db.type/uuid :db.cardinality/one])))

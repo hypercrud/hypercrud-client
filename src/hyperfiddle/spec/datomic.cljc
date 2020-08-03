@@ -48,7 +48,10 @@
    `keyword? :db.type/keyword
    `string?  :db.type/string
    `uri?     :db.type/uri
-   `uuid?    :db.type/uuid})
+   `uuid?    :db.type/uuid
+   `map?     :db.type/ref
+   `symbol?  :db.type/symbol
+   `number?  :db.type/long})
 
 (def pred-of (set/map-invert type-of))
 
@@ -73,11 +76,12 @@
 
 (defn from-spec [attr]
   (when attr
-    (let [{:keys [name type predicate]} attr]
+    (let [{:keys [name type predicate children]} attr]
       {:db/ident       name
        :db/valueType   (case type
-                         (:hyperfiddle.spec/coll :hyperfiddle.spec/keys) :db.type/ref
-                         (type-of predicate))
+                         :hyperfiddle.spec/keys      :db.type/ref
+                         :hyperfiddle.spec/predicate (type-of predicate)
+                         :hyperfiddle.spec/coll      (:db/valueType (from-spec (first children))))
        :db/cardinality (if (= :hyperfiddle.spec/coll type) :db.cardinality/many :db.cardinality/one)})))
 
 (defn spec->schema [spec]
