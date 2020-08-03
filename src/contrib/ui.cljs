@@ -184,6 +184,59 @@
                    :on-change (r/partial swap! r not))
    label])
 
+(def inline-spinner
+  [:svg
+   {:viewBox "0 0 32 32", :height "32", :width "32"}
+   [:g {:fill "#1a202c"} ;; text-gray-900
+    [:circle
+     {:r "3", :cy "16", :cx "4"}
+     [:animate
+      {:values        "3;4;4;3;3;3",
+       :keytimes      "0;0.2;0.4;0.6;0.8;1",
+       :repeatCount   "indefinite",
+       :begin         "0s",
+       :dur           "1s",
+       :attributeName "r"}]
+     [:animate
+      {:values        "0.4;0.8;0.8;0.4;0.4;0.4",
+       :keytimes      "0;0.2;0.4;0.6;0.8;1",
+       :repeatCount   "indefinite",
+       :begin         "0s",
+       :dur           "1s",
+       :attributeName "opacity"}]]
+    [:circle
+     {:r "3", :cy "16", :cx "16"}
+     [:animate
+      {:values        "3;3;4;4;3;3",
+       :keytimes      "0;0.2;0.4;0.6;0.8;1",
+       :repeatCount   "indefinite",
+       :begin         "0s",
+       :dur           "1s",
+       :attributeName "r"}]
+     [:animate
+      {:values        "0.4;0.4;0.8;0.8;0.4;0.4",
+       :keytimes      "0;0.2;0.4;0.6;0.8;1",
+       :repeatCount   "indefinite",
+       :begin         "0s",
+       :dur           "1s",
+       :attributeName "opacity"}]]
+    [:circle
+     {:r "3", :cy "16", :cx "28"}
+     [:animate
+      {:values        "3;3;3;4;4;3",
+       :keytimes      "0;0.2;0.4;0.6;0.8;1",
+       :repeatCount   "indefinite",
+       :begin         "0s",
+       :dur           "1s",
+       :attributeName "r"}]
+     [:animate
+      {:values        "0.4;0.4;0.4;0.8;0.8;0.4",
+       :keytimes      "0;0.2;0.4;0.6;0.8;1",
+       :repeatCount   "indefinite",
+       :begin         "0s",
+       :dur           "1s",
+       :attributeName "opacity"}]]]])
+
 (defn async-props [_ _ _]
   (let [a-state (r/atom nil)]
     (fn [comp updatef & props]
@@ -192,7 +245,8 @@
                                      (reset! a-state value)))
                props)
         (if-not state
-          [:<>]
+          [:div {:style {:margin "0 1rem"}}
+           inline-spinner]
           (into [comp] (list state)))))))
 
 (defn ^:export code [props]                                 ; Adapt props to codemirror props
