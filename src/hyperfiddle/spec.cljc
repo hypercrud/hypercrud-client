@@ -155,17 +155,17 @@
   (if (seq sexp)
     (let [[sym & argv] sexp]
       (if-let [args (args-spec (symbol sym))]
-        (let [names (case (:type args)
-                      ::cat args
-                      ::alt (names (max-arity args)))]
-          (->> (zipmap names argv)
+        (let [arg-names (case (:type args)
+                          ::cat (names args)
+                          ::alt (names (max-arity args)))]
+          (->> (zipmap arg-names argv)
                (data/filter-vals some?)
                (into {:hyperfiddle.route/fiddle (keyword sym)})))
         (no-args-error! {:sym sym})))
     nil))
 
 (comment
-  (read-route '(user.hello-world/submission-master "foo" "" "")))
+  (read-route '(user.demo.route-state/sub-requests "path")))
 
 (defn- composite?
   "State if a spec defines a collection"
