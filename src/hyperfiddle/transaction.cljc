@@ -121,9 +121,9 @@
       (fn [acc [tag & args :as form]]
         (if (symbol? tag)
           (let [var (resolve tag)
-                _ (assert var (str "Transaction symbol not found" tag))
+                _ (assert var (str "Transaction symbol not found " tag))
                 f @var
-                _ (assert ifn? (str "Transaction symbol resolved to not function value"))]
+                _ (assert ifn? (str "Transaction symbol resolved to non-function value"))]
                                         ; f returns a vector of datoms
             (into acc (apply f args)))
           (conj acc form)))
@@ -133,6 +133,11 @@
 (def identifier (comp ::hf/tx-identifier hf/tx-meta))
 (def cardinality (comp ::hf/tx-cardinality hf/tx-meta))
 (def inverse (comp ::hf/tx-inverse hf/tx-meta))
+(defn conflicting?
+  [schema tx0 tx1]
+  (let [c0? (::hf/tx-conflicting? (hf/tx-meta schema tx0) (constantly false))
+        c1? (::hf/tx-conflicting? (hf/tx-meta schema tx1) (constantly false))]
+    (or (c0? tx1) (c1? tx0))))
 
 (defmethod hf/tx-meta :db/add
   [schema [f e a v :as tx]]
@@ -215,10 +220,8 @@
     (let [{:keys [::hf/tx-inverse ::hf/tx-cardinality ::hf/tx-conflicting? ::hf/tx-special ::hf/tx-identifier]
            :as meta} (hf/tx-meta schema tx)
           tx-cardinality (or tx-cardinality (if tx-conflicting? ::hf/one ::hf/many))
-          tx-conflicting? (or tx-conflicting? (constantly false))
           tx-identifier (if (map? tx-identifier) tx-identifier (val->identifier tx-identifier))
           ideal (or ideal #{})]
-
       [(merge identifier tx-identifier)
        (if tx-special
          (set (tx-special ideal))
@@ -228,14 +231,15 @@
              (fn [txs]
                (if (= ::hf/one tx-cardinality)
                  (conj
-                   (into #{} (remove tx-conflicting? txs))
+                   (into #{} (remove (partial conflicting? schema tx) txs))
                    tx)
                  (conj txs tx)))
              [ideal])))])))
 
 (defn absorb-stmt
   [schema ideals stmt]
-  (let [identifier (stmt->identifier schema stmt)]
+  (let [identifier (identifier schema stmt)
+        identifier (if (map? identifier) identifier (val->identifier identifier))]
     (if-let [idx (first (ideal-idx identifier ideals))]
       (update ideals idx (fn [[identifier ideal]] (absorb schema identifier ideal stmt)))
       (conj ideals (absorb schema identifier nil stmt)))))
