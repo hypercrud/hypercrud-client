@@ -173,10 +173,9 @@
 
 (defn lookup-ref [key x]
   ;; key might be provided by the user, and it might be `clojure.core/identity`
-  (cond
-    (= identity key) x
-    (= :db/id key) (:db/id x)
-    :else [key (key x)]))
+  (if (= identity key)
+    x
+    [key (key x)]))
 
 (defn ref-match?
   "Does a lookup-ref match an entity value?"
@@ -331,7 +330,7 @@
 
 (defn add-selected
   [selected vals]
-  (into [] (sort-by first (concat selected (remove (set selected) vals)))))
+  (into [] (concat selected (remove (set selected) vals))))
 
 (defn ^:export table-picker
   [ctx props]
