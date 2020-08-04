@@ -152,20 +152,18 @@
 (defn read-route
   "Take route call sexp and parse it to a map, giving names to args."
   [sexp]
-  (if (seq sexp)
-    (let [[sym & argv] sexp]
-      (if-let [args (args-spec (symbol sym))]
-        (let [arg-names (case (:type args)
-                          ::cat (names args)
-                          ::alt (names (max-arity args)))]
-          (->> (zipmap arg-names argv)
-               (data/filter-vals some?)
-               (into {:hyperfiddle.route/fiddle (keyword sym)})))
-        (no-args-error! {:sym sym})))
-    nil))
-
-(comment
-  (read-route '(user.demo.route-state/sub-requests "path")))
+  (cond
+    (not (list? sexp)) sexp
+    (seq sexp)         (let [[sym & argv] sexp]
+                         (if-let [args (args-spec (symbol sym))]
+                           (let [arg-names (case (:type args)
+                                             ::cat (names args)
+                                             ::alt (names (max-arity args)))]
+                             (->> (zipmap arg-names argv)
+                                  (data/filter-vals some?)
+                                  (into {:hyperfiddle.route/fiddle (keyword sym)})))
+                           (no-args-error! {:sym sym})))
+    :else              nil))
 
 (defn- composite?
   "State if a spec defines a collection"
