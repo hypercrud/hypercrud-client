@@ -40,6 +40,10 @@
         nil ;; This is an entity but you didn't pull any identity - error?
         )))
 
+(defn ref? [x]
+  ;; used as a tag for `:db.type/ref` just below
+  (any? x))
+
 (def type-of
   {`boolean? :db.type/boolean
    `double?  :db.type/double
@@ -50,6 +54,7 @@
    `uri?     :db.type/uri
    `uuid?    :db.type/uuid
    `map?     :db.type/ref
+   `ref?     :db.type/ref
    `symbol?  :db.type/symbol
    `number?  :db.type/long})
 
