@@ -363,7 +363,8 @@
 (defn- watch-and-serve! [fiddle]
   (add-watch fiddle ::serve! (fn [_ _ _ _]
                                (timbre/infof "Refreshing fiddle %s" fiddle)
-                               (serve-fiddle! fiddle))))
+                               (serve-fiddle! fiddle)))
+  (serve-fiddle! fiddle))
 
 (defn serve-ns! [ns]
   (let [ns (the-ns ns)]
