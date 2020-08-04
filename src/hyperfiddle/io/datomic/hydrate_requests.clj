@@ -85,10 +85,28 @@
   (merge (spec/nil-args (spec/parse ident))
          route))
 
+(defn merge-routes
+  "Merge two maps `a` and `b`, where `b` has precedence over `a`.
+  Will keep `nil` values from `b` only if the respective key doesn't appear in
+  `a`. `clojure.core/merge` will also give precedence to `b` over `a`, but don't
+  do any nil punning. Needed to pick the best value between a user input, a
+  parameter placeholder (most of the time `nil`) and a default value replacing
+  the user input (like a lookup ref hydration)."
+  [a b]
+  (merge b ; keep keys from b not in a
+         (reduce-kv (fn [acc k v]
+                      (cond
+                        (not (contains? b k)) (assoc acc k v) ; b doesn't have the key
+                        (nil? (get b k))      (assoc acc k v) ; b got the key, but it's nil
+                        :else                 (assoc acc k (get b k))))
+                    (empty a)
+                    a ; reduce over a's keyset
+                    )))
+
 (defn- eval-fiddle! [form route]
   (let [[ident & _args] (resolve-fiddle-fn form)
         defaults        (hf/defaults ident route)
-        route'          (merge defaults route)]
+        route'          (merge-routes route defaults)]
     (if-let [legacy-form (legacy-form form)]
       ;; :eval is a legacy form, load it the old way
       {route' (eval legacy-form)}
