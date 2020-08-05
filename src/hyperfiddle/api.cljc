@@ -204,6 +204,8 @@
 
 (defmulti defaults (fn [ident _route] ident))               ; multiple params can depend on each other so set defaults centrally per fiddle
 
+(defmulti hydrate-defaults (fn [ident _route] ident))
+
 (defmethod tx :default [ctx eav props]
   nil)
 

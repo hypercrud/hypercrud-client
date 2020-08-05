@@ -81,9 +81,13 @@
 (defn legacy-form [form]
   (:fiddle/eval (hf-def/get-fiddle form)))
 
+(defn- default-route [ident]
+  (spec/nil-args (spec/parse ident)))
+
 (defmethod hf/defaults :default [ident route]
-  (merge (spec/nil-args (spec/parse ident))
-         route))
+  (merge (default-route ident) route))
+
+(defmethod hf/hydrate-defaults :default [_ route] route)
 
 (defn merge-routes
   "Merge two maps `a` and `b`, where `b` has precedence over `a`.
@@ -92,34 +96,37 @@
   do any nil punning. Needed to pick the best value between a user input, a
   parameter placeholder (most of the time `nil`) and a default value replacing
   the user input (like a lookup ref hydration)."
-  [a b]
-  (merge b ; keep keys from b not in a
-         (reduce-kv (fn [acc k v]
-                      (cond
-                        (not (contains? b k)) (assoc acc k v) ; b doesn't have the key
-                        (nil? (get b k))      (assoc acc k v) ; b got the key, but it's nil
-                        :else                 (assoc acc k (get b k))))
-                    (empty a)
-                    a ; reduce over a's keyset
-                    )))
+  ([a b]
+   (merge b ; keep keys from b not in a
+          (reduce-kv (fn [acc k v]
+                       (cond
+                         (not (contains? b k)) (assoc acc k v) ; b doesn't have the key
+                         (nil? (get b k))      (assoc acc k v) ; b got the key, but it's nil
+                         :else                 (assoc acc k (get b k))))
+                     (empty a)
+                     a ; reduce over a's keyset
+                     )))
+  ([a b & maps]
+   (reduce merge-routes a (cons b maps))))
 
 (defn- eval-fiddle! [form route]
-  (let [[ident & _args] (resolve-fiddle-fn form)
-        defaults        (hf/defaults ident route)
-        route'          (merge-routes route defaults)]
+  (let [[ident & _args]    (resolve-fiddle-fn form)
+        defaults           (hf/defaults ident route)
+        default-route      (merge-routes route defaults (default-route ident))
+        view-default-route (merge-routes default-route (hf/hydrate-defaults ident route))]
     (if-let [legacy-form (legacy-form form)]
       ;; :eval is a legacy form, load it the old way
-      {route' (eval legacy-form)}
+      {view-default-route (eval legacy-form)}
       ;; :eval is a function symbol
       (if-let [fvar (find-var ident)]
         (let [f     (deref fvar)
               fspec (spec/parse ident)]
           (cond
-            (not (fn? f))               {route' f}
-            (zero? (min-arity fvar))    {route' (f)}
+            (not (fn? f))               {view-default-route f}
+            (zero? (min-arity fvar))    {view-default-route (f)}
             (and (= 1 (min-arity fvar))
-                 (not (:args fspec)))   {route' (f route')}
-            (= ::spec/fn (:type fspec)) {route' (apply f (spec/positional fspec route'))}
+                 (not (:args fspec)))   {view-default-route (f default-route)}
+            (= ::spec/fn (:type fspec)) {view-default-route (apply f (spec/positional fspec default-route))}
             :else                       (throw (ex-info "This fiddle function expect some arguments, please provide a fdef for it." {:var fvar}))))
         (throw (ex-info "Fiddle not found" {:name ident}))))))
 
