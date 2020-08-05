@@ -28,5 +28,11 @@
     [(reduce conj acc accs)
      (seq (into [`s/keys] (mapcat identity args)))]))
 
+(defmethod serialize-spec :hyperfiddle.spec/and [acc {:keys [children]}]
+  (let [specs (map (partial serialize (empty acc)) children)
+        accs  (mapcat first specs)]
+    [(reduce conj acc accs)
+     (seq (into [`s/and] (map second specs)))]))
+
 (defmethod serialize-spec :hyperfiddle.spec/predicate [acc {:keys [predicate]}]
   [acc predicate])

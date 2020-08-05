@@ -79,6 +79,16 @@
 (defn schema->spec [schema]
   (map-values to-spec schema))
 
+(defn- most-meaningful [specs]
+  (->> specs
+       (map (fn [{:keys [children predicate]}]
+              (cond
+                (seq children) (most-meaningful children)
+                predicate      predicate
+                :else          nil)))
+       (filter type-of)
+       (first)))
+
 (defn from-spec [attr]
   (when attr
     (let [{:keys [name type predicate children]} attr]
@@ -86,7 +96,8 @@
        :db/valueType   (case type
                          :hyperfiddle.spec/keys      :db.type/ref
                          :hyperfiddle.spec/predicate (type-of predicate)
-                         :hyperfiddle.spec/coll      (:db/valueType (from-spec (first children))))
+                         :hyperfiddle.spec/coll      (:db/valueType (from-spec (first children)))
+                         :hyperfiddle.spec/and       (type-of (most-meaningful children)))
        :db/cardinality (if (= :hyperfiddle.spec/coll type) :db.cardinality/many :db.cardinality/one)})))
 
 (defn spec->schema [spec]

@@ -66,6 +66,10 @@
                       (assoc (parse spec) :name name))
                     names)}))
 
+(defmethod parse-spec `s/and [[_ & children]]
+  {:type     :hyperfiddle.spec/and
+   :children (map parse children)})
+
 ; no spec defaults to predicate
 ; spec with {:args ()} defaults to predicate
 
