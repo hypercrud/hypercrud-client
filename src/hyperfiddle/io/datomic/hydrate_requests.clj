@@ -126,7 +126,8 @@
             (zero? (min-arity fvar))    {view-default-route (f)}
             (and (= 1 (min-arity fvar))
                  (not (:args fspec)))   {view-default-route (f default-route)}
-            (= ::spec/fn (:type fspec)) {view-default-route (apply f (spec/positional fspec default-route))}
+            (= ::spec/fn (:type fspec)) {(spec/ordered (spec/args-spec fspec) view-default-route)
+                                         (apply f (spec/positional fspec default-route))}
             :else                       (throw (ex-info "This fiddle function expect some arguments, please provide a fdef for it." {:var fvar}))))
         (throw (ex-info "Fiddle not found" {:name ident}))))))
 

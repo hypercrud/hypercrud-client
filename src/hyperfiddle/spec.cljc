@@ -2,6 +2,7 @@
   (:require [clojure.set :as set]
             [clojure.spec.alpha :as s]
             [contrib.data :as data]
+            [contrib.orderedmap :refer [ordered-map]]
             [hyperfiddle.spec.parser :as parser]
             [hyperfiddle.spec.serializer :as serializer]))
 
@@ -70,7 +71,7 @@
   (when-let [args (:args spec)]
     (contains? (set (spec-keys args)) attr)))
 
-(defn- args-spec [fspec]
+(defn args-spec [fspec]
   (if (qualified-symbol? fspec)
     (when (s/get-spec fspec)
       (args-spec (parse fspec)))
@@ -181,6 +182,21 @@
         (#{::keys} type) '[:find (pull $ ?e [*]) . :in $ :where [$ ?e]]
         :else            '[:find ?e . :in $ :where [$ ?e]] ; TODO not support yet as ?e doesn't have a source
         ))))
+
+(defn ordered
+  "Order a `map` by a positional `spec`, return an OrderedMap. Drop keys missing
+  from `spec`."
+  [spec map]
+  (let [names    (case (:type spec)
+                   ::cat (names spec)
+                   ::alt (best-match-for (names spec) map))
+        position (-> (map-indexed vector names)
+                     (set/map-invert))]
+    (->> map
+         (data/filter-keys position)
+         (sort-by (comp position key))
+         (mapcat identity)
+         (apply ordered-map))))
 
 (comment
   (sexp (parse `user.demo.route-state/sub-request)
