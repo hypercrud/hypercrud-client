@@ -149,7 +149,8 @@
 
      ISeqable
      (-seq [coll]
-       (map (fn [k] (MapEntry. k (-lookup coll k) nil)) order))
+       (when-not (empty? backing-map)
+         (map (fn [k] (MapEntry. k (-lookup coll k) nil)) order)))
 
      ICounted
      (-count [coll] (count order))
@@ -249,7 +250,8 @@
 
      clojure.lang.Seqable
      (seq [_]
-       (map #(.entryAt backing-map %) order))
+       (when-not (empty? backing-map)
+         (map #(.entryAt backing-map %) order)))
 
      clojure.lang.IKVReduce
      (kvreduce [coll f init]
