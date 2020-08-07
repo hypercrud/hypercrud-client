@@ -36,10 +36,11 @@
     :opt [::datomic-args ::where ::fragment]))
 
 (defn validate-route+ [route]
-  (if (s/valid? :hyperfiddle/route route)
-    (either/right route)
-    (either/left (ex-info (str "Invalid route\n" (s/explain-str :hyperfiddle/route route))
-                          (s/explain-data :hyperfiddle/route route)))))
+  (either/right
+   (if (s/valid? :hyperfiddle/route route)
+     [route nil]
+     [route (ex-info (str "Invalid route\n" (s/explain-str :hyperfiddle/route route))
+                     (s/explain-data :hyperfiddle/route route))])))
 
 (defn equal-without-frag? [a b]
   (= (dissoc a ::fragment) (dissoc b ::fragment)))
@@ -70,7 +71,7 @@
    (comp reader/read-edn-string! base-64-url-safe/decode)])
 
 (defn url-encode [route home-route]
-  {:pre [(s/valid? :hyperfiddle/route route) (s/valid? :hyperfiddle/route home-route)]}
+  {:pre [#_(s/valid? :hyperfiddle/route route) (s/valid? :hyperfiddle/route home-route)]}
   (let [{:keys [::fiddle ::datomic-args ::fragment]} route]
     (if (equal-without-frag? route home-route)
       (str "/" (some->> fragment empty->nil (str "#")))
@@ -97,8 +98,8 @@
 ;       hf-route   fiddle       datomic-args   varies       fragment
 
 (defn url-decode [s home-route]
-  {:pre [(string? s) (s/valid? :hyperfiddle/route home-route)]
-   :post [(s/valid? :hyperfiddle/route %)]}
+  {:pre [(string? s) #_(s/valid? :hyperfiddle/route home-route)]
+   :post [#_(s/valid? :hyperfiddle/route %)]}
   (-> (try-either
         (if-let [[_ s-fiddle s-datomic-args s-query s-fragment] (re-find url-regex s)]
           ; is-home "/" true
@@ -130,8 +131,8 @@
           (decoding-error (ex-info "Invalid url" {}) s)))
       (>>= validate-route+)
       (either/branch
-        (fn [e] (decoding-error e s))
-        identity)))
+       (fn [[_ e]] (decoding-error e s))
+        first)))
 
 (defn invert-datomic-arg [v invert-id]
   (if (instance? ThinEntity v)
