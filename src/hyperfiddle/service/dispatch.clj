@@ -167,7 +167,7 @@
                 ; todo this needs work, decoding should happen after the domain is hydrated
                 #_#_route (-> (str "/" (:encoded-route route-params)) (foundation/route-decode rt))]
 
-            (try (from-result (route/validate-route+ route))
+            (try (first (from-result (route/validate-route+ route)))
                  (catch Exception e
                    (throw (ex-info "Invalid encoded-route" {:route route :hyperfiddle.io/http-status-code 400} e))))
 
@@ -188,7 +188,7 @@
                 ; todo this needs work, decoding should happen after the domain is hydrated
                 #_#_route (-> (str "/" (:encoded-route route-params)) (foundation/route-decode rt))
 
-                _ (try (from-result (route/validate-route+ route))
+                _ (try (first (from-result (route/validate-route+ route)))
                        (catch Exception e
                          (throw (ex-info "Invalid encoded-route" {:route route :hyperfiddle.io/http-status-code 400} e))))
 

@@ -206,7 +206,7 @@
      :parent-pid identity
 
      ; data needed to hydrate a partition
-     :route #(some->> % (s/assert :hyperfiddle/route))
+     :route identity
      :pending-route identity
      :stage (fn [multi-color-tx]
               (->> multi-color-tx

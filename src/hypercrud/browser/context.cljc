@@ -625,6 +625,10 @@ a speculative db/id."
 
 (defonce ^:private validation-messages (atom {}))           ; Should probably be a value in view props, not a registry
 
+(defn get-validation-message [k]
+  ;; readonly
+  (get @validation-messages k))
+
 (defmethod hf/def-validation-message :default [pred s]
   {:pre [(keyword pred)                                     ; name the spec at the granularity of the error message you want
          (not (clojure.string/blank? s))]}
@@ -1093,7 +1097,7 @@ a speculative db/id."
                        (seq colored-args) (assoc ::route/datomic-args colored-args))
                route (route/invert-route route (partial runtime/id->tempid! (:runtime ctx) (:partition-id ctx)))]
          ; why would this function ever construct an invalid route? this check seems unnecessary
-         route (hyperfiddle.route/validate-route+ route)]
+         [route _] (hyperfiddle.route/validate-route+ route)]
     (return route)))
 
 (defn refocus-to-link+ "focus a link ctx"

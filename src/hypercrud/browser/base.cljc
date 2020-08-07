@@ -53,8 +53,6 @@
       (throw (ex-info (pr-str e) {})))
 
     (let [; todo runtime should prevent invalid routes from being set
-          route (from-result (route/validate-route+ route)) ; terminate immediately on a bad route
-          ;_ (timbre/debug "route " route)
           route (from-result (route/invert-route route (partial runtime/tempid->id! rt pid)))
           ;_ (timbre/debug "route " route)
           r-fiddle (from-result @(r/apply-inner-r (r/track resolve-fiddle+ route ctx))) ; inline query

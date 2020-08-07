@@ -56,7 +56,9 @@
    `map?     :db.type/ref
    `ref?     :db.type/ref
    `symbol?  :db.type/symbol
-   `number?  :db.type/long})
+   `number?  :db.type/long
+   `nat-int? :db.type/long
+   `int?     :db.type/long})
 
 (def pred-of (set/map-invert type-of))
 
