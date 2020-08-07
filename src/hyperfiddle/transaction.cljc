@@ -183,7 +183,6 @@
 
 (defn identifier->e
   [schema identifier]
-  (assert (not (empty? identifier)))
   (or (:db/id identifier)
       (:tempid identifier)
       (->> identifier
