@@ -1,4 +1,6 @@
-(ns contrib.data-generator)
+(ns contrib.data-generator
+  (:require
+   [contrib.template :refer [load-resource]]))
 
 (defmulti generate
   (fn [type & _]
@@ -125,12 +127,12 @@
   [_]
   (generate :string (generate :long)))
 
-(let [random-names (clojure.string/split-lines (slurp "resources/generators/names.txt"))]
+(let [random-names (clojure.string/split-lines (load-resource "generators/names.txt"))]
   (defmethod generate :name
     [_]
     (nth random-names (generate :long 0 (count random-names)))))
 
-(let [random-words (clojure.string/split-lines (slurp "resources/generators/words.txt"))]
+(let [random-words (clojure.string/split-lines (load-resource "generators/words.txt"))]
   (defmethod generate :word
     [_]
     (nth random-words (generate :long 0 (count random-words)))))
@@ -142,7 +144,7 @@
     \space
     (generate #{"Rd. Ave Blvd. St."})))
 
-(let [random-words (clojure.string/split-lines (slurp "resources/generators/cities.txt"))]
+(let [random-words (clojure.string/split-lines (load-resource "generators/cities.txt"))]
   (defmethod generate :city
     [_]
     (nth random-words (generate :long 0 (count random-words)))))
