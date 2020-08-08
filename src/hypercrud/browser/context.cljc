@@ -803,6 +803,7 @@ a speculative db/id."
     [a hint]))
 
 (defn tree-invalid? "For popover buttons (fiddle level)" [ctx]
+  {:pre [ctx]}
   (->> @(:hypercrud.browser/validation-hints ctx)
        seq boolean))
 
