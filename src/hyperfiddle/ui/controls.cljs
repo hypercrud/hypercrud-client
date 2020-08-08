@@ -148,7 +148,8 @@
       ; Disambiguate the links with link labels
       [:<>
        [:div.input (id-prompt ctx val)]
-       (-> (for [[k rv] rkvs]
+       ; Disabled because Rosie always explicitly places them in a renderer
+       #_(-> (for [[k rv] rkvs]
              ^{:key k}
              [hyperfiddle.ui/ui-from-link rv ctx])
            (concat more-links)
