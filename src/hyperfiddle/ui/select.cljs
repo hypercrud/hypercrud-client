@@ -257,7 +257,7 @@
           :multiple is-many
           :on-change ((::hf/view-change! ctx) ctx)
           :allow-new (::hf/allow-new props)
-          ::hf/ident-key (if is-ref
+          ::hf/ident-key (if is-ref                         ; make sure your specs are resolving as datomic refs
                            (partial hf/id ctx)
                            identity)}
          (select-keys props [:html/id])
