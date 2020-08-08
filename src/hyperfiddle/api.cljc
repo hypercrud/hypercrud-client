@@ -246,7 +246,7 @@
     (thinentity? e) (.-id e)
     (number? e) e                                        ; dbid
     (string? e) e                                        ; tempid
-    (some? e) (throw (ex-info "unrecognized route param type" {}))
+    (some? e) (throw (ex-info "unrecognized route param type" {:e e}))
     () nil ; don't crash if missing entirely
     ))
 
