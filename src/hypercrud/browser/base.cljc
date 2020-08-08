@@ -215,7 +215,7 @@
                         :fiddle/ident ident
                         :fiddle       record
                         :error-msg    (str "Fiddle not found (" ident ")")
-                        :human-hint   "Did you just edit :fiddle/ident?"})))
+                        :human-hint   "Did you forget to serve-ns?"})))
 
      (eval-fiddle+ (fiddle/apply-defaults record)
                    {:ctx    ctx
