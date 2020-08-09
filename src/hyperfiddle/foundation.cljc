@@ -3,8 +3,9 @@
     #?(:cljs [cats.monad.either :as either])
     [contrib.base-64-url-safe :as base64-url-safe]
     [contrib.reactive :as r]
+    [clojure.spec.alpha :as s]
+    #?(:clj [datomic.api :as d])
     [hyperfiddle.api :as hf]
-    [hyperfiddle.def :as hf-def]
     [hyperfiddle.domain :as domain]
     [hyperfiddle.runtime :as runtime]
     #?(:cljs [hyperfiddle.project :as project])
@@ -16,8 +17,7 @@
     #?(:cljs [hyperfiddle.ui.util :refer [with-entity-change!]])
     #?(:cljs [hyperfiddle.view.keyboard :as k])
     #?(:cljs [hyperfiddle.view.keyboard.combos :as combos])
-    [hyperfiddle.view.controller :as view]
-    ))
+    [hyperfiddle.view.controller :as view]))
 
 ; Old source tree, before removal of IDE:
 ; https://github.com/hyperfiddle/hyperfiddle/tree/aa11ec7ce636cf5554334974a575821710947cb2
@@ -71,7 +71,7 @@
       [ViewModeSelector {:mode (:hyperfiddle.ui/display-mode ctx)}]
       [:div {:style {:flex 1}}]
       (if (hf/subject ctx)
-        [:a {:href  (hf/url-encode (hf/domain (:runtime ctx)) {:hyperfiddle.route/fiddle :hyperfiddle/account})
+        [:a {:href  (hf/url-encode (hf/domain (:runtime ctx)) {:hyperfiddle.route/fiddle (keyword `hyperfiddle.foundation/account)})
              :style {:text-transform :capitalize}}
          (str "👤Account")]
         (if (auth-configured? ctx)
@@ -134,35 +134,32 @@
      [:div {:style {:height "100%"}}
       [Main ctx]]))
 
+(defn ^{::hf/fiddle {:shape '[:find (pull $users ?e [*]) . :in $users ?e :where [$users ?e]]}}
+  account []
+  #?(:clj
+     (d/q '[:find (pull ?user [:db/id
+                               :user/name
+                               :user/email
+                               :user/last-seen
+                               :user/sub
+                               :user/picture
+                               :user/user-id])
+            .
+            :in $ ?subject
+            :where [?user :user/user-id ?subject]]
+       (hf/*get-db* "$users") hf/*subject*)))               ; non-$ schema is specified in :shape
 
-(hf-def/fiddle :hyperfiddle/account
-  :query                                                    ; to port to :eval, need a nicer Datomic facade
-  '[:in $users
-    :find
-    (pull $users ?user
-      [:db/id
-       :user/name
-       :user/email
-       :user/last-seen
-       :user/sub
-       :user/picture
-       :user/user-id
-       *])
-    .
-    :where
-    [(ground hyperfiddle.api/*subject*) ?user-id]
-    [$users ?user :user/user-id ?user-id]])
+(s/fdef account :args (s/cat))
 
-(defmethod hf/render #{:user/user-id
-                       :hyperfiddle/account}
+(defmethod hf/render #{:user/user-id (keyword `account)}
   [ctx props]
   #?(:cljs
      [:div.hyperfiddle-input-group
       [:div.input (pr-str (hf/data ctx))]]))
 
-(defmethod hf/render-fiddle :hyperfiddle/account [val ctx props]
+(defmethod hf/render-fiddle (keyword `account) [_ ctx props]
   #?(:cljs
-     (let [user @(:hypercrud.browser/result ctx)]
+     (let [user (hf/data ctx)]
        [:div.container-fluid props
         [:div.p
          [ui/img (:user/picture user) ctx {:class "avatar"}]]
@@ -183,16 +180,15 @@
          ]
 
         [:div.p [:div {:style {:margin-bottom "1em"}}]]
-        [ui/field [:user/user-id] ctx]])))
+        #_[ui/field [:user/user-id] ctx]])))                ; should infer $users from :shape but is failing with missing schema
 
-(hf-def/fiddle :hyperfiddle.ide/please-login
-               :eval (do))
+(defn ^::hf/fiddle please-login [])
 
-(defmethod hf/render-fiddle :hyperfiddle.ide/please-login [val ctx props]
+(defmethod hf/render-fiddle (keyword `please-login) [_ ctx props]
   #?(:cljs
      (let [tunneled-route (first (:hyperfiddle.route/datomic-args @(:hypercrud.browser/route ctx)))
-           state (hyperfiddle.api/url-encode (hyperfiddle.api/domain (:runtime ctx)) tunneled-route)
-           href (hyperfiddle.foundation/stateless-login-url ctx state)]
+           state (hf/url-encode (hf/domain (:runtime ctx)) tunneled-route)
+           href (stateless-login-url ctx state)]
        [:div
         [:br]
-        [:center [:h3 "Please " [:a {:href href} "login"]]]])))
+        [:center [:h1 "Please " [:a {:href href} "login"]]]])))
