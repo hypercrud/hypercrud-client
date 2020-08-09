@@ -51,30 +51,30 @@
         true          {:get :ssr
                        true :405}}])
 
-(def ^:deprecated ide-routes
-  ["/" {"api/"        {"/"                       (api-routes nil)
-                       [[#"[^/]*" :version] "/"] {true :force-refresh}
-                       true                      :404}
-        "api-user/"   {"/"                       (api-routes "user")
-                       [[#"[^/]*" :version] "/"] {true :force-refresh}
-                       true                      :404}
-        "static/"     {[:build "/" [#".+" :resource-name]] {:get :static-resource
-                                                            true :405}
-                       true                                :404}
-        "favicon.ico" :favicon
-        true          {:get :ssr
-                       true :405}}])
-
-(def ide-user-routes
-  ["/" {"api-user/" {"/"                       (api-routes nil)
-                     [[#"[^/]*" :version] "/"] {true :force-refresh}
-                     true                      :404}
-        ; todo this static path conflicts with the ide
-        "static/"   {[:build "/" [#".+" :resource-name]] {:get :static-resource
-                                                          true :405}
-                     true                                :404}
-        true        {:get :ssr
-                     true :405}}])
+;(def ^:deprecated ide-routes
+;  ["/" {"api/"        {"/"                       (api-routes nil)
+;                       [[#"[^/]*" :version] "/"] {true :force-refresh}
+;                       true                      :404}
+;        "api-user/"   {"/"                       (api-routes "user")
+;                       [[#"[^/]*" :version] "/"] {true :force-refresh}
+;                       true                      :404}
+;        "static/"     {[:build "/" [#".+" :resource-name]] {:get :static-resource
+;                                                            true :405}
+;                       true                                :404}
+;        "favicon.ico" :favicon
+;        true          {:get :ssr
+;                       true :405}}])
+;
+;(def ide-user-routes
+;  ["/" {"api-user/" {"/"                       (api-routes nil)
+;                     [[#"[^/]*" :version] "/"] {true :force-refresh}
+;                     true                      :404}
+;        ; todo this static path conflicts with the ide
+;        "static/"   {[:build "/" [#".+" :resource-name]] {:get :static-resource
+;                                                          true :405}
+;                     true                                :404}
+;        true        {:get :ssr
+;                     true :405}}])
 
 (defprotocol HF-Resolve
   :extend-via-metadata true
