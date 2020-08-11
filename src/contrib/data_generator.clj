@@ -140,7 +140,7 @@
 (defmethod generate :street
   [_]
   (str
-    (generate [:* 2 :word])
+    (apply str (generate [:* 2 :word]))
     \space
     (generate #{"Rd. Ave Blvd. St."})))
 
