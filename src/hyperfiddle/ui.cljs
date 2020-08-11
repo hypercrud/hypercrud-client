@@ -390,7 +390,8 @@ User renderers should not be exposed to the reaction."
 
 (defn row
   [ctx props & cs]
-  (into [:tr props] cs))
+  (let [props (select-keys props [:keys])]
+    (into [:tr props] cs)))
 
 (defn rows
   [ctx {:keys [columns row]
@@ -398,7 +399,7 @@ User renderers should not be exposed to the reaction."
         :as props}
    rows]
   (for [[ix [?k ctx]] rows]
-    (into [row ctx {:key (or ?k ix)}] (columns ctx))))
+    (into [row ctx (merge props {:key (or ?k ix)})] (columns ctx))))
 
 (defn ^:export table "Semantic table; columns driven externally" ; this is just a widget
   [ctx & [{:keys [rows row columns headers colgroup]

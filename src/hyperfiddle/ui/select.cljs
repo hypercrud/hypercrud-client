@@ -140,18 +140,22 @@
     [select ctx
       (assoc props
         ::components
-        {:option (fn [_ {:keys [value] :as props}]
-                   [:div [easy-checkbox (assoc props :checked (:selected props)) value]])})]
+        {:option (fn [_ {:keys [value] :as props'}]
+                   [:div [easy-checkbox
+                          (assoc props'
+                                 :checked (:selected props')
+                                 :disabled (:disabled props))
+                          value]])})]
 
     :db.cardinality/one
     [select ctx (assoc props ::components
                        {:option
-                        (fn [ctx props]
+                        (fn [ctx props']
                           (let [[e a] @(:hypercrud.browser/eav ctx)]
                             [:div [contrib.ui/radio-with-label
-                                   (merge
-                                    {:checked (:selected props)}
-                                    props)]]))})]))
+                                   (assoc props'
+                                          :checked (:selected props')
+                                          :disabled (:disabled props))]]))})]))
 
 (defn- typeahead-error [{rt :runtime pid :partition-id :as ctx} e props]
   ; even if browsing fails, the user needs a chance to alter their search, so just add an ugly error message
@@ -259,7 +263,8 @@
           :allow-new (::hf/allow-new props)
           ::hf/ident-key (if is-ref                         ; make sure your specs are resolving as datomic refs
                            (partial hf/id ctx)
-                           identity)}
+                           identity)
+          :disabled (:disabled props)}
          (select-keys props [:html/id])
          (select-keys props [::hf/option-label ::hf/needle-key ::hf/ident-key ::hf/is-invalid]))]]
 
@@ -280,6 +285,7 @@
               this-value (hf/id ctx this-value)
               row [:td {:class "hyperfiddle-table-picker-control-cell"}
                    [:input {:checked (= v this-value)
+                            :disabled (:disabled props)
                             :type "radio"
                             :on-change #(((::hf/view-change! parent-ctx) parent-ctx) v this-value)}]]]
           (conj (into [ui/row ctx props] (cons row args)))))
@@ -294,6 +300,7 @@
               checked (contains? v this-value)
               control [:td {:class "hyperfiddle-table-picker-control-cell"}
                         [:input {:checked checked
+                                 :disabled (:disabled props)
                                  :type "checkbox"
                                  :on-change #(((::hf/view-change! parent-ctx) parent-ctx) v (if checked
                                                                                               (disj v this-value)
@@ -306,7 +313,7 @@
 
 (defn ^:export table-picker
   [ctx props]
- (try
+  (try
     (let [is-many (context/attr? ctx :db.cardinality/many)
           selected ((if is-many vec vector) (context/data ctx))
           options-ctx (context-of ctx (::hf/options props))
@@ -316,11 +323,13 @@
 
       [input-group nil ctx props
        [ui/table options-ctx
-        {:class "hyperfiddle hyperfiddle-table-picker"
-         :row (partial table-picker-row-renderer ctx)
-         :headers (if (::hf/allow-new props)
-                    (fn [& args] (cons [:td [:button "NEW!"]] (apply ui/table-column-product args)))
-                    (fn [& args] (cons [:td {:class "hyperfiddle-table-picker-control-cell"}] (apply ui/table-column-product args))))
-         :columns ui/table-column-product}]])
+        (merge
+         props
+         {:class "hyperfiddle hyperfiddle-table-picker"
+          :row (partial table-picker-row-renderer ctx)
+          :headers (if (::hf/allow-new props)
+                     (fn [& args] (cons [:td [:button "NEW!"]] (apply ui/table-column-product args)))
+                     (fn [& args] (cons [:td {:class "hyperfiddle-table-picker-control-cell"}] (apply ui/table-column-product args))))
+          :columns ui/table-column-product})]])
     (catch js/Error e
       [(ui-error/error-comp ctx) e])))
