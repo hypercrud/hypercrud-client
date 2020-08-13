@@ -38,6 +38,8 @@
      (is (= (vals (dissoc m 29)) (range 1 29)))
      (is (= (map vector (range 1 29) (range 1 29)) (seq (dissoc m 29)))))))
 
+(deftest orderedmap|seq
+  (is (= nil (seq (ordered-map)))))
 
 (deftest orderedmap|reduce-kv
   (let [m (apply ordered-map (interleave (range 1 30) (range 1 30)))]
