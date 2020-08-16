@@ -309,7 +309,7 @@
 
 (defn add-selected
   [selected vals]
-  (sort (into [] (concat selected (remove (set selected) vals)))))
+  (sort-by str (into [] (concat selected (remove (set selected) vals)))))
 
 (defn ^:export table-picker
   [ctx props]
