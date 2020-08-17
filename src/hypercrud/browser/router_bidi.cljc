@@ -78,11 +78,12 @@
     (let [datomic-args (->> ?route-params                   ; bidi gives us alternating k/v
                             (partition-all 2)
                             (map vec)
-                            sort                            ; order by keys for hyperfiddle, router should use kw or int
+                            (sort-by first)                 ; order by keys for hyperfiddle, router should use kw or int
                             (mapv second)                   ; drop keys; hyperfiddle params are associative by index
                             )]
-      (cond-> {::route/fiddle handler}
-        (seq datomic-args) (assoc ::route/datomic-args datomic-args)))))
+      (seq
+       (cond-> [(symbol handler)] ;; FIXME it should already be a symbol
+         (seq datomic-args) (concat datomic-args))))))
 
 (defn bidi-match->path-for "adapt bidi's inconsistent interface" [[h & ps :as ?r]]
   (if ?r {:handler h :route-params ps}))
@@ -96,13 +97,10 @@
 (defn decode [router path-and-frag]
   {:pre [(str/starts-with? path-and-frag "/")]
    :post [(s/valid? :hyperfiddle/route %)]}
-  (let [[path frag] (string/split path-and-frag #"#" 2)
-        frag (empty->nil frag)
+  (let [[path _frag] (string/split path-and-frag #"#" 2)
         route (some-> (bidi/match-route router path) ->bidi-consistency-wrapper bidi->hf)]
-    (if route
-      (cond-> route
-        frag (assoc ::route/fragment frag))
-      {::route/fiddle :hyperfiddle.system/not-found})))
+    (or route
+        `(hyperfiddle.system/not-found))))
 
 (comment
   (def path-and-frag "/:hyperblog.2!tag/:hyperfiddle#:src")

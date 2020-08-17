@@ -105,7 +105,7 @@
                      fiddle                  (case (get fiddle :fiddle/type ((:fiddle/type fiddle-defaults) fiddle))
                                                (:query :entity :eval) value)
                      :else                   value)]
-    (list [value])))
+    (list value)))
 
 (def link-defaults
   {:link/tx-fn (fn [schemas qin link]

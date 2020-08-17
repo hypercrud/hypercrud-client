@@ -131,15 +131,10 @@
     v))
 
 (defn invert-datomic-args [invert-id datomic-args]
-  (mapv #(invert-datomic-arg % invert-id) datomic-args))
+  (map #(invert-datomic-arg % invert-id) datomic-args))
 
-;; FIXME datomic args are legacy, remove this
-(defn invert-route [route invert-id]
-  (timbre/warnf "Deprecated: %s" `invert-route)
-  route
-  #_(if (contains? route ::datomic-args)
-    (update route ::datomic-args (partial invert-datomic-args invert-id))
-    route))
+(defn invert-route [[f & args] invert-id]
+  (cons f (invert-datomic-args invert-id args)))
 
 (defn legacy-route-adapter [route]
   (cond
