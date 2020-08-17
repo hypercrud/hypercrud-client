@@ -230,7 +230,7 @@
           local-basis (into {} local-basis)                 ; :: ([dbname 1234]), but there are some duck type shenanigans happening
           get-secure-db-with+ (build-get-secure-db-with+ domain (constantly partitions) db-with-lookup local-basis ?subject)
           pulled-trees (->> requests
-                            (data/pmap #(hydrate-request domain get-secure-db-with+ % ?subject))
+                            (map #(hydrate-request domain get-secure-db-with+ % ?subject))
                             (doall))
           tempid-lookups (map-values #(map-values extract-tempid-lookup+ %) @db-with-lookup)]
       {:pulled-trees   pulled-trees
