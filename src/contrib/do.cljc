@@ -4,9 +4,11 @@
     [cats.monad.either :as either]
     [promesa.core :as p]
     [contrib.promise :as promise]
+    [contrib.try$ :refer [try*]]
     ;[promesa.async]
     )
-  #?(:cljs (:require-macros [contrib.do :refer [do-async]])))
+  #?(:cljs (:require-macros [contrib.do :refer [do-async]]))
+  #?(:cljs (:require-macros [contrib.try$ :refer [try*]])))
 
 (defn tag-type
   "Extract the type from an action. Action is any keyword that starts with an uppercase letter.
@@ -36,8 +38,8 @@
   (if (either/either? v) v (either/right v)))
 
 (defmacro do-result [& body]
-  `(as-either (try ~@body
-                   (catch ~(if (:ns &env) 'js/Error 'Exception) e# (either/left e#)))))
+  `(as-either (try* ~@body
+                   (catch :default e# (either/left e#)))))
 
 (defmacro from-result
   "Map an either into an exception or a value"
@@ -50,8 +52,8 @@
   (p/then v identity))
 
 (defmacro do-async [& body]
-  `(as-p (try (p/resolved ~@body)
-              (catch ~(if (:ns &env) 'js/Error 'Exception) e# (p/rejected e#)))))
+  `(as-p (try* (p/resolved ~@body)
+              (catch :default e# (p/rejected e#)))))
 
 (defn from-async [v]
   (.join (do-async v)))
