@@ -182,7 +182,6 @@
    [:> AsyncTypeahead
     (-> props
         (assoc :on-change (fn [jxs]
-                            (hf/swap-route! ctx dissoc (::hf/needle-key props))
                             (let [selected (if multiple selected #{selected})
                                   current (array-seq jxs)
                                   [selected current] (if-let [ident-key (::hf/ident-key props (::hf/option-label props identity))]

@@ -82,15 +82,15 @@
 (defn- no-args-error! [data]
   (throw (ex-info "Couldn't find an `:args` spec for this function, unable to infer argument order" data)))
 
-(defn best-match-for [names m]
-  (->> (sort-by first > names)
-       (filter (fn [[arity names]]
-                 (let [keyset    (set (keys m))
-                       names-set (set names)]
-                   (and (set/subset? names-set keyset)
-                        (= arity (count (set/intersection keyset names-set)))))))
-       (map second)
-       (first)))
+(defn best-match-for
+  [arities args]
+  (let [arity (count args)]
+    (or (get arities arity)
+        (reduce (fn [_ [proposed-arity names]]
+                  (when (<= proposed-arity arity) ; works because sorted
+                    (reduced names)))
+                nil
+                (sort-by first > arities)))))
 
 (comment
   (-> `user.hello-world/submission-master

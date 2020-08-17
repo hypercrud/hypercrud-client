@@ -39,8 +39,8 @@
 (defn explode-result
   "Extract a fiddle response into [route-defaults result]"
   [r-response]
-  [(from-result (r/fmap (comp key first) r-response)) ; completed route
-   (from-result (r/fmap (comp val first) r-response))])
+  [(from-result (r/fmap first r-response)) ; completed route
+   (from-result (r/fmap second r-response))])
 
 
 ; internal bs abstraction to support hydrate-result-as-fiddle
@@ -50,7 +50,7 @@
 
     (when-let [e (runtime/get-error rt pid)]
       #_(throw e)                                           ; hypercrud.types.Err is not Throwable
-      (throw (ex-info (pr-str e) {})))
+      (throw (ex-info (pr-str e) {} (ex-cause e))))
 
     (let [; todo runtime should prevent invalid routes from being set
           route (from-result (route/invert-route route (partial runtime/tempid->id! rt pid)))
@@ -73,7 +73,7 @@
               ; route should be a ref, provided by the caller, that we fmap over
               ; because it is not, this is obviously fragile and will break on any change to the route
               ; this is acceptable today (Jun-2019) because changing a route in ANY way assumes the entire iframe will be re-rendered
-              (assoc :hypercrud.browser/route (r/pure route))
+              (assoc :hypercrud.browser/route (r/pure (vec route))) ; vec for direct positional access
               (assoc :hypercrud.browser/route-defaults r-route-defaults)
               (context/fiddle+ r-fiddle)))
         r-result))))
@@ -201,10 +201,9 @@
                   #_*                                                ; For hyperblog, so we can access :hyperblog.post/title etc from the fiddle renderer
                   ])
 
-(defn- resolve-fiddle+ [route ctx]
+(defn- resolve-fiddle+ [[f & _ :as route] ctx]
   (do-result
-   (let [route  (resolve-route route)
-         ident  (::route/fiddle route)
+   (let [ident  (keyword f) ;; FIXME this should be a symbol
          record (get-in @hf-def/*defs [:fiddle ident])]
 
      (when-not (or (:db/id record) (:fiddle/source record))
@@ -336,7 +335,7 @@
   (let [eval-mode (= = (do/! :Eval.get-var :eval/mode) :eval :eval)]
     (expr/unquote-via x
      (fn eval-expr [x]
-       (cond (qualified-keyword? x) {:fiddle/ident (do (prn x) (str x))}
+       (cond (qualified-keyword? x) {:fiddle/ident (str x)}
 
              (expr/form? x)
              (cond (qualified-keyword? (first x))

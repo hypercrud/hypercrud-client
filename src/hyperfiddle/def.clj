@@ -354,7 +354,12 @@
   (let [{:keys [ns name]} (meta avar)]
     (symbol (str ns) (str name))))
 
+(defn- multi-arity? [avar]
+  (some-> avar meta :arglists count (> 1)))
+
 (defn- serve-fiddle! [fiddle]
+  (when (multi-arity? fiddle)
+    (timbre/warnf "Fiddle %s has multiple arities, which would produce ambiguous UIs. Hyperfiddle will only consider the longuest one." fiddle))
   (let [ident (keyword (fiddle-name fiddle))]
     (def! :fiddle ident "No source available for function fiddles" ; &form stub
       (read-def :fiddle ident (fiddle-args fiddle)))

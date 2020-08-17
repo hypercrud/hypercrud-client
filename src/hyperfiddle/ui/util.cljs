@@ -3,12 +3,15 @@
     [clojure.set :as set]
     [hyperfiddle.transaction :as tx]
     [contrib.reactive :as r]
+    [contrib.data :as data]
     [contrib.string :refer [empty->nil]]
     [hypercrud.browser.context :as context]
     [hyperfiddle.api :as hf]
     [hyperfiddle.security]
     [hyperfiddle.runtime :as runtime]
-    [taoensso.timbre :as timbre]))
+    [taoensso.timbre :as timbre]
+    [clojure.spec.alpha :as s]
+    [hyperfiddle.spec :as spec]))
 
 (defn change-tx
   [e a o n]
@@ -62,10 +65,18 @@
    (runtime/with-tx (:runtime ctx) (:partition-id ctx) dbname tx)))
 
 (defn with-entity-change! [ctx] #_[tx]
-  #_(js/console.log `with-entity-change! ctx)
   (r/comp (r/partial runtime/with-tx (:runtime ctx) (:partition-id ctx) (context/dbname ctx)) ; [ctx vorvs]
           (r/partial identity)                              ; translate ui tx to database tx
           (r/partial entity-change->tx ctx)))               ; [tx]
+
+
+(defn position-in [key [f & args]]
+  (when-let [spec (s/get-spec f)]
+    (let [index-of  #(.indexOf %2 %1)
+          spec-args (-> spec (spec/parse) (spec/args-spec))
+          names     (spec/names spec-args)]
+      (assert (= ::spec/cat (:type spec-args)) (str "Please provide an s/cat args spec for this fiddle. " f))
+      (->> (index-of key (vec names))))))
 
 (defn with-entity-change-route!
   ; Curried both ways for backwards compat with `with-entity-change!
@@ -74,7 +85,11 @@
    #_(fn [vorvs] (with-entity-change-route! ctx vorvs)))
   ([ctx vorvs]
    ; Note we are ignoring EAV in ctx, unlike the tx version
-   (hf/swap-route! ctx assoc-in (:hypercrud.browser/result-path ctx) vorvs))
+   (hf/swap-route! ctx (fn [route]
+                         (let [[position :as path] (-> (:hypercrud.browser/result-path ctx)
+                                                       (update 0 position-in route)
+                                                       (update 0 inc))]
+                           (assoc-in route path vorvs)))))
   ([ctx _old new]
    (with-entity-change-route! ctx new)))
 

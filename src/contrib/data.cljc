@@ -351,3 +351,20 @@
                          (cons x (step (rest s) (conj seen (f x)))))))
                    xs seen)))]
      (step coll #{}))))
+
+(defn zipseq
+  "Similar to `merge-with`, but for sequences. Merges two lists `as` and `bs`.
+  Returned list will contain `(max (count as) (count bs))` elements. Will call
+  `pickf` to decide which elements to keep. Defaults to prioritize values from
+  `bs` except if it's `nil` and the corresponding value in `as` is not nil (nil
+  punning).
+
+  (zipseq '(1 nil nil 4) '(nil 2 3)) => (1 2 3 4)
+  (reduce zipseq '[(1 2 3 4) (:a :b :c) (a b)]) => (a b :c 4)"
+  ([]      ())
+  ([xs]    xs)
+  ([as bs] (zipseq as bs (fn [a b] (or b a))))
+  ([as bs pickf]
+   (let [[longest shortest] (if (> (count as) (count bs)) [as bs] [bs as])
+         tail               (drop (count shortest) longest)]
+     (concat (map pickf as bs) tail))))

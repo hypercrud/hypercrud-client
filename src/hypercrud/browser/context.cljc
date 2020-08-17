@@ -672,19 +672,30 @@ a speculative db/id."
     ; Conceptually, it should be after qfind and before EAV.
     (index-result ctx)))                                    ; in row case, now indexed, but path is not aligned yet
 
+(defn to-map [route]
+  (let [[f & args] route]
+    (if (empty? args)
+      {}
+      (when-let [spec (s/get-spec f)]
+        (let [spec-args (-> spec (spec/parse) (spec/args-spec))
+              names     (spec/names spec-args)]
+          (case (:type spec-args)
+            ::spec/cat (zipmap names args)
+            ;; TODO drop s/alt support?
+            ::spec/alt (zipmap (spec/best-match-for names args) args)))))))
+
 (defn derive-for-search-defaults
   "Build a new context with route defaults as result so they can be rendered as a form."
   [{:keys [:hypercrud.browser/route-defaults] :as ctx}]
   (-> ctx
       (assoc ;; Remove :hyperfiddle.route/fiddle from route defaults
-             :hypercrud.browser/result (r/fmap-> route-defaults (dissoc :hyperfiddle.route/fiddle
-                                                                  :hyperfiddle.route/datomic-args)) ; hack
-             ;; We want to render as a form, so qfind is FindScalar
-             :hypercrud.browser/qfind (r/pure (fiddle/shape 'FindScalar)))
+       :hypercrud.browser/result (r/fmap to-map route-defaults) ; use spec to draw search params
+       ;; We want to render as a form, so qfind is FindScalar
+       :hypercrud.browser/qfind (r/pure (fiddle/shape 'FindScalar)))
       (dissoc :hypercrud.browser/route-defaults) ; avoid potential recursion
       (as-> ctx
           (assoc ctx :hypercrud.browser/result-enclosure (r/track result-enclosure! ctx)
-                     :hypercrud.browser/validation-hints (r/track validation-hints-enclosure! ctx)))
+                 :hypercrud.browser/validation-hints (r/track validation-hints-enclosure! ctx)))
       (index-result)))
 
 (defn stable-element-schema! [rt pid element]
@@ -1084,17 +1095,17 @@ a speculative db/id."
     arg))
 
 (defn ^:export build-route+ "There may not be a route! Fiddle is sometimes optional" ; build-route+
-  [{:keys [::route/datomic-args] :as route} ctx]
+  [args ctx]
   {:pre  [ctx]
    :post [(s/assert either? %)]}
   (mlet [fiddle-id (let [link @(:hypercrud.browser/link ctx)]
                      (if-let [fiddle (:link/fiddle link)]
-                       (right (:fiddle/ident fiddle))
+                       (right (symbol (:fiddle/ident fiddle))) ;; FIXME it should always be a symbol
                        (left {:message ":link/fiddle required" :data {:link link}})))
          ; Why must we reverse into tempids? For the URL, of course.
-         :let [colored-args (mapv (partial tag-v-with-color ctx) datomic-args) ; this ctx is refocused to some eav
-               route (cond-> (assoc route ::route/fiddle fiddle-id)
-                       (seq colored-args) (assoc ::route/datomic-args colored-args))
+         :let [;; colored-args (mapv (partial tag-v-with-color ctx) datomic-args) ; this ctx is refocused to some eav
+               route (cons fiddle-id args)#_(cond-> (assoc route ::route/fiddle fiddle-id)
+                           (seq colored-args) (assoc ::route/datomic-args colored-args))
                route (route/invert-route route (partial runtime/id->tempid! (:runtime ctx) (:partition-id ctx)))]
          ; why would this function ever construct an invalid route? this check seems unnecessary
          [route _] (hyperfiddle.route/validate-route+ route)]
@@ -1120,7 +1131,7 @@ a speculative db/id."
     (let [args (build-args ctx @link-ref)
           ; :hf/remove doesn't have route by default, :hf/new does, both can be customized
           route (from-result (build-route+ args ctx))
-          ctx (occlude-eav ctx (::route/datomic-args args))]
+          ctx (occlude-eav ctx (first args))]
       [ctx route])))
 
 (defn refocus-build-route-and-occlude+ "focus a link ctx, accounting for link/formula which occludes the natural eav"
@@ -1188,7 +1199,7 @@ a speculative db/id."
   ; try to auto-generate branch/popover-id from the product of:
   ; - link's :db/id
   ; - route
-  ; - visual-ctx's data & path (where this popover is being drawn NOT its dependencies)
+; - visual-ctx's data & path (where this popover is being drawn NOT its dependencies)
   (let [v [(if (:hypercrud.browser/qfind link-ctx)          ; guard crash on :blank fiddles
              (eav link-ctx)                                 ; if this is nested table head, [e a nil] is ambiguous. test: /:intents/
              (:hypercrud.browser/result-path link-ctx))

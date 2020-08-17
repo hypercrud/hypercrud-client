@@ -33,12 +33,12 @@
                                                            :route          route
                                                            :link           link})))
             (-> (context/set-partition link-ctx new-pid)
-              (base/browse-partition+)
-              (either/branch
-                (fn [e]
-                  (timbre/warn e)
-                  (runtime/set-error rt new-pid e))
-                requests))))))))
+                (base/browse-partition+)
+                (either/branch
+                 (fn [e]
+                   (timbre/warn e)
+                   (runtime/set-error rt new-pid e))
+                 requests))))))))
 
 ; at this point we only care about inline links and popovers are hydrated on their on hydrate-route calls
 ; On the request side, we walk the whole resultset and load each iframe from exactly the right place
