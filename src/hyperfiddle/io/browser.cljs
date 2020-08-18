@@ -14,7 +14,7 @@
     (do
       (timbre/error e)
       ; just blast the window location to force a refresh
-      (object/set js/window "location" (hf/url-encode domain {:hyperfiddle.route/fiddle :hyperfiddle.system/unauthorized})))
+      (object/set js/window "location" (hf/url-encode domain `(hyperfiddle.system/unauthorized))))
     (throw e)))
 
 (deftype IOImpl [domain]
