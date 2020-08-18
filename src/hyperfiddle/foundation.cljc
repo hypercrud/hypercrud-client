@@ -152,13 +152,13 @@
 
 (s/fdef account :args (s/cat))
 
-(defmethod hf/render #{:user/user-id (keyword `account)}
+(defmethod hf/render #{:user/user-id `account}
   [ctx props]
   #?(:cljs
      [:div.hyperfiddle-input-group
       [:div.input (pr-str (hf/data ctx))]]))
 
-(defmethod hf/render-fiddle (keyword `account) [_ ctx props]
+(defmethod hf/render-fiddle `account [_ ctx props]
   #?(:cljs
      (let [user (hf/data ctx)]
        [:div.container-fluid props
@@ -185,7 +185,7 @@
 
 (defn ^::hf/fiddle please-login [_redirect])
 
-(defmethod hf/render-fiddle (keyword `please-login) [_ ctx props]
+(defmethod hf/render-fiddle `please-login [_ ctx props]
   #?(:cljs
      (let [[_ redirect] @(:hypercrud.browser/route ctx)
            _ (println redirect)

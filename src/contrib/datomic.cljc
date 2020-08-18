@@ -113,8 +113,7 @@
           (spec-datomic/from-spec)))
 
 (defn- attr* [this a]
-  (when a
-    (s/assert keyword? a)
+  (when (and a (qualified-keyword? a))
     (let [is-reverse-nav (-> (name a) (subs 0 1) (= "_"))]
       (cond
         (= a :db/id) dbid

@@ -643,9 +643,13 @@ a speculative db/id."
   ; Don't collect here, they get filtered down later
   (map form-cell-problem problems))
 
+(defn- fdef? [?spec]
+  (and (contains? ?spec :args)
+       (contains? ?spec :ret)))
+
 (defn validate-result [?spec value keyfn]
   {:pre [keyfn]}
-  (when ?spec                                               ; just make this easy, specs are always sparse
+  (when (and ?spec (not (fdef? ?spec))) ; just make this easy, specs are always sparse
     (when-let [explain (s/explain-data ?spec value)]
       (let [problems (::s/problems (result-explained-for-view keyfn explain))]
         (form-validation-hints problems)))))
@@ -1100,17 +1104,14 @@ a speculative db/id."
    :post [(s/assert either? %)]}
   (mlet [f (let [link @(:hypercrud.browser/link ctx)]
              (if-let [fiddle (:link/fiddle link)]
-                       (right (symbol (:fiddle/ident fiddle))) ;; FIXME it should always be a symbol
-                       (left {:message ":link/fiddle required" :data {:link link}})))
+                       (right (:fiddle/ident fiddle))
+                       (left {:message ":link/fiddle required" :data {:link link}})))]
          ; Why must we reverse into tempids? For the URL, of course.
-         :let [route (-> (filter identity args)
-                         (->> (map (partial tag-v-with-color ctx)))
-                         ;; this ctx is refocused to some eav
-                         (conj f)
-                         #_(route/invert-route (partial runtime/id->tempid! (:runtime ctx) (:partition-id ctx))))]
-         ; why would this function ever construct an invalid route? this check seems unnecessary
-         [route _] (hyperfiddle.route/validate-route+ route)]
-    (return route)))
+        (-> (filter identity args)
+            (->> (map (partial tag-v-with-color ctx)))
+            ;; this ctx is refocused to some eav
+            (conj f)
+            (return))))
 
 (defn refocus-to-link+ "focus a link ctx"
   [ctx link-ref]
