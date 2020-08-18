@@ -139,10 +139,13 @@
   ;; - Syntax quote will expand @ into `(clojure.core/deref ..)`
   ;; - pretty printers suck at clojure, even the slow one
   ;; embedded newline lets this pass the cursive clojure formatter
-  (let [{:keys [:hypercrud.browser/fiddle]} ctx]
-    #?(:cljs [:div.container-fluid props
-              [:h1 (-> @fiddle :fiddle/ident str)]
-              [hyperfiddle.ui/result val ctx props]])))
+  (let [{:keys [:hypercrud.browser/fiddle]} ctx
+        fiddle @fiddle]
+    #?(:cljs
+       [:div.container-fluid props
+        [:h1 (-> fiddle :fiddle/ident str)]
+        (some->> fiddle :fiddle/doc)
+        [hyperfiddle.ui/result val ctx props]])))
 
 (def fiddle-defaults
   ; touching this is sensitive to build-pid-from-link and can cause deepbugs in the rt

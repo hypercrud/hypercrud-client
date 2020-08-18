@@ -236,6 +236,9 @@
        :fiddle/shape
        {:fiddle/shape (some-> v one map-expr)}
 
+       :fiddle/doc
+       {:fiddle/doc (some-> v one not-empty)}
+
        :fiddle/links
        {:fiddle/links
         (->> v (mapv (fn [link]
@@ -336,11 +339,11 @@
 
 
 (defn- fiddle-args [avar]
-  (let [args (:hyperfiddle.api/fiddle (meta avar))]
-    (cond
-      (map? args)  (mapcat identity args) ; account for hf-def rest-args syntax
-      (true? args) ()                     ; true is default meta value, fiddle with no extra args
-      )))
+  (let [{:keys [:hyperfiddle.api/fiddle :doc]} (meta avar)]
+    (mapcat identity  ; account for hf-def rest-args syntax
+            (cond-> {}
+              (not-empty doc) (assoc :fiddle/doc doc)
+              (map? fiddle)   (merge fiddle)))))
 
 (defn- fiddle-fn? [avar]
   (some? (fiddle-args avar)))
