@@ -98,7 +98,7 @@
                           route))
          to-string    pprint-str]
      [:<>
-      [contrib.ui/debounced
+      #_[contrib.ui/debounced
        {:value             route
         :debounce/interval 500
         :on-change         (fn [o n] (when-not (= o n) (on-change n)))
