@@ -33,15 +33,17 @@
 #?(:clj
    (defmacro try-catch-non-fatal [& args]
      (let [[try-body [e catch-body]] (split-at (- (count args) 2) args)]
-       `(try*
+       `(try
           ~@try-body
-          (catch :default ~e
-            (if (#{VirtualMachineError
-                   ThreadDeath
-                   InterruptedException
-                   LinkageError} (type ~e))
-              (throw ~e)
-              ~catch-body))))))
+          ~(if (:ns &env)
+             `(catch js/Error ~e ~catch-body)
+             `(catch Throwable ~e
+                (if (#{VirtualMachineError
+                       ThreadDeath
+                       InterruptedException
+                       LinkageError} (type ~e))
+                  (throw ~e)
+                  ~catch-body)))))))
 
 #?(:clj
    (defmacro try-either
