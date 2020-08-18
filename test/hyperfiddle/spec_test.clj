@@ -4,9 +4,23 @@
             [clojure.test :as t :refer [deftest are is testing]]
             [clojure.spec.alpha :as s]))
 
-(t/use-fixtures :each (fn [f]
-                        (sut/with-empty-spec
-                          (f))))
+(defmacro with-local-semantics
+  "Rebinds the clojure.spec global registry to a temporary atom. Specs defined in
+  body will therefor only be defined locally.
+  The immutable local scope inherits the immutable global scope.
+  TODO: make it thread-safe."
+  [& body]
+  `(with-redefs [s/registry-ref (atom (s/registry))]
+     ~@body))
+
+(defmacro with-empty-spec
+  "Provide an empty local spec context in which no specs are defined. Useful to
+  avoid naming conflict from the global registry in test fixtures."
+  [& body]
+  `(with-redefs [s/registry-ref (atom {})]
+     ~@body))
+
+(t/use-fixtures :each (fn [f] (with-empty-spec (f))))
 
 (def defs (comp sut/defs sut/parse))
 (def form (comp sut/form sut/parse))
