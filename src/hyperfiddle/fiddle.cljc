@@ -144,7 +144,7 @@
     #?(:cljs
        [:div.container-fluid props
         [:h1 (-> fiddle :fiddle/ident str)]
-        (some->> fiddle :fiddle/doc)
+        (some->> fiddle :fiddle/doc (into [:p]))
         [hyperfiddle.ui/result val ctx props]])))
 
 (def fiddle-defaults
