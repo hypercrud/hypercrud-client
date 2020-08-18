@@ -340,10 +340,11 @@
 
 (defn- fiddle-args [avar]
   (let [{:keys [:hyperfiddle.api/fiddle :doc]} (meta avar)]
-    (mapcat identity  ; account for hf-def rest-args syntax
-            (cond-> {}
-              (not-empty doc) (assoc :fiddle/doc doc)
-              (map? fiddle)   (merge fiddle)))))
+    (when (or (true? fiddle) (map? fiddle))
+      (mapcat identity  ; account for hf-def rest-args syntax
+              (cond-> {}
+                (not-empty doc) (assoc :fiddle/doc doc)
+                (map? fiddle)   (merge fiddle))))))
 
 (defn- fiddle-fn? [avar]
   (some? (fiddle-args avar)))
