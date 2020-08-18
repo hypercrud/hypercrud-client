@@ -7,8 +7,8 @@
     [contrib.try$ :refer [try*]]
     ;[promesa.async]
     )
-  #?(:cljs (:require-macros [contrib.do :refer [do-async]]))
-  #?(:cljs (:require-macros [contrib.try$ :refer [try*]])))
+  #?(:cljs (:require-macros [contrib.do :refer [do-async]]
+                            [contrib.try$ :refer [try*]])))
 
 (defn tag-type
   "Extract the type from an action. Action is any keyword that starts with an uppercase letter.
