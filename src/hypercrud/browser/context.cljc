@@ -1269,7 +1269,14 @@ a speculative db/id."
     (link-tx ctx))
   (v [ctx]
     (v ctx))
-  )
+  ;; Solves a client side :require order issue. Was implemented in hf.ui via
+  ;; extend-type for architectural reasons. It’s not problematic to implement it
+  ;; here anymore since we want to run context on the client side only.
+  hf/UI
+  (display-mode [ctx]
+    (:hyperfiddle.ui/display-mode ctx))
+  (display-mode? [ctx k]
+    (= k (unqualify (hf/display-mode ctx)))))
 
 (defmethod hf/subject Context [ctx] (hyperfiddle.runtime/get-user-id (:runtime ctx)))
 (defmethod hf/db-record Context [ctx] (hf/database (hf/domain (:runtime ctx)) (hf/dbname ctx)))
