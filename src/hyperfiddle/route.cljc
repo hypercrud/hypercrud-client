@@ -108,7 +108,7 @@
           ; is-home "//" false
           ; is-home "//..." false
          (let [is-home (empty? s-fiddle)
-               f       (some-> (ednish/decode-uri s-fiddle) symbol) ;; FIXME it should already be a sym
+               f       (ednish/decode-uri s-fiddle)
                args    (->> (some-> s-query (string/split #"&|;"))
                             (map (fn [s] (string/split s #"=" 2)))
                             (reduce (fn [acc [sk sv]]
@@ -138,8 +138,9 @@
 
 (defn legacy-route-adapter [route]
   (cond
-    (nil? route) route
-    (map? route) route
+    (nil? route)    route
+    (map? route)    route
+    (list? route)   route
     (vector? route) (let [[fiddle datomic-args _ fragment] route
                           m-route (contrib.data/dissoc-nils
                                     {::fiddle fiddle

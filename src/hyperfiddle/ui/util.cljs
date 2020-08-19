@@ -78,6 +78,19 @@
       (assert (= ::spec/cat (:type spec-args)) (str "Please provide an s/cat args spec for this fiddle. " f))
       (->> (index-of key (vec names))))))
 
+(defn- expand-route-to [args-count route]
+  (-> (repeat (inc args-count) nil)
+      (data/zipseq route)
+      (vec)))
+
+(defn- assoc-in-route [route path value]
+  (let [[position :as path] (-> path
+                                (update 0 position-in route)
+                                (update 0 inc))]
+    (if (<= position (count route))
+      (assoc-in route path value)
+      (assoc-in (expand-route-to position route) path value))))
+
 (defn with-entity-change-route!
   ; Curried both ways for backwards compat with `with-entity-change!
   ([ctx]
@@ -85,11 +98,7 @@
    #_(fn [vorvs] (with-entity-change-route! ctx vorvs)))
   ([ctx vorvs]
    ; Note we are ignoring EAV in ctx, unlike the tx version
-   (hf/swap-route! ctx (fn [route]
-                         (let [[position :as path] (-> (:hypercrud.browser/result-path ctx)
-                                                       (update 0 position-in route)
-                                                       (update 0 inc))]
-                           (assoc-in route path vorvs)))))
+   (hf/swap-route! ctx assoc-in-route (:hypercrud.browser/result-path ctx) vorvs))
   ([ctx _old new]
    (with-entity-change-route! ctx new)))
 

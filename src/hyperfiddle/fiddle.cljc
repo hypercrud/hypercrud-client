@@ -23,7 +23,7 @@
 
 
 (s/def :swing/quux string?)
-(s/def :fiddle/ident keyword?)
+(s/def :fiddle/ident (s/or :legacy keyword? :ƒ qualified-symbol?))
 (s/def :fiddle/uuid uuid?)
 (s/def :fiddle/type #{:entity :query :eval})
 (s/def :fiddle/query (some-fn string? coll?))
@@ -37,7 +37,8 @@
 
 (s/def :link/class (s/coll-of keyword?))                    ; hf/new is not allowed on FindScalar at the top (no parent)
 (s/def :link/fiddle (comp not nil?))
-(s/def :link/path (s/or :_ keyword? :_ (s/cat :db symbol? :path keyword?)))
+(s/def :link/path (s/or :legacy (s/or :_ keyword? :_ (s/cat :db symbol? :path keyword?))
+                        :ƒ (s/or :_ qualified-symbol? :_ (s/cat :db symbol? :path qualified-symbol?))))
 (s/def :link/formula qualified-keyword?)
 (s/def :link/tx-fn keyword?)
 
@@ -144,7 +145,7 @@
     #?(:cljs
        [:div.container-fluid props
         [:h1 (-> fiddle :fiddle/ident str)]
-        (some->> fiddle :fiddle/doc)
+        (some->> fiddle :fiddle/doc (into [:p]))
         [hyperfiddle.ui/result val ctx props]])))
 
 (def fiddle-defaults
@@ -168,7 +169,8 @@
   [(symbol db) (keywordize path)])
 
 ;; Copied from `:hyperfiddle.def/link-key` to make it available in cljs.
-(s/def ::link-key (s/or :attribute keyword? :db-attribute (s/cat :db symbol? :attribute keyword?)))
+(s/def ::link-key (s/or :legacy (s/or :attribute keyword? :db-attribute (s/cat :db symbol? :attribute keyword?))
+                        :ƒ (s/or :attribute qualified-symbol? :db-attribute (s/cat :db symbol? :attribute qualified-symbol?))))
 
 (defn- parse-link
   [link]

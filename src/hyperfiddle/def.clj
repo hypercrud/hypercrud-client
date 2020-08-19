@@ -47,7 +47,9 @@
 
 (defn def! [type ident form val]
   {:pre [(#{:schema :fiddle} type)
-         (qualified-keyword? ident)
+         (or
+          (qualified-keyword? ident) ;; FIXME deprecated
+          (qualified-symbol? ident))
          form
          val]}
   (update-context!)
@@ -86,7 +88,9 @@
 (s/def ::expr-or-kw
   (read-alt
    ::expr
-   keyword?))
+   keyword? ;; legacy
+   qualified-symbol? ;; ƒ
+   ))
 
 (s/def ::link-expr
   (read-alt
@@ -99,9 +103,8 @@
       :fiddle ::expr-or-kw
       :& (s/* any?))))
 
-(s/def ::link-key
-  (s/or :attribute keyword?
-        :db-attribute (s/cat :db symbol? :attribute keyword?)))
+(s/def ::link-key (s/or :legacy (s/or :attribute keyword? :db-attribute (s/cat :db symbol? :attribute keyword?))
+                        :ƒ (s/or :attribute qualified-symbol? :db-attribute (s/cat :db symbol? :attribute qualified-symbol?))))
 
 (s/def ::links
   (s/map-of
@@ -158,9 +161,10 @@
        (into {})))
 
 (defn read-def [type ident attrs]
-  (s/assert qualified-keyword? ident)
+  (assert (or (qualified-symbol? ident)
+              (qualified-keyword? ident)))
   (let [attrs (read-spec ::def attrs)
-        spec (some-> (s/get-spec (symbol ident)) (hf-spec/parse))]
+        spec (some-> (s/get-spec ident) (hf-spec/parse))]
     (map-attrs type
                (cond-> {:ident       ident
                         :fiddle/type :eval}
@@ -257,7 +261,8 @@
                                    (qualified-keyword? (second v)))
                             {:fiddle/ident (second v)}
                             v)
-                (keyword? v) {:fiddle/ident v}
+                (keyword? v) {:fiddle/ident v} ;; FIXME legacy
+                (qualified-symbol? v) {:fiddle/ident v} ;; ƒ
                 () v))}
 
        :link/class
@@ -364,7 +369,7 @@
 (defn- serve-fiddle! [fiddle]
   (when (multi-arity? fiddle)
     (timbre/warnf "Fiddle %s has multiple arities, which would produce ambiguous UIs. Hyperfiddle will only consider the longuest one." fiddle))
-  (let [ident (keyword (fiddle-name fiddle))]
+  (let [ident (fiddle-name fiddle)]
     (def! :fiddle ident "No source available for function fiddles" ; &form stub
       (read-def :fiddle ident (fiddle-args fiddle)))
     fiddle))

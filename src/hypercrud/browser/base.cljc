@@ -203,15 +203,14 @@
 
 (defn- resolve-fiddle+ [[f & _ :as route] ctx]
   (do-result
-   (let [ident  (keyword f) ;; FIXME this should be a symbol
-         record (get-in @hf-def/*defs [:fiddle ident])]
+   (let [record (get-in @hf-def/*defs [:fiddle f])]
 
      (when-not (or (:db/id record) (:fiddle/source record))
        (throw (ex-info (str :hyperfiddle.error/fiddle-not-found)
                        {:ident        :hyperfiddle.error/fiddle-not-found
-                        :fiddle/ident ident
+                        :fiddle/ident f
                         :fiddle       record
-                        :error-msg    (str "Fiddle not found (" ident ")")
+                        :error-msg    (str "Fiddle not found (" f ")")
                         :human-hint   "Did you forget to serve-ns?"})))
 
      (eval-fiddle+ (fiddle/apply-defaults record)
