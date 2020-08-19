@@ -31,13 +31,13 @@
          (encode `(hyperfiddle.blog/post ~#entity["$" :hyperfiddle.blog/homepage])))))
 
 (deftest query-params []
-  (is (= (decode "/:bar?0=InF3ZXJ6eGN2Ig,,") '(bar "qwerzxcv")))
-  (is (= (decode "/:bar/?0=InF3ZXJ6eGN2Ig,,") '(bar "qwerzxcv")))
+  (is (= (decode "/bar?0=InF3ZXJ6eGN2Ig,,") '(bar "qwerzxcv")))
+  (is (= (decode "/bar/?0=InF3ZXJ6eGN2Ig,,") '(bar "qwerzxcv")))
   ;
   ; (is (= (decode "/:bar?:hyperfiddle.route!where=W1s_ZSA6Zm9vID9hXV0,&utm=asdfdsaf") {::route/fiddle :bar
   ;                                                                                     ::route/where '[[?e :foo ?a]]
   ;                                                                                     'utm #?(:clj 'j�_vƟ :cljs "jÇ_vÆ")}))
-  (is (= (decode "/:bar?0=W1s_ZSA6Zm9vID9hXV0,&1=InF3ZXJ6eGN2Ig,,#blah")
+  (is (= (decode "/bar?0=W1s_ZSA6Zm9vID9hXV0,&1=InF3ZXJ6eGN2Ig,,#blah")
          '(bar [[?e :foo ?a]] "qwerzxcv"))))
 
 

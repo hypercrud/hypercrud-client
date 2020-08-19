@@ -644,8 +644,11 @@ a speculative db/id."
   (map form-cell-problem problems))
 
 (defn- fdef? [?spec]
-  (and (contains? ?spec :args)
-       (contains? ?spec :ret)))
+  (and #?(:clj  (instance? clojure.lang.ILookup ?spec)
+          :cljs (satisfies? cljs.core.ILookup ?spec))
+       (contains? ?spec :args)
+       (contains? ?spec :ret)
+       (contains? ?spec :fn)))
 
 (defn validate-result [?spec value keyfn]
   {:pre [keyfn]}

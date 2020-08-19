@@ -128,7 +128,7 @@
      [{:db/id 17592186047370,
        :link/fiddle
        {:db/id 17592186047371,
-        :fiddle/ident :dustingetz.tutorial/view-post,
+        :fiddle/ident 'dustingetz.tutorial/view-post,
         :fiddle/type :entity},
        :link/path :dustingetz.post/slug,
        :link/rel :hf/self}
@@ -136,8 +136,7 @@
        :link/class [:hf/new],
        :link/fiddle
        {:db/id 17592186047373,
-        :fiddle/ident
-        :dustingetz.tutorial.blog/new-post,
+        :fiddle/ident 'dustingetz.tutorial.blog/new-post,
         :fiddle/type :entity},
        :link/path :dustingetz.post/slug,
        :link/rel :hf/new,

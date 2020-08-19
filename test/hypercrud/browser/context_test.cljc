@@ -810,29 +810,29 @@
     (let [xx (hyperfiddle.data/spread-links-here ctx-blog-slug)]
       (is (= (map first xx)
             ; Hash is not cross platform here. The vals are proven equal below. Problem?
-             #?(:cljs [467960113 -64354382]
-                :clj [241938331 -335169619])))
+             #?(:cljs [-149644189 -1537857194]
+                :clj [925230688 1235745664])))
 
       (is (= (map (comp deref second) xx)
             ; Test passes both clj and cljs, proving the values are equal on both platforms,
             ; it is the hashing in spread-links-here causing above divergence
             [{:db/id 17592186047370,
               :link/fiddle {:db/id 17592186047371,
-                            :fiddle/ident :dustingetz.tutorial/view-post,
+                            :fiddle/ident 'dustingetz.tutorial/view-post,
                             :fiddle/type :entity,
                             :fiddle/pull-database "$",
                             :fiddle/pull "[:db/id\n *]",
-                            :fiddle/markdown "### :dustingetz.tutorial/view-post"}
+                            :fiddle/markdown "### dustingetz.tutorial/view-post"}
               :link/path :dustingetz.post/slug,
               :link/rel :hf/self}
              {:db/id 17592186047372,
               :link/class [:hf/new],
               :link/fiddle {:db/id 17592186047373,
-                            :fiddle/ident :dustingetz.tutorial.blog/new-post,
+                            :fiddle/ident 'dustingetz.tutorial.blog/new-post,
                             :fiddle/type :entity,
                             :fiddle/pull-database "$",
                             :fiddle/pull "[:db/id\n *]",
-                            :fiddle/markdown "### :dustingetz.tutorial.blog/new-post"}
+                            :fiddle/markdown "### dustingetz.tutorial.blog/new-post"}
               :link/path :dustingetz.post/slug,
               :link/rel :hf/new,
               :link/tx-fn :user/new-post}])))
@@ -843,7 +843,7 @@
     (is (= (->> (hyperfiddle.data/spread-links-here ctx-blog-slug :hf/new) (mapv (comp :link/path deref second)))
            [:dustingetz.post/slug]))
 
-    (is (= (->> (hyperfiddle.data/spread-links-here ctx-blog-slug :dustingetz.tutorial/view-post)
+    (is (= (->> (hyperfiddle.data/spread-links-here ctx-blog-slug `dustingetz.tutorial/view-post)
                 (mapv (comp :link/path deref second)))
            [:dustingetz.post/slug]))
 
@@ -960,7 +960,7 @@
 #?(:clj
    (deftest more-link-stuff
      (testing ":identity link refocus v is lookup-ref"
-       (def r-link (->> (hyperfiddle.data/select-here+ ctx-blog2 :dustingetz.tutorial/view-post)
+       (def r-link (->> (hyperfiddle.data/select-here+ ctx-blog2 `dustingetz.tutorial/view-post)
                         (unwrap #(throw (ex-info % {})))))
        (is (= (mlet [[ctx ?route] (context/refocus-build-route-and-occlude+ ctx-blog2 r-link)]
                     (context/eav ctx))
