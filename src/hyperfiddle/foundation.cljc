@@ -4,7 +4,7 @@
     [contrib.base-64-url-safe :as base64-url-safe]
     [contrib.reactive :as r]
     [clojure.spec.alpha :as s]
-    #?(:clj [datomic.api :as d])
+    ;#?(:clj [datomic.api :as d]) ; illegal
     [hyperfiddle.api :as hf]
     [hyperfiddle.domain :as domain]
     [hyperfiddle.runtime :as runtime]
@@ -137,16 +137,17 @@
 (defn ^{::hf/fiddle {:shape '[:find (pull $users ?e [*]) . :in $users ?e :where [$users ?e]]}}
   account []
   #?(:clj
-     (d/q '[:find (pull ?user [:db/id
-                               :user/name
-                               :user/email
-                               :user/last-seen
-                               :user/sub
-                               :user/picture
-                               :user/user-id])
-            .
-            :in $ ?subject
-            :where [?user :user/user-id ?subject]]
+     (datomic.api/q                                         ; Not required to avoid naming this in deps. Get lucky for now
+       '[:find (pull ?user [:db/id
+                            :user/name
+                            :user/email
+                            :user/last-seen
+                            :user/sub
+                            :user/picture
+                            :user/user-id])
+         .
+         :in $ ?subject
+         :where [?user :user/user-id ?subject]]
        (hf/*get-db* "$users") hf/*subject*)))               ; non-$ schema is specified in :shape
 
 (s/fdef account :args (s/cat))

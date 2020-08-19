@@ -2,7 +2,7 @@
   (:require
     [clojure.set :as set]
     [contrib.datomic :refer [tempid? ref-one? ref-many? scalar-one? scalar-many? isComponent unique identity? one? many? ref?]]
-    #?(:clj [datomic.api :as d])
+    #?(:clj [datomic.api :as d])                            ; illegal require
     [hyperfiddle.api :as hf]))
 
 (defn val->identifier
