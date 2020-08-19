@@ -84,7 +84,7 @@
       (let [changing-route (when-not (runtime/parent-pid rt pid)
                              (let [existing-route (runtime/get-route rt pid)
                                    route (hf/url-decode (hf/domain rt) (document-location!))]
-                               (when-not (route/equal-without-frag? existing-route route)
+                               (when-not (= existing-route route)
                                  (state/dispatch! rt [:stage-route pid route])
                                  true)))]
         (runtime/bootstrap-data rt pid init-level :hydrate-page? (constantly (or different-stage changing-route))))

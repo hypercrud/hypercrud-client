@@ -71,7 +71,7 @@
       [ViewModeSelector {:mode (:hyperfiddle.ui/display-mode ctx)}]
       [:div {:style {:flex 1}}]
       (if (hf/subject ctx)
-        [:a {:href  (hf/url-encode (hf/domain (:runtime ctx)) {:hyperfiddle.route/fiddle (keyword `hyperfiddle.foundation/account)})
+        [:a {:href  (hf/url-encode (hf/domain (:runtime ctx)) `(hyperfiddle.foundation/account))
              :style {:text-transform :capitalize}}
          (str "👤Account")]
         (if (auth-configured? ctx)
@@ -183,12 +183,13 @@
         [:div.p [:div {:style {:margin-bottom "1em"}}]]
         #_[ui/field [:user/user-id] ctx]])))                ; should infer $users from :shape but is failing with missing schema
 
-(defn ^::hf/fiddle please-login [])
+(defn ^::hf/fiddle please-login [_redirect])
 
 (defmethod hf/render-fiddle (keyword `please-login) [_ ctx props]
   #?(:cljs
-     (let [tunneled-route (first (:hyperfiddle.route/datomic-args @(:hypercrud.browser/route ctx)))
-           state (hf/url-encode (hf/domain (:runtime ctx)) tunneled-route)
+     (let [[_ redirect] @(:hypercrud.browser/route ctx)
+           _ (println redirect)
+           state (hf/url-encode (hf/domain (:runtime ctx)) redirect)
            href (stateless-login-url ctx state)]
        [:div
         [:br]

@@ -8,8 +8,10 @@
 
 ;; To encode from/to Uint8Array,
 ;; https://developer.mozilla.org/en-US/docs/Web/API/TextEncoder
-(def encoder (js/TextEncoder.))
-(def decoder (js/TextDecoder.))
+(def encoder (and (exists? js/TextEncoder)
+                  (js/TextEncoder.)))
+(def decoder (and (exists? js/TextDecoder)
+                  (js/TextDecoder.)))
 
 (defn- ms "round number to 2 decimals, for milisec precision" [x]
   (/ (.round js/Math (* 100 x)) 100))

@@ -62,84 +62,35 @@
                            :args (map #(parameter % get-secure-db-with) params)))]
     (q arg-map)))
 
-(defn- min-arity
-  "0 if a function doesn't have args, otherwise the smallest amount of args it
-  accepts"
-  [avar]
-  (->> avar meta :arglists (sort-by count) first count))
+(defn max-arity [avar]
+  (or (some->> avar meta :arglists
+               (map (fn [args] (count (remove #{'&} args))))
+               (apply max))
+      0))
 
+(defmethod hf/defaults :default [[f & args]]
+  (cons f (data/zipseq args (repeat (max-arity (find-var f)) nil))))
 
-(defn- resolve-fiddle-fn [form]
-  (cond
-    (string? form)  (let [parsed (edn/read-string form)]
-                     (if (seqable? parsed)
-                       parsed
-                       (list parsed)))
-    (keyword? form) (list (symbol form))
-    :else           (list form)))
+(defmethod hf/view-defaults :default [route] route)
 
-(defn legacy-form [form]
-  (:fiddle/eval (hf-def/get-fiddle form)))
-
-(defn- default-route [ident]
-  (spec/nil-args (spec/parse ident)))
-
-(defmethod hf/defaults :default [ident route]
-  (merge (default-route ident) route))
-
-(defmethod hf/hydrate-defaults :default [_ route] route)
-
-(defn merge-routes
-  "Merge two maps `a` and `b`, where `b` has precedence over `a`.
-  Will keep `nil` values from `b` only if the respective key doesn't appear in
-  `a`. `clojure.core/merge` will also give precedence to `b` over `a`, but don't
-  do any nil punning. Needed to pick the best value between a user input, a
-  parameter placeholder (most of the time `nil`) and a default value replacing
-  the user input (like a lookup ref hydration)."
-  ([a b]
-   (merge b ; keep keys from b not in a
-          (reduce-kv (fn [acc k v]
-                       (cond
-                         (not (contains? b k)) (assoc acc k v) ; b doesn't have the key
-                         (nil? (get b k))      (assoc acc k v) ; b got the key, but it's nil
-                         :else                 (assoc acc k (get b k))))
-                     (empty a)
-                     a ; reduce over a's keyset
-                     )))
-  ([a b & maps]
-   (reduce merge-routes a (cons b maps))))
-
-(defn- eval-fiddle! [form route]
-  (let [[ident & _args]    (resolve-fiddle-fn form)
-        defaults           (hf/defaults ident route)
-        default-route      (merge-routes route defaults (default-route ident))
-        view-default-route (merge-routes default-route (hf/hydrate-defaults ident route))]
-    (if-let [legacy-form (legacy-form form)]
-      ;; :eval is a legacy form, load it the old way
-      {view-default-route (eval legacy-form)}
-      ;; :eval is a function symbol
-      (if-let [fvar (find-var ident)]
-        (let [f     (deref fvar)
-              fspec (spec/parse ident)]
-          (cond
-            (not (fn? f))               {view-default-route f}
-            (zero? (min-arity fvar))    {view-default-route (f)}
-            (and (= 1 (min-arity fvar))
-                 (not (:args fspec)))   {view-default-route (f default-route)}
-            (= ::spec/fn (:type fspec)) {(spec/ordered (spec/args-spec fspec) view-default-route)
-                                         (apply f (spec/positional fspec default-route))}
-            :else                       (throw (ex-info "This fiddle function expect some arguments, please provide a fdef for it." {:var fvar}))))
-        (throw (ex-info "Fiddle not found" {:name ident}))))))
+(defn eval-as-fexpr!
+  "Like `clojure.core/eval`, but don't evaluate operands.
+  https://en.wikipedia.org/wiki/Fexpr ."
+  [[fn-sym & args]]
+  (-> (find-var fn-sym)
+      (deref)
+      (apply args)))
 
 (defn- get-db [getterf pid dbname]
   (:db (getterf dbname pid)))
 
-(defmethod hydrate-request* EvalRequest [{:keys [form pid route]} domain get-secure-db-with]
-  {:pre [form]}
+(defmethod hydrate-request* EvalRequest [{:keys [pid route]} _domain get-secure-db-with]
+  {:pre [route]}
   (binding [hf/*route*  route
             hf/*$*      (get-db get-secure-db-with pid "$")
             hf/*get-db* (partial get-db get-secure-db-with pid)]
-    (eval-fiddle! form route)))
+    (let [defaults (hf/defaults route)]
+      [(hf/view-defaults defaults) (eval-as-fexpr! defaults)])))
 
 ; todo i18n
 (def ERROR-BRANCH-PAST ":hyperfiddle.error/basis-stale Branching the past is currently unsupported, please refresh your basis by refreshing the page")
@@ -220,7 +171,7 @@
                       [[match msg] (re-find #"^.+ :db.error/invalid-entity-id (.+)$" error-str)] [:db.error/invalid-entity-id msg]
                       [[match msg] (re-find #"^.+ :db.error/insufficient-binding (.+)$" error-str)]
                       [:db.error/insufficient-binding msg
-                       (str (some-> req .-query pprint-str))] ; query as whitespace string should be available
+                       (str (some-> req :query pprint-str))] ; query as whitespace string should be available
                       [[match msg] (re-find #"^.+ :db.error/not-a-data-function (.+)$" error-str)] [:db.error/not-a-data-function msg]
                       [[match msg] (re-find #"^.+ :db.error/not-an-entity (.+)$" error-str)]
                       [:db.error/not-an-entity msg
@@ -232,7 +183,7 @@
                       ; It is the Clojure way.
                       [[match msg] (re-find #"^com.google.common.util.concurrent.UncheckedExecutionException: java.lang.IllegalArgumentException: (.+)$" error-str)] [:hyperfiddle.error/invalid-pull msg]
                       [[match msg] (re-find #"^.+ message: Unable to find data source: (.+)$" error-str)]
-                      (let [expected (parse-query-element (some-> req .-query) :in)]
+                      (let [expected (parse-query-element (some-> req :query) :in)]
                         [:hyperfiddle.error/query-arity
                          (str "Query argument missing: " msg " which corresponds with " expected ".\n"
                               "Hint: add a link/formula or edit the URL.")]))]
@@ -279,7 +230,7 @@
           local-basis (into {} local-basis)                 ; :: ([dbname 1234]), but there are some duck type shenanigans happening
           get-secure-db-with+ (build-get-secure-db-with+ domain (constantly partitions) db-with-lookup local-basis ?subject)
           pulled-trees (->> requests
-                            (data/pmap #(hydrate-request domain get-secure-db-with+ % ?subject))
+                            (map #(hydrate-request domain get-secure-db-with+ % ?subject))
                             (doall))
           tempid-lookups (map-values #(map-values extract-tempid-lookup+ %) @db-with-lookup)]
       {:pulled-trees   pulled-trees

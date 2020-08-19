@@ -52,14 +52,13 @@
               (let [is-auth-configured (-> (R/from context) :config :auth0 :domain nil? not)
                     is-ssr (= :ssr (unqualify (:handler route)))
                     is-no-subject (nil? (get-in context [:request :user-id]))
-                    prevent-infinite-redirect (not (clojure.string/starts-with? path "/:hyperfiddle.foundation!please-login/"))]
+                    prevent-infinite-redirect (not (clojure.string/starts-with? path "/hyperfiddle.foundation!please-login"))]
                 (and is-ssr
                      is-auth-configured                        ; if there is an auth0 config, require logins
                      is-no-subject
                      prevent-infinite-redirect))
-              (let [inner-route (hf/url-decode domain path)
-                    url (hf/url-encode domain {::route/fiddle       (keyword `hyperfiddle.foundation/please-login)
-                                               ::route/datomic-args [inner-route]})]
+              (let [redirect (hf/url-decode domain path)
+                    url (hf/url-encode domain `(hyperfiddle.foundation/please-login ~redirect))]
                 (-> context
                     (assoc-in [:response :status] 302)
                     (assoc-in [:response :headers "Location"] url)))

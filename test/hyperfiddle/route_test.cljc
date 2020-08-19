@@ -5,65 +5,40 @@
     [hyperfiddle.route :as route :refer [url-decode url-encode]]))
 
 
-(defn encode [route] (url-encode route {::route/fiddle :foo}))
-(defn decode [s] (url-decode s {::route/fiddle :foo}))
+(defn encode [route] (url-encode route `(foo)))
+(defn decode [s] (url-decode s `(foo)))
 
-(def route-args2 {::route/fiddle :hyperfiddle.blog/post
-                  ::route/datomic-args [#entity["$" [:user/sub "google-oauth2|116635422485042503270"]] #{"events" "news"}]})
-(def route-args1 {::route/fiddle :hyperfiddle.blog/post
-                  ::route/datomic-args #entity["$" [:user/sub "google-oauth2|116635422485042503270"]]})
-(def route-args1-seq {::route/fiddle :hyperfiddle.blog/post
-                      ::route/datomic-args [#entity["$" [:user/sub "google-oauth2|116635422485042503270"]]]})
+(def route-args2 `(hyperfiddle.blog/post ~#entity["$" [:user/sub "google-oauth2|116635422485042503270"]] #{"events" "news"}))
+(def route-args1 `(hyperfiddle.blog/post ~#entity["$" [:user/sub "google-oauth2|116635422485042503270"]]))
+(def route-args1-seq `(hyperfiddle.blog/post ~#entity["$" [:user/sub "google-oauth2|116635422485042503270"]]))
 
 (deftest router-basic
   []
-  (is (= (encode route-args2) "/:hyperfiddle.blog!post/~entity('$',(:user!sub,'google-oauth2%7C116635422485042503270'))/~%7B'news','events'%7D"))
-  (is (= (decode "/17592186045933/") {::route/fiddle 17592186045933})) ; legacy, doesnt happen anymore?
+  (is (= (encode route-args2)  "/hyperfiddle.blog!post?0=I2VudGl0eVsiJCIgWzp1c2VyL3N1YiAiZ29vZ2xlLW9hdXRoMnwxMTY2MzU0MjI0ODUwNDI1MDMyNzAiXV0,&1=I3sibmV3cyIgImV2ZW50cyJ9"))
   (is (= ((comp decode encode) route-args2) route-args2))
-  #_(is (= ((comp decode encode) route-args1) (update route-args1 1 normalize-args)))
   (is (= ((comp decode encode) route-args1-seq) route-args1-seq))
-  #_(is (= ((comp decode encode) route-args1) ((comp decode encode) route-args1-seq)))
   #?(:clj (is (not (nil? (java.net.URI. (encode route-args2))))))
-  (is (= (encode {::route/fiddle :hyperfiddle.blog/post})
-         "/:hyperfiddle.blog!post/"))
-  (is (= (encode {::route/fiddle 17592186045502})
-         "/17592186045502/"))
+  (is (= (encode `(hyperfiddle.blog/post))
+         "/hyperfiddle.blog!post"))
 
-  (is (= (encode {::route/fiddle :hyperblog/post
-                  ::route/datomic-args [#entity["$" 17592186045826]]})
-         "/:hyperblog!post/~entity('$',17592186045826)"))
+  (is (= (encode `(hyperblog/post ~#entity["$" 17592186045826]))
+         "/hyperblog!post?0=I2VudGl0eVsiJCIgMTc1OTIxODYwNDU4MjZd"))
 
-  (is (= (decode "/:hyperfiddle.blog!post/~entity('$',:hyperfiddle.blog!homepage)") {::route/fiddle :hyperfiddle.blog/post
-                                                                                     ::route/datomic-args [#entity["$" :hyperfiddle.blog/homepage]]}))
-  (is (= (decode "/:hyperfiddle.blog!post/~entity('$',:hyperfiddle.blog!homepage)?#:src") {::route/fiddle :hyperfiddle.blog/post
-                                                                                           ::route/datomic-args [#entity["$" :hyperfiddle.blog/homepage]]
-                                                                                           ::route/fragment ":src"}))
-  (is (= (decode "/:hyperfiddle.blog!post/~entity('$',:hyperfiddle.blog!homepage)#:src") {::route/fiddle :hyperfiddle.blog/post
-                                                                                          ::route/datomic-args [#entity["$" :hyperfiddle.blog/homepage]]
-                                                                                          ::route/fragment ":src"}))
+  (is (= (decode "/hyperfiddle.blog!post?0=I2VudGl0eVsiJCIgOmh5cGVyZmlkZGxlLmJsb2cvaG9tZXBhZ2Vd")
+         `(hyperfiddle.blog/post ~#entity["$" :hyperfiddle.blog/homepage])))
 
-  (is (= "/:hyperfiddle.blog!post/~entity('$',:hyperfiddle.blog!homepage)" (encode {::route/fiddle :hyperfiddle.blog/post
-                                                                                    ::route/datomic-args [#entity["$" :hyperfiddle.blog/homepage]]}))))
-  ;(is (= "/:hyperfiddle.blog!post/~entity('$',:hyperfiddle.blog!homepage)?#:src" (encode [:hyperfiddle.blog/post [#entity["$" :hyperfiddle.blog/homepage]] nil ":src"])))
-
-
+  (is (= "/hyperfiddle.blog!post?0=I2VudGl0eVsiJCIgOmh5cGVyZmlkZGxlLmJsb2cvaG9tZXBhZ2Vd"
+         (encode `(hyperfiddle.blog/post ~#entity["$" :hyperfiddle.blog/homepage])))))
 
 (deftest query-params []
-  (is (= (decode "/:bar?:asdf=InF3ZXJ6eGN2Ig,,") {::route/fiddle :bar :asdf "qwerzxcv"}))
-  (is (= (decode "/:bar/?:asdf=InF3ZXJ6eGN2Ig,,") {::route/fiddle :bar :asdf "qwerzxcv"}))
+  (is (= (decode "/:bar?0=InF3ZXJ6eGN2Ig,,") '(bar "qwerzxcv")))
+  (is (= (decode "/:bar/?0=InF3ZXJ6eGN2Ig,,") '(bar "qwerzxcv")))
   ;
   ; (is (= (decode "/:bar?:hyperfiddle.route!where=W1s_ZSA6Zm9vID9hXV0,&utm=asdfdsaf") {::route/fiddle :bar
   ;                                                                                     ::route/where '[[?e :foo ?a]]
   ;                                                                                     'utm #?(:clj 'j�_vƟ :cljs "jÇ_vÆ")}))
-  (is (= (decode "/:bar?:hyperfiddle.route!where=W1s_ZSA6Zm9vID9hXV0,&:asdf=InF3ZXJ6eGN2Ig,,")
-         {::route/fiddle :bar
-          ::route/where '[[?e :foo ?a]]
-          :asdf "qwerzxcv"}))
-  (is (= (decode "/:bar?:hyperfiddle.route!where=W1s_ZSA6Zm9vID9hXV0,&:asdf=InF3ZXJ6eGN2Ig,,#blah")
-         {::route/fiddle :bar
-          ::route/where '[[?e :foo ?a]]
-          :asdf "qwerzxcv"
-          ::route/fragment "blah"})))
+  (is (= (decode "/:bar?0=W1s_ZSA6Zm9vID9hXV0,&1=InF3ZXJ6eGN2Ig,,#blah")
+         '(bar [[?e :foo ?a]] "qwerzxcv"))))
 
 
 (deftest router-malformed-1
@@ -73,11 +48,3 @@
   ;(decode "/garbagasdf..23425649=//e")
   ;(decode "/asdf/asdf/asdf?asdf?asdf?sadf")
 
-
-(deftest fragment-1 []
-  (is (= "/:hyperfiddle.blog!post/~entity('$',:hyperfiddle.blog!homepage)#:src" (encode {::route/fiddle :hyperfiddle.blog/post
-                                                                                         ::route/datomic-args [#entity["$" :hyperfiddle.blog/homepage]]
-                                                                                         ::route/fragment ":src"})))
-  (is (= "/:hyperblog!post/~entity('$',:capitalism)#:src" (encode {::route/fiddle :hyperblog/post
-                                                                   ::route/datomic-args [#entity["$" :capitalism]]
-                                                                   ::route/fragment ":src"}))))

@@ -72,19 +72,15 @@
   (reverse (drop-while f (reverse xs))))
 
 (defn- get-route [rt pid default?]
-  (let [{:keys [:hyperfiddle.route/fiddle] :as route} (if default?
-                                                        (runtime/get-route-defaults rt pid)
-                                                        (runtime/get-route rt pid))
-        fiddle                                        (some-> fiddle symbol)]
+  (let [route (if default?
+                (runtime/get-route-defaults rt pid)
+                (runtime/get-route rt pid))]
     (when-let [error (s/explain-data :hyperfiddle/route route)]
       (js/console.error "Invalid route" (::s/problems error)))
-    (if (s/get-spec fiddle)
-      (cond->> (spec/sexp (spec/parse fiddle) route)
-        (not default?) (drop-tail-while nil?))
-      route)))
+    (seq route)))
 
 (defn set-route [rt pid route]
-  (hf/set-route rt pid (if (map? route) route (spec/read-route route))))
+  (hf/set-route rt pid route))
 
 (defn route-editor
   ([{rt  :runtime
@@ -93,10 +89,12 @@
    [route-editor (get-route rt pid false) (get-route rt pid true) (r/partial set-route rt pid)])
   ([route default on-change]
    (let [parse-string (fn [s]
-                        (let [route (spec/read-route (reader/read-edn-string! s))]
-                          (when-let [error (s/explain-data :hyperfiddle/route route)]
-                            (js/console.error "Invalid route" (::s/problems error))
-                            (s/assert :hyperfiddle/route route))
+                        (let [route (seq (reader/read-edn-string! s))]
+                          (try
+                            (s/assert :hyperfiddle/route route)
+                            (catch :default err
+                              (js/console.error "Invalid route" err)
+                              (throw err)))
                           route))
          to-string    pprint-str]
      [:<>

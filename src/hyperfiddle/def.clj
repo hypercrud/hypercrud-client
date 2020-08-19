@@ -236,6 +236,9 @@
        :fiddle/shape
        {:fiddle/shape (some-> v one map-expr)}
 
+       :fiddle/doc
+       {:fiddle/doc (some-> v one not-empty)}
+
        :fiddle/links
        {:fiddle/links
         (->> v (mapv (fn [link]
@@ -336,11 +339,12 @@
 
 
 (defn- fiddle-args [avar]
-  (let [args (:hyperfiddle.api/fiddle (meta avar))]
-    (cond
-      (map? args)  (mapcat identity args) ; account for hf-def rest-args syntax
-      (true? args) ()                     ; true is default meta value, fiddle with no extra args
-      )))
+  (let [{:keys [:hyperfiddle.api/fiddle :doc]} (meta avar)]
+    (when (or (true? fiddle) (map? fiddle))
+      (mapcat identity  ; account for hf-def rest-args syntax
+              (cond-> {}
+                (not-empty doc) (assoc :fiddle/doc doc)
+                (map? fiddle)   (merge fiddle))))))
 
 (defn- fiddle-fn? [avar]
   (some? (fiddle-args avar)))
@@ -354,7 +358,12 @@
   (let [{:keys [ns name]} (meta avar)]
     (symbol (str ns) (str name))))
 
+(defn- multi-arity? [avar]
+  (some-> avar meta :arglists count (> 1)))
+
 (defn- serve-fiddle! [fiddle]
+  (when (multi-arity? fiddle)
+    (timbre/warnf "Fiddle %s has multiple arities, which would produce ambiguous UIs. Hyperfiddle will only consider the longuest one." fiddle))
   (let [ident (keyword (fiddle-name fiddle))]
     (def! :fiddle ident "No source available for function fiddles" ; &form stub
       (read-def :fiddle ident (fiddle-args fiddle)))

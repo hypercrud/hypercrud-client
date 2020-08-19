@@ -4,6 +4,31 @@
     [cats.monad.either :as either]
     [promesa.core :as p]))
 
+(defn- catches
+  "Return all catch forms of a try form, if any"
+  [try-body]
+  (filter (fn [form]
+            (and (seqable? form)
+                 (= 'catch (first form))))
+          try-body))
+
+(defn default-catch [conts]
+  ;; only one default continuation allowed
+  (first (filter #(= :default (second %)) conts)))
+
+(defmacro try*
+  "Like `clojure.core/try`, but (catch :default err …) works for both clj and
+  cljs."
+  [& body]
+  (let [cljs? (some? (:ns &env))] ;; best way to detect CLJS?
+    (cons 'try
+          (if cljs?
+            body ;; cljs already supports this feature
+            (if-let [default (default-catch (catches body))]
+              (let [[_catch _default & catch-body] default]
+                (replace {default (concat '(catch Exception) catch-body)} body))
+              body)))))
+
 
 #?(:clj
    (defmacro try-catch-non-fatal [& args]

@@ -202,9 +202,10 @@
   [ctx]
   @(:hypercrud.browser/route-defaults ctx))
 
-(defmulti defaults (fn [ident _route] ident))               ; multiple params can depend on each other so set defaults centrally per fiddle
+;; multiple params can depend on each other so set defaults centrally per fiddle
+(defmulti defaults first)
 
-(defmulti hydrate-defaults (fn [ident _route] ident))
+(defmulti view-defaults first)
 
 (defmethod tx :default [ctx eav props]
   nil)
@@ -285,3 +286,5 @@
   other aspects. What's hf-def? -> they shouldn't care."
   []
   `(hyperfiddle.def/serve-ns! ~*ns*))
+
+(defn ^::fiddle index [])

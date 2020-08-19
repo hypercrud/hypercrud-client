@@ -975,8 +975,7 @@
                 [nil nil "hyperfiddle.tempid--853640389"]))
          (is (= (mlet [[ctx +route] (context/refocus-build-route-and-occlude+ ctx-blog2 link1)]
                       (return +route))
-                (right {::route/fiddle :dustingetz.tutorial.blog/new-post
-                        ::route/datomic-args [#entity["$" "hyperfiddle.tempid--853640389"]]})))))
+                (right `(dustingetz.tutorial.blog/new-post ~#entity["$" "hyperfiddle.tempid--853640389"]))))))
 
      (testing "iframe at double nested attr"
        (is (= (context/eav ctx-seattle1) [[:district/name "Ballard"] :district/region :region/nw]))
@@ -1011,16 +1010,14 @@
        ; This exercises tag-v-with-color edge cases
 
        (def link (hyperfiddle.data/select ctx-blog3 :hf/new))
-       (is (= (mlet [[ctx route] (context/refocus-build-route-and-occlude+ ctx-blog3 link)]
+       (is (= (mlet [[ctx _route] (context/refocus-build-route-and-occlude+ ctx-blog3 link)]
                     (context/eav ctx))
               [nil nil "hyperfiddle.tempid--853640389"]))
        (is (= (mlet [[ctx route] (context/refocus-build-route-and-occlude+ ctx-blog3 link)]
                     (return route))
               ; This works because refocus hardcodes element 0, which it turns out is almost always
               ; what the custom renderer wants.
-              (right {::route/fiddle :dustingetz.tutorial.blog/new-post
-                      ::route/datomic-args [#entity["$" "hyperfiddle.tempid--853640389"]]})))
-       )))
+              (right `(dustingetz.tutorial.blog/new-post ~#entity["$" "hyperfiddle.tempid--853640389"])))))))
 
 (def ctx-schema (mock-fiddle! :dustingetz.test/schema-ident-findcoll))
 

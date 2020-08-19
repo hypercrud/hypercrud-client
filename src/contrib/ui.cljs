@@ -192,14 +192,14 @@
      {:r "3", :cy "16", :cx "4"}
      [:animate
       {:values        "3;4;4;3;3;3",
-       :keytimes      "0;0.2;0.4;0.6;0.8;1",
+       :keyTimes      "0;0.2;0.4;0.6;0.8;1",
        :repeatCount   "indefinite",
        :begin         "0s",
        :dur           "1s",
        :attributeName "r"}]
      [:animate
       {:values        "0.4;0.8;0.8;0.4;0.4;0.4",
-       :keytimes      "0;0.2;0.4;0.6;0.8;1",
+       :keyTimes      "0;0.2;0.4;0.6;0.8;1",
        :repeatCount   "indefinite",
        :begin         "0s",
        :dur           "1s",
@@ -208,14 +208,14 @@
      {:r "3", :cy "16", :cx "16"}
      [:animate
       {:values        "3;3;4;4;3;3",
-       :keytimes      "0;0.2;0.4;0.6;0.8;1",
+       :keyTimes      "0;0.2;0.4;0.6;0.8;1",
        :repeatCount   "indefinite",
        :begin         "0s",
        :dur           "1s",
        :attributeName "r"}]
      [:animate
       {:values        "0.4;0.4;0.8;0.8;0.4;0.4",
-       :keytimes      "0;0.2;0.4;0.6;0.8;1",
+       :keyTimes      "0;0.2;0.4;0.6;0.8;1",
        :repeatCount   "indefinite",
        :begin         "0s",
        :dur           "1s",
@@ -224,14 +224,14 @@
      {:r "3", :cy "16", :cx "28"}
      [:animate
       {:values        "3;3;3;4;4;3",
-       :keytimes      "0;0.2;0.4;0.6;0.8;1",
+       :keyTimes      "0;0.2;0.4;0.6;0.8;1",
        :repeatCount   "indefinite",
        :begin         "0s",
        :dur           "1s",
        :attributeName "r"}]
      [:animate
       {:values        "0.4;0.4;0.4;0.8;0.8;0.4",
-       :keytimes      "0;0.2;0.4;0.6;0.8;1",
+       :keyTimes      "0;0.2;0.4;0.6;0.8;1",
        :repeatCount   "indefinite",
        :begin         "0s",
        :dur           "1s",

@@ -672,19 +672,30 @@ a speculative db/id."
     ; Conceptually, it should be after qfind and before EAV.
     (index-result ctx)))                                    ; in row case, now indexed, but path is not aligned yet
 
+(defn to-map [route]
+  (let [[f & args] route]
+    (if (empty? args)
+      {}
+      (when-let [spec (s/get-spec f)]
+        (let [spec-args (-> spec (spec/parse) (spec/args-spec))
+              names     (spec/names spec-args)]
+          (case (:type spec-args)
+            ::spec/cat (zipmap names args)
+            ;; TODO drop s/alt support?
+            ::spec/alt (zipmap (spec/best-match-for names args) args)))))))
+
 (defn derive-for-search-defaults
   "Build a new context with route defaults as result so they can be rendered as a form."
   [{:keys [:hypercrud.browser/route-defaults] :as ctx}]
   (-> ctx
       (assoc ;; Remove :hyperfiddle.route/fiddle from route defaults
-             :hypercrud.browser/result (r/fmap-> route-defaults (dissoc :hyperfiddle.route/fiddle
-                                                                  :hyperfiddle.route/datomic-args)) ; hack
-             ;; We want to render as a form, so qfind is FindScalar
-             :hypercrud.browser/qfind (r/pure (fiddle/shape 'FindScalar)))
+       :hypercrud.browser/result (r/fmap to-map route-defaults) ; use spec to draw search params
+       ;; We want to render as a form, so qfind is FindScalar
+       :hypercrud.browser/qfind (r/pure (fiddle/shape 'FindScalar)))
       (dissoc :hypercrud.browser/route-defaults) ; avoid potential recursion
       (as-> ctx
           (assoc ctx :hypercrud.browser/result-enclosure (r/track result-enclosure! ctx)
-                     :hypercrud.browser/validation-hints (r/track validation-hints-enclosure! ctx)))
+                 :hypercrud.browser/validation-hints (r/track validation-hints-enclosure! ctx)))
       (index-result)))
 
 (defn stable-element-schema! [rt pid element]
@@ -1084,18 +1095,19 @@ a speculative db/id."
     arg))
 
 (defn ^:export build-route+ "There may not be a route! Fiddle is sometimes optional" ; build-route+
-  [{:keys [::route/datomic-args] :as route} ctx]
+  [args ctx]
   {:pre  [ctx]
    :post [(s/assert either? %)]}
-  (mlet [fiddle-id (let [link @(:hypercrud.browser/link ctx)]
-                     (if-let [fiddle (:link/fiddle link)]
-                       (right (:fiddle/ident fiddle))
+  (mlet [f (let [link @(:hypercrud.browser/link ctx)]
+             (if-let [fiddle (:link/fiddle link)]
+                       (right (symbol (:fiddle/ident fiddle))) ;; FIXME it should always be a symbol
                        (left {:message ":link/fiddle required" :data {:link link}})))
          ; Why must we reverse into tempids? For the URL, of course.
-         :let [colored-args (mapv (partial tag-v-with-color ctx) datomic-args) ; this ctx is refocused to some eav
-               route (cond-> (assoc route ::route/fiddle fiddle-id)
-                       (seq colored-args) (assoc ::route/datomic-args colored-args))
-               route (route/invert-route route (partial runtime/id->tempid! (:runtime ctx) (:partition-id ctx)))]
+         :let [route (-> (filter identity args)
+                         (->> (map (partial tag-v-with-color ctx)))
+                         ;; this ctx is refocused to some eav
+                         (conj f)
+                         #_(route/invert-route (partial runtime/id->tempid! (:runtime ctx) (:partition-id ctx))))]
          ; why would this function ever construct an invalid route? this check seems unnecessary
          [route _] (hyperfiddle.route/validate-route+ route)]
     (return route)))
@@ -1109,7 +1121,7 @@ a speculative db/id."
        (cats/fmap #(assoc % :hypercrud.browser/link link-ref))))
 
 (defn occlude-eav [ctx untagged-uncolored-datomic-args]     ; is it important these arguments are untagged/uncolored?
-  (let [[v' & vs :as args] untagged-uncolored-datomic-args]
+  (let [[v' & _vs] untagged-uncolored-datomic-args]
     ; EAV sugar is not interested in tuple case, that txfn is way off happy path
     (assoc ctx :hypercrud.browser/eav (r/apply stable-eav-v
                                                [(:hypercrud.browser/eav ctx)
@@ -1117,10 +1129,10 @@ a speculative db/id."
 
 (defn build-route-and-occlude+ [ctx link-ref]
   (do-result
-    (let [args (build-args ctx @link-ref)
-          ; :hf/remove doesn't have route by default, :hf/new does, both can be customized
-          route (from-result (build-route+ args ctx))
-          ctx (occlude-eav ctx (::route/datomic-args args))]
+   (let [args  (build-args ctx @link-ref)
+         ;; :hf/remove doesn't have route by default, :hf/new does, both can be customized
+         route (from-result (build-route+ args ctx))
+         ctx   (occlude-eav ctx args)]
       [ctx route])))
 
 (defn refocus-build-route-and-occlude+ "focus a link ctx, accounting for link/formula which occludes the natural eav"
@@ -1188,7 +1200,7 @@ a speculative db/id."
   ; try to auto-generate branch/popover-id from the product of:
   ; - link's :db/id
   ; - route
-  ; - visual-ctx's data & path (where this popover is being drawn NOT its dependencies)
+; - visual-ctx's data & path (where this popover is being drawn NOT its dependencies)
   (let [v [(if (:hypercrud.browser/qfind link-ctx)          ; guard crash on :blank fiddles
              (eav link-ctx)                                 ; if this is nested table head, [e a nil] is ambiguous. test: /:intents/
              (:hypercrud.browser/result-path link-ctx))
@@ -1257,7 +1269,14 @@ a speculative db/id."
     (link-tx ctx))
   (v [ctx]
     (v ctx))
-  )
+  ;; Solves a client side :require order issue. Was implemented in hf.ui via
+  ;; extend-type for architectural reasons. It’s not problematic to implement it
+  ;; here anymore since we want to run context on the client side only.
+  hf/UI
+  (display-mode [ctx]
+    (:hyperfiddle.ui/display-mode ctx))
+  (display-mode? [ctx k]
+    (= k (unqualify (hf/display-mode ctx)))))
 
 (defmethod hf/subject Context [ctx] (hyperfiddle.runtime/get-user-id (:runtime ctx)))
 (defmethod hf/db-record Context [ctx] (hf/database (hf/domain (:runtime ctx)) (hf/dbname ctx)))

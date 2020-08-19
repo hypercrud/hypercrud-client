@@ -637,10 +637,3 @@ nil. call site must wrap with a Reagent component"          ; is this just hyper
 
 (defn ^:export img [val ctx & [props]]
   [:img (merge props {:src val})])
-
-(extend-type context/Context
-  hf/UI
-  (display-mode [ctx]
-    (:hyperfiddle.ui/display-mode ctx))
-  (display-mode? [ctx k]
-    (= k (unqualify (hf/display-mode ctx)))))

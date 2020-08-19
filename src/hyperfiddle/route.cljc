@@ -30,10 +30,7 @@
 (s/def ::where vector?)                                     ; todo (s/+ :contrib.datomic.client.query/clause)
 (s/def ::fragment string?)
 
-(s/def :hyperfiddle/route
-  (s/keys
-    :req [::fiddle]
-    :opt [::datomic-args ::where ::fragment]))
+(s/def :hyperfiddle/route (s/cat :f qualified-symbol?, :args (s/* any?)))
 
 (defn validate-route+ [route]
   (either/right
@@ -41,9 +38,6 @@
      [route nil]
      [route (ex-info (str "Invalid route\n" (s/explain-str :hyperfiddle/route route))
                      (s/explain-data :hyperfiddle/route route))])))
-
-(defn equal-without-frag? [a b]
-  (= (dissoc a ::fragment) (dissoc b ::fragment)))
 
 (defn decoding-error [e s]
   {::fiddle :hyperfiddle.system/decoding-error
@@ -71,68 +65,65 @@
    (comp reader/read-edn-string! base-64-url-safe/decode)])
 
 (defn url-encode [route home-route]
-  {:pre [#_(s/valid? :hyperfiddle/route route) (s/valid? :hyperfiddle/route home-route)]}
-  (let [{:keys [::fiddle ::datomic-args ::fragment]} route]
-    (if (equal-without-frag? route home-route)
-      (str "/" (some->> fragment empty->nil (str "#")))
-      (case fiddle
-        :hyperfiddle.system/decoding-error (first datomic-args)
-        (str "/"
-             (ednish/encode-uri fiddle)
-             "/"
-             (string/join "/" (map ednish/encode-uri datomic-args))
-             (some->> (dissoc route ::fiddle ::datomic-args ::fragment)
-                      seq
-                      (map (fn [[k v]]
-                             (let [[sk encoder decoder] (or (get uri-query-encoders k) (default-query-encoder k))]
-                               (str sk "=" (encoder v)))))
-                      (string/join "&")
-                      (str "?"))
-             (if (empty->nil fragment) (str "#" (-> fragment encode-ednish encode-rfc3986-pchar))))))))
+  {:pre [(s/valid? :hyperfiddle/route route) (s/valid? :hyperfiddle/route home-route)]}
+  (let [[f & args] route]
+    (if (= route home-route)
+      "/"
+      (str "/"
+           (ednish/encode-uri f)
+           (some->> args
+                    (map-indexed (fn [i arg]
+                                   (let [[_sk encoder _decoder] (or (get uri-query-encoders i) (default-query-encoder i))]
+                                     (str i "=" (encoder arg)))))
+                    (string/join "&")
+                    (str "?"))))))
 
 
-(def url-regex #"^/([^/?#]*)(?:/([^?#]*))?(?:\?([^#]*))?(?:#(.*))?$")
-;                 /|_______|   /|______|      ?|_____|     #|__|
-;                      |           |              |          |
-;       url        path[0]      path[1 ...]    query        fragment
-;       hf-route   fiddle       datomic-args   varies       fragment
+(def url-regex #"^/([^/?#]*)/?(?:\?([^#]*))?(?:#(.*))?$")
+;                 /|_______|/     ?|_____|     #|__|
+;                      |              |           |
+;       url        path[0]          query      fragment
+;       hf-route   fiddle           varies     fragment
+
+(defn positional
+  "Transform a map into a list. Expect keys to be 0,1,2,3… and contiguous.
+  eg. {0 :foo, 1 :bar} => [:foo :bar]"
+  [amap]
+  (->> (range (inc (count amap)))
+       (reduce (fn [acc idx]
+                 (if (contains? amap idx)
+                   (conj acc (get amap idx))
+                   (reduced acc)))
+               [])
+       (seq)))
 
 (defn url-decode [s home-route]
-  {:pre [(string? s) #_(s/valid? :hyperfiddle/route home-route)]
+  {:pre  [(string? s) #_(s/valid? :hyperfiddle/route home-route)]
    :post [#_(s/valid? :hyperfiddle/route %)]}
   (-> (try-either
-        (if-let [[_ s-fiddle s-datomic-args s-query s-fragment] (re-find url-regex s)]
+       (if-let [[_ s-fiddle s-query s-fragment] (re-find url-regex s)]
           ; is-home "/" true
           ; is-home "/?..." true
           ; is-home "/#..." true
           ; is-home "//" false
           ; is-home "//..." false
-          (let [is-home (and (empty? s-fiddle) (nil? s-datomic-args))]
-            (-> (->> (some-> s-query (string/split #"&|;"))
-                     (map (fn [s] (string/split s #"=" 2)))
-                     (reduce (fn [acc [sk sv]]
-                               (let [[k encoder decoder] (or (get uri-query-decoders sk) (default-query-decoder sk))]
-                                 (assoc acc k (decoder (or sv "")))))
-                             (if is-home
-                               ; conj the url's query params onto the home-route's
-                               (select-keys home-route (keys uri-query-encoders))
-                               {})))
-                (assoc ::fiddle (if is-home (::fiddle home-route) (ednish/decode-uri s-fiddle))
-                       ::datomic-args (if is-home
-                                        (::datomic-args home-route)
-                                        (some-> (->> (str/split s-datomic-args "/") ; careful: (str/split "" "/") => [""]
-                                                     (remove str/empty-or-nil?)
-                                                     (map ednish/decode-uri)
-                                                     seq)
-                                                vec))
-                       ::fragment (or (-> s-fragment decode-rfc3986-pchar decode-ednish empty->nil)
-                                      (when is-home (::fragment home-route))))
-                contrib.data/dissoc-nils))
-          (decoding-error (ex-info "Invalid url" {}) s)))
-      (>>= validate-route+)
+         (let [is-home (empty? s-fiddle)
+               f       (some-> (ednish/decode-uri s-fiddle) symbol) ;; FIXME it should already be a sym
+               args    (->> (some-> s-query (string/split #"&|;"))
+                            (map (fn [s] (string/split s #"=" 2)))
+                            (reduce (fn [acc [sk sv]]
+                                      (let [[k _encoder decoder] (or (get uri-query-decoders sk) (default-query-decoder sk))]
+                                        (assoc acc k (decoder (or sv "")))))
+                                    {})
+                            (positional))]
+           (cond-> args
+             is-home       (concat home-route) ;; pass potential extra args
+             (not is-home) (->> (cons f))
+             s-fragment    (with-meta {::fragment s-fragment})))
+         (decoding-error (ex-info "Invalid url" {}) s)))
       (either/branch
-       (fn [[_ e]] (decoding-error e s))
-        first)))
+       (fn [e] (decoding-error e s))
+       identity)))
 
 (defn invert-datomic-arg [v invert-id]
   (if (instance? ThinEntity v)
@@ -140,12 +131,10 @@
     v))
 
 (defn invert-datomic-args [invert-id datomic-args]
-  (mapv #(invert-datomic-arg % invert-id) datomic-args))
+  (map #(invert-datomic-arg % invert-id) datomic-args))
 
-(defn invert-route [route invert-id]
-  (if (contains? route ::datomic-args)
-    (update route ::datomic-args (partial invert-datomic-args invert-id))
-    route))
+(defn invert-route [[f & args] invert-id]
+  (cons f (invert-datomic-args invert-id args)))
 
 (defn legacy-route-adapter [route]
   (cond
