@@ -4,7 +4,6 @@
     [datomic.api]                                           ; Must be provided by app at runtime
     [datascript.parser :as parser]
     [hyperfiddle.api :as hf]
-    [hyperfiddle.query]                                     ; query helpers
     [taoensso.timbre :as timbre])
   (:import
     (datascript.parser FindColl FindRel)

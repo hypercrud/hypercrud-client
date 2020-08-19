@@ -98,7 +98,6 @@
 
 (comment
   (perf/track-ns 'contrib.datomic)
-  (perf/track-ns 'hypercrud.browser.q-util)
   (perf/track-ns 'hypercrud.browser.base)
   (perf/track-ns 'hypercrud.browser.context)
   (perf/track-ns 'hyperfiddle.data)

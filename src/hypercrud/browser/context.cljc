@@ -13,7 +13,6 @@
     [contrib.string :refer [blank->nil]]
     [contrib.try$ :refer [try-either]]
     [datascript.parser #?@(:cljs [:refer [FindRel FindColl FindTuple FindScalar Variable Aggregate Pull]])]
-    [hypercrud.browser.q-util]
     [hypercrud.types.DbName :refer [#?(:cljs DbName)]]
     [hypercrud.types.ThinEntity :refer [->ThinEntity #?(:cljs ThinEntity)]]
     [hyperfiddle.api :as hf]
