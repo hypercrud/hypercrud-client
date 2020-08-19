@@ -652,10 +652,11 @@ a speculative db/id."
 
 (defn validate-result [?spec value keyfn]
   {:pre [keyfn]}
-  (when (and ?spec (not (fdef? ?spec))) ; just make this easy, specs are always sparse
-    (when-let [explain (s/explain-data ?spec value)]
-      (let [problems (::s/problems (result-explained-for-view keyfn explain))]
-        (form-validation-hints problems)))))
+  (let [?spec (if (fdef? ?spec) (:ret ?spec) ?spec)]
+    (when ?spec ; just make this easy, specs are always sparse
+      (when-let [explain (s/explain-data ?spec value)]
+        (let [problems (::s/problems (result-explained-for-view keyfn explain))]
+          (form-validation-hints problems))))))
 
 (defn validation-hints-enclosure! [ctx]
   (validate-result
