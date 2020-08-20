@@ -613,17 +613,21 @@ a speculative db/id."
 
   Todo: Perhaps we should return the problem itself so the user can match on it to decide the invalid message?
   Todo: what to do in diamond case - tax return is invalid, you need etiher a ssn or a visa, which field has the problem?"
-  [{:keys [in val pred via] :as problem}]
+  [{:keys [in val pred via path reason] :as problem}]
   (let [pred (s/abbrev pred)]                               ; also flattens the 'contains? pred
     (#?(:clj match :cljs match*)
-      pred
+     [in pred]
 
-      ; Spec reports missing keys at the parent :in, path it at the child instead
-      (['contains? '% k] :seq)                           ; Detect specific case of missing a key
-      [(conj in k) (@validation-messages k)]                ; use the child path to lookup the invalid (missing) message
+     ;; Spec reports missing keys at the parent :in, path it at the child instead
+     [_ (['contains? '% k] :seq)]                           ; Detect specific case of missing a key
+     [(conj in k) (@validation-messages k)]                ; use the child path to lookup the invalid (missing) message
 
-      _
-      [in (@validation-messages (last via))])))
+     [[] _] ;; in is empty
+     [path (or (@validation-messages (first path))
+               reason)]
+
+     [_ _]
+     [in (@validation-messages (last via))])))
 
 (defonce ^:private validation-messages (atom {}))           ; Should probably be a value in view props, not a registry
 
@@ -650,16 +654,20 @@ a speculative db/id."
   {:pre [keyfn]}
   (let [?spec (if (spec/fdef? ?spec) (:ret ?spec) ?spec)]
     (when ?spec ; just make this easy, specs are always sparse
-      (when-let [explain (s/explain-data ?spec value)]
+      (when-let [explain (s/explain-data ?spec value) ]
         (let [problems (::s/problems (result-explained-for-view keyfn explain))]
           (form-validation-hints problems))))))
 
-(defn validation-hints-enclosure! [ctx]
-  (validate-result
-    (s/get-spec @(r/fmap-> (:hypercrud.browser/fiddle ctx) :fiddle/ident))
-    @(:hypercrud.browser/result ctx)
-    ; i dont think fallback v
-    (partial row-key ctx)))
+(defn validation-hints-enclosure!
+  ([ctx]
+   (validation-hints-enclosure! nil ctx))
+  ([spec ctx] ;; allow spec override, esp. for :args
+   (let [spec (or spec (s/get-spec @(r/fmap-> (:hypercrud.browser/fiddle ctx) :fiddle/ident)))]
+     (validate-result
+      spec
+      @(:hypercrud.browser/result ctx)
+      ;; i dont think fallback v
+      (partial row-key ctx)))))
 
 (defn result [ctx r-result]                                 ; r-result must not be loading
   {:pre [r-result
@@ -690,17 +698,22 @@ a speculative db/id."
 
 (defn derive-for-args-rendering
   "Build a new context with route defaults as result so they can be rendered as a form."
-  [{:keys [:hypercrud.browser/route-defaults] :as ctx}]
-  (-> ctx
-      (assoc ;; Remove :hyperfiddle.route/fiddle from route defaults
-       :hypercrud.browser/result (r/fmap to-map route-defaults) ; use spec to draw search params
-       ;; We want to render as a form, so qfind is FindScalar
-       :hypercrud.browser/qfind (r/pure (fiddle/shape 'FindScalar)))
-      (dissoc :hypercrud.browser/route-defaults) ; avoid potential recursion
-      (as-> ctx
-          (assoc ctx :hypercrud.browser/result-enclosure (r/track result-enclosure! ctx)
-                 :hypercrud.browser/validation-hints (r/track validation-hints-enclosure! ctx)))
-      (index-result)))
+  [{:keys [:hypercrud.browser/route :hypercrud.browser/route-defaults] :as ctx}]
+  (let [args-spec (some-> ctx :hypercrud.browser/fiddle deref :fiddle/ident s/get-spec :args)]
+    (-> ctx
+        (dissoc :hypercrud.browser/route-defaults) ; avoid potential recursion
+        (assoc
+         ;; We want to render as a form, so qfind is FindScalar
+         :hypercrud.browser/qfind (r/pure (fiddle/shape 'FindScalar))
+         ;; But we want to validate against s/cat, so we set the default route as sexp […]
+         :hypercrud.browser/result (r/fmap rest route)) ; drop ƒ
+        (as-> ctx
+            ;; validate against default route
+          (assoc ctx :hypercrud.browser/validation-hints (r/track (partial validation-hints-enclosure! args-spec) ctx))
+          ;; set result back as a map of {field name => field value}
+          (assoc ctx :hypercrud.browser/result (r/fmap to-map route-defaults))
+          (assoc ctx :hypercrud.browser/result-enclosure (r/track result-enclosure! ctx)))
+        (index-result))))
 
 (defn stable-element-schema! [rt pid element]
   (let [{{db :symbol} :source} element]

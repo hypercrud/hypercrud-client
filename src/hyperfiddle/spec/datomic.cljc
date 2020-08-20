@@ -99,7 +99,8 @@
                          :hyperfiddle.spec/keys      :db.type/ref
                          :hyperfiddle.spec/predicate (type-of predicate)
                          (:hyperfiddle.spec/coll
-                          :hyperfiddle.spec/?)       (:db/valueType (from-spec (first children)))
+                          :hyperfiddle.spec/?
+                          :hyperfiddle.spec/nilable) (:db/valueType (from-spec (first children)))
                          :hyperfiddle.spec/and       (type-of (most-meaningful children)))
        :db/cardinality (if (= :hyperfiddle.spec/coll type) :db.cardinality/many :db.cardinality/one)})))
 
