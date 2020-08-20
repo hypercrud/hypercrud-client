@@ -68,6 +68,11 @@
       (:args fspec)
       (throw (ex-info "This spec is not a function spec, cannot extract argument spec from it." {:fspec fspec})))))
 
+(defn args [ctx]
+  (when-let [spec (spec ctx)]
+    (and (fdef? spec)
+         (:args spec))))
+
 (defn best-match-for
   [arities args]
   (let [arity (count args)]

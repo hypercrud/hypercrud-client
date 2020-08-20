@@ -555,11 +555,6 @@ User renderers should not be exposed to the reaction."
        (mapcat identity)                                    ; Don't flatten the hiccup
        doall))
 
-(defn- args [ctx]
-  (when-let [spec (spec/spec ctx)]
-    (and (spec/fdef? spec)
-         (:args spec))))
-
 (defn render-args [ctx & [props]]
   (let [ctx (context/derive-for-args-rendering ctx)]
     [:div {:class "hyperfiddle search-defaults"
@@ -572,7 +567,7 @@ nil. call site must wrap with a Reagent component"          ; is this just hyper
   {:pre [(not= val clojure.core/val)]}                      ; check for busted call while we migrate away from this param
   [:<>
    (when (and (some? (:hypercrud.browser/route-defaults ctx))
-              (some? (args ctx)))
+              (some? (spec/args ctx)))
      [render-args ctx props])
    (doall
      (for [[k ctx] (hypercrud.browser.context/spread-result ctx)]
