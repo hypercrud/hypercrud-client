@@ -48,7 +48,7 @@
 (defprotocol SchemaIndexedNormalized
   ; Implement this interface in both peer and Hypercrud client
   (-repr-portable-hack [this])
-  (attr [this a]))
+  (attr [this a] [this a f]))
 
 (def ^:private xf-attr-in-set
   "A specific operation user in `attr?`, designed for performance."
@@ -56,16 +56,19 @@
          (let [v (val kv)] ;; avoid destructuring, nth was too slow
            (if (boolean? v) (key kv) v)))))
 
-(defn attr? [this a corcs]
-  (let [haystack (into #{} xf-attr-in-set (attr this a))            ; component
-        needles (contrib.data/xorxs corcs #{})]
-    ; haystack must have all the needles
-    (clojure.set/superset? haystack needles)))
+(defn attr?
+  ([this a corcs]
+   (attr? this a nil corcs))
+  ([this a f corcs]
+   (let [haystack (into #{} xf-attr-in-set (attr this a f)) ; component
+         needles  (contrib.data/xorxs corcs #{})]
+     ;; haystack must have all the needles
+     (clojure.set/superset? haystack needles))))
 
-(defn cardinality [this a]
+(defn cardinality [this a & [f]]
   ; TODO needs to respect qfind types
   ; If datomic schema is added out of band, don't need specs here
-  (get (attr this a) :db/cardinality)
+  (get (attr this a f) :db/cardinality)
   #_(or (get (attr this a) :db/cardinality)
       (let [spec (s/form a)]
         (if (seq? spec)
@@ -107,16 +110,26 @@
            :db/valueType :db.type/long
            #_#_:db/unique :db.unique/identity})
 
-(defn- attr-spec [a]
-  (some-> (s/get-spec a)
-          (spec/parse)
-          (spec-datomic/from-spec)))
+(defn- attr-spec
+  ([a]
+   (some-> (s/get-spec a)
+           (spec/parse)
+           (spec-datomic/from-spec)))
+  ([a f]
+   (or (attr-spec a)
+       (some->> (s/get-spec f)
+                (spec/parse)
+                (spec/args-spec)
+                (:children)
+                (filter (comp #{a} :name))
+                (first)
+                (spec-datomic/from-spec)))))
 
-(defn- attr* [this a]
-  (when (and a (qualified-keyword? a))
+(defn- attr* [this a f]
+  (when (and a (keyword? a))
     (let [is-reverse-nav (-> (name a) (subs 0 1) (= "_"))]
       (cond
-        (= a :db/id) dbid
+        (= a :db/id)   dbid
         is-reverse-nav (make-reverse-attr this a)
         :else
         (if-let [attr (a (.-schema-by-attr #?(:clj this, :cljs ^js this)))]
@@ -125,13 +138,15 @@
               (contrib.data/update-existing :db/cardinality smart-lookup-ref-no-tempids)
               (contrib.data/update-existing :db/isComponent smart-lookup-ref-no-tempids)
               (contrib.data/update-existing :db/unique smart-lookup-ref-no-tempids))
-          (attr-spec a))))))
+          (attr-spec a f))))))
 
 (deftype Schema [schema-by-attr hash]
   SchemaIndexedNormalized
   (-repr-portable-hack [this] (str "#schema " (pr-str (.-schema-by-attr this))))
   (attr [this a]
-    (attr* this a))
+    (attr* this a nil))
+  (attr [this a f]
+    (attr* this a f))
 
   #?@(:clj
       [Object (equals [o other] (and (instance? Schema other) (= (.-schema-by-attr o) (.-schema-by-attr other))))
@@ -178,7 +193,9 @@
 (extend-protocol SchemaIndexedNormalized
   nil
   (-repr-portable-hack [this] (str "#schema " (pr-str nil)))
-  (attr [this a] nil))
+  (attr
+    ([this a] nil)
+    ([this a f] nil)))
 
 #?(:clj (defmethod print-method Schema [o ^java.io.Writer w] (.write w (-repr-portable-hack o))))
 #?(:clj (defmethod print-dup Schema [o w] (print-method o w)))

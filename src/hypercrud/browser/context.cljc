@@ -298,29 +298,30 @@ a speculative db/id."
    {:pre [(> (pull-depth ctx) 0)]}
    (assert (not (:hypercrud.browser/head-sentinel ctx)) "this whole flag is trouble, not sure if this assert is strictly necessary")
    (assert (boolean (hf/attr ctx a)) (str "attribute " a " not in :hypercrud.browser/schema"))
-   (case (contrib.datomic/cardinality @(:hypercrud.browser/schema ctx) a)
+   (let [{:keys [:hypercrud.browser/schema :hypercrud.browser/fiddle]} ctx]
+     (case (contrib.datomic/cardinality @schema a (:fiddle/ident @fiddle))
 
-     ; For absense of schema provider, we can inspect result here
-     :db.cardinality/one
-     ctx
+       ; For absense of schema provider, we can inspect result here
+       :db.cardinality/one
+       ctx
 
-     :db.cardinality/many
-     ; Group again by keyfn, we have seq and need lookup
-     ; Deep update result in-place, at result-path, to index it. Don't clobber it!
-     ; hang onto the set as we index for a future rowkey
-     (let [set-ungrouped (r/cursor (:hypercrud.browser/result-index ctx) (:hypercrud.browser/result-path ctx))]
-       (assoc ctx :hypercrud.browser/result set-ungrouped   ; replace with refined new tree
-                  :hypercrud.browser/result-index
-                  (r/fmap-> (:hypercrud.browser/result-index ctx)
-                            (update-in (:hypercrud.browser/result-path ctx)
-                                       (cond
-                                         (contrib.datomic/ref? @(:hypercrud.browser/schema ctx) a)
-                                         (r/partial contrib.data/group-by-unique (r/partial entity-key-v ctx))
+       :db.cardinality/many
+       ; Group again by keyfn, we have seq and need lookup
+       ; Deep update result in-place, at result-path, to index it. Don't clobber it!
+       ; hang onto the set as we index for a future rowkey
+       (let [set-ungrouped (r/cursor (:hypercrud.browser/result-index ctx) (:hypercrud.browser/result-path ctx))]
+         (assoc ctx :hypercrud.browser/result set-ungrouped   ; replace with refined new tree
+                :hypercrud.browser/result-index
+                (r/fmap-> (:hypercrud.browser/result-index ctx)
+                          (update-in (:hypercrud.browser/result-path ctx)
+                                     (cond
+                                       (contrib.datomic/ref? @(:hypercrud.browser/schema ctx) a)
+                                       (r/partial contrib.data/group-by-unique (r/partial entity-key-v ctx))
 
-                                         :scalar
-                                         ; Sets are an index that evaluate to the key.
-                                         set)))))
-     nil (throw (ex-info "Invalid Schema Cardinality" {:schema (contrib.datomic/cardinality @(:hypercrud.browser/schema ctx) a) :attribute a})))))
+                                       :scalar
+                                       ; Sets are an index that evaluate to the key.
+                                       set)))))
+       nil (throw (ex-info "Invalid Schema Cardinality" {:schema (contrib.datomic/cardinality @(:hypercrud.browser/schema ctx) a) :attribute a}))))))
 
 
 (defn data "Works in any context and infers the right stuff"
@@ -417,13 +418,15 @@ a speculative db/id."
   ([ctx]
    (attr ctx (a ctx)))
   ([ctx a]                                                  ; explicit arity useful for inspecting children
-   (some-> (:hypercrud.browser/schema ctx) deref (contrib.datomic/attr a))))
+   (let [f (:fiddle/ident @(:hypercrud.browser/fiddle ctx))]
+     (some-> (:hypercrud.browser/schema ctx) deref (contrib.datomic/attr a f)))))
 
 (defn attr?
   ([ctx corcs]
    (attr? ctx (a ctx) corcs))
   ([ctx a corcs]
-   (some-> (:hypercrud.browser/schema ctx) deref (contrib.datomic/attr? a corcs))))
+   (let [f (:fiddle/ident @(:hypercrud.browser/fiddle ctx))]
+     (some-> (:hypercrud.browser/schema ctx) deref (contrib.datomic/attr? a f corcs)))))
 
 (defn element [ctx]
   (some-> ctx -infer-implicit-element :hypercrud.browser/element deref))
@@ -643,16 +646,9 @@ a speculative db/id."
   ; Don't collect here, they get filtered down later
   (map form-cell-problem problems))
 
-(defn- fdef? [?spec]
-  (and #?(:clj  (instance? clojure.lang.ILookup ?spec)
-          :cljs (satisfies? cljs.core.ILookup ?spec))
-       (contains? ?spec :args)
-       (contains? ?spec :ret)
-       (contains? ?spec :fn)))
-
 (defn validate-result [?spec value keyfn]
   {:pre [keyfn]}
-  (let [?spec (if (fdef? ?spec) (:ret ?spec) ?spec)]
+  (let [?spec (if (spec/fdef? ?spec) (:ret ?spec) ?spec)]
     (when ?spec ; just make this easy, specs are always sparse
       (when-let [explain (s/explain-data ?spec value)]
         (let [problems (::s/problems (result-explained-for-view keyfn explain))]
@@ -692,7 +688,7 @@ a speculative db/id."
             ;; TODO drop s/alt support?
             ::spec/alt (zipmap (spec/best-match-for names args) args)))))))
 
-(defn derive-for-search-defaults
+(defn derive-for-args-rendering
   "Build a new context with route defaults as result so they can be rendered as a form."
   [{:keys [:hypercrud.browser/route-defaults] :as ctx}]
   (-> ctx
@@ -804,7 +800,7 @@ a speculative db/id."
           (index-result ctx a')))
       ; V is for formulas, E is for security and on-change. V becomes E. E is nil if we don't know identity.
       (assoc ctx :hypercrud.browser/eav                     ; insufficent stability on r-?v? fixme
-                 (case (contrib.datomic/cardinality @(:hypercrud.browser/schema ctx) a') ; have result data to infer cardinality in absense of schema
+             (case (contrib.datomic/cardinality @(:hypercrud.browser/schema ctx) a' (:fiddle/ident @(:hypercrud.browser/fiddle ctx))) ; have result data to infer cardinality in absense of schema
                    :db.cardinality/many (r/fmap-> (:hypercrud.browser/eav ctx) (stable-eav-a a')) ; dont have v yet
                    :db.cardinality/one (r/fmap-> (:hypercrud.browser/eav ctx) (stable-eav-av a' (v! ctx)))
                    ; Gracefully fail but still render.
