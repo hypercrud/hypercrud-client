@@ -454,7 +454,7 @@ User renderers should not be exposed to the reaction."
                                    (comp path #(get % idx) vec)))))
     (= v form) identity))
 
-(defn route-input
+(defn ^:deprecated route-input
   "Example:
       [route-input ctx {:as :foo :valmap name :on-change (fn [ov nv] (keyword nv))}]"
   [{:keys [:hypercrud.browser/route] :as ctx} & [{:keys [as valmap on-change]
