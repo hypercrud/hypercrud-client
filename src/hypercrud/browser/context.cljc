@@ -696,20 +696,20 @@ a speculative db/id."
 
 (defn derive-for-args-rendering
   "Build a new context with route defaults as result so they can be rendered as a form."
-  [{:keys [:hypercrud.browser/route :hypercrud.browser/route-defaults] :as ctx}]
+  [{:keys [:hypercrud.browser/route :hypercrud.browser/route-defaults-hydrated] :as ctx}]
   (let [args-spec (some-> ctx :hypercrud.browser/fiddle deref :fiddle/ident s/get-spec :args)]
     (-> ctx
-        (dissoc :hypercrud.browser/route-defaults) ; avoid potential recursion
+        (dissoc :hypercrud.browser/route-defaults-hydrated) ; avoid potential recursion
         (assoc
-         ;; We want to render as a form, so qfind is FindScalar
-         :hypercrud.browser/qfind (r/pure (fiddle/shape 'FindScalar))
-         ;; But we want to validate against s/cat, so we set the default route as sexp […]
-         :hypercrud.browser/result (r/fmap rest route)) ; drop ƒ
+          ;; We want to render as a form, so qfind is FindScalar
+          :hypercrud.browser/qfind (r/pure (fiddle/shape 'FindScalar))
+          ;; But we want to validate against s/cat, so we set the default route as sexp […]
+          :hypercrud.browser/result (r/fmap rest route-defaults-hydrated)) ; drop ƒ
         (as-> ctx
             ;; validate against default route
           (assoc ctx :hypercrud.browser/validation-hints (r/track (partial validation-hints-enclosure! args-spec) ctx))
           ;; set result back as a map of {field name => field value}
-          (assoc ctx :hypercrud.browser/result (r/fmap to-map route-defaults))
+          (assoc ctx :hypercrud.browser/result (r/fmap to-map route-defaults-hydrated))
           (assoc ctx :hypercrud.browser/result-enclosure (r/track result-enclosure! ctx)))
         (index-result))))
 

@@ -38,7 +38,8 @@
   "Extract a fiddle response into [route-defaults result]"
   [r-response]
   [(from-result (r/fmap first r-response)) ; completed route
-   (from-result (r/fmap second r-response))])
+   (from-result (r/fmap second r-response))
+   (from-result (r/fmap last r-response))])
 
 
 ; internal bs abstraction to support hydrate-result-as-fiddle
@@ -58,10 +59,10 @@
           ;_ (timbre/debug "request" @r-request)
           r-response (from-result @(r/apply-inner-r (r/fmap->> r-request (nil-or-hydrate+ rt pid))))
           ;_ (timbre/debug "result" @r-fiddle :-> @r-result)
-          [r-route-defaults r-result] (explode-result r-response)]
+          [r-route-defaults r-route-defaults-hydrated r-result] (explode-result r-response)]
 
       ;; FIXME this is a hack, a new runtime impl is needed
-      #?(:clj (state/dispatch! rt [:partition-route-defaults pid @r-route-defaults]))
+      #?(:clj (state/dispatch! rt [:partition-route-defaults pid @r-route-defaults-hydrated]))
 
       ; fiddle request can be nil for no-arg pulls (just draw readonly form)
       (context/result
@@ -71,7 +72,8 @@
               ; because it is not, this is obviously fragile and will break on any change to the route
               ; this is acceptable today (Jun-2019) because changing a route in ANY way assumes the entire iframe will be re-rendered
               (assoc :hypercrud.browser/route (r/pure (vec route))) ; vec for direct positional access
-              (assoc :hypercrud.browser/route-defaults r-route-defaults)
+              (assoc :hypercrud.browser/route-defaults-hydrated r-route-defaults-hydrated)
+              (assoc :hypercrud.browser/route-defaults-symbolic r-route-defaults)
               (context/fiddle+ r-fiddle)))
         r-result))))
 
