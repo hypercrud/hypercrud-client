@@ -52,11 +52,12 @@
 
 (defn search
   [ctx {:keys [::hf/needle-key ::hf/options] :as props}]
-  (let [ctx (context-of ctx options)]
+  (let [ctx (case options
+              ::hf/here ctx                                 ; sentinel value - hack
+              (context-of ctx options))]
     [debounced
      (merge
-      {:placeholder "Type here to search ..."
-       :value (get @(-> ctx :hypercrud.browser/route) needle-key "")
+      {:value (get @(-> ctx :hypercrud.browser/route) needle-key "")
        :on-change (fn [o n]
                     (try
                       (hf/swap-route! ctx utils/assoc-in-route [needle-key] n)
