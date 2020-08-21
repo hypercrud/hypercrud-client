@@ -8,7 +8,6 @@
     [contrib.do :refer :all]
     [hyperfiddle.service.cookie :as cookie]
     [hyperfiddle.service.jwt :as jwt]
-    [hypercrud.types.Err :refer [->Err]]
 
     [io.pedestal.http :as http]
     [io.pedestal.http.content-negotiation :as content-negotiation]
@@ -146,7 +145,7 @@
                               (response context
                                 {:status  (or (:hyperfiddle.io/http-status-code (ex-data e)) 500)
                                  :headers {} ; todo retry-after on 503
-                                 :body    (->Err (.getMessage e))})))))
+                                 :body    e})))))
             })))
 
 (defn with-user-id [cookie-name cookie-domain jwt-secret jwt-issuer]
@@ -176,17 +175,20 @@
                                              :cookies {cookie-name (-> (cookie/jwt-options-pedestal cookie-domain)
                                                                        (assoc :value jwt-cookie
                                                                               :expires "Thu, 01 Jan 1970 00:00:00 GMT"))}
-                                             :body (->Err (.getMessage e))}))))
+                                             :body (ex-info (ex-message e) {} e) ; don't leak cause and data
+                                             }))))
 
                 (nil? jwt-cookie)
                 (try (with-jwt jwt-header)
                      (catch JWTVerificationException e
                        (timbre/error e)
                        (-> (terminate context)
-                           (assoc :response {:status 401 :body (->Err (.getMessage e))}))))
+                           (assoc :response {:status 401
+                                             :body (ex-info (ex-message e) {}) ; don't leak cause and data
+                                             }))))
 
                 :else (-> (terminate context)
-                          (assoc :response {:status 400 :body (->Err "Conflicting cookies and auth bearer")})))))})
+                          (assoc :response {:status 400 :body (ex-info "Conflicting cookies and auth bearer" {})})))))})
 
 (def log-request
   (interceptor/on-request

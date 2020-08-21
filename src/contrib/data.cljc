@@ -368,3 +368,7 @@
    (let [[longest shortest] (if (> (count as) (count bs)) [as bs] [bs as])
          tail               (drop (count shortest) longest)]
      (concat (map pickf as bs) tail))))
+
+(defn ex-info? [o]
+  #?(:clj (instance? clojure.lang.IExceptionInfo o)
+     :cljs (instance? js/Error o)))

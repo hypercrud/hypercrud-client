@@ -13,7 +13,6 @@
             [hypercrud.types.DbRef :refer [->DbRef]]
             [hypercrud.types.ThinEntity :refer [->ThinEntity]]
             [hypercrud.types.EntityRequest :refer [->EntityRequest]]
-            [hypercrud.types.Err :refer [->Err]]
             [hypercrud.types.QueryRequest :refer [->QueryRequest ->EvalRequest]]
             [contrib.uri :refer [->URI]])
   (:import #?(:clj java.util.Date)))
@@ -68,12 +67,6 @@
                        #hypercrud.types.EntityRequest.EntityRequest{:e "foo" :db "fizz" :pull-exp "buzz"}
                        "#hypercrud.types.EntityRequest.EntityRequest{:e \"foo\" :db \"fizz\" :pull-exp \"buzz\"}"
                        "{\"~#EReq\":[\"foo\",\"fizz\",\"buzz\"]}"))
-
-     (deftest Err-test []
-       (test-all-forms (->Err "foo")
-                       #hypercrud.types.Err.Err{:msg "foo"}
-                       "#hypercrud.types.Err.Err{:msg \"foo\"}"
-                       "{\"~#err\":\"foo\"}"))
 
      (deftest QReq []
        (test-all-forms (->QueryRequest "foo" "bar" "baz")

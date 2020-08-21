@@ -2,8 +2,8 @@
   (:require
     [contrib.base-64-url-safe :as base-64-url-safe]
     [contrib.ednish :as ednish]
+    [contrib.data :as data]
     [cuerdas.core :as str]
-    [hypercrud.types.Err :as Err]
     [hyperfiddle.domain :as domain]
     [hyperfiddle.io.http-client.impl :as impl]
     [promesa.core :as p]
@@ -15,9 +15,9 @@
   (let [{:keys [body status] :as data} (ex-data err)
         response-body                  body]
     (cond
-      (Err/Err? response-body)     (throw (ex-info (:msg response-body)
-                                                   (assoc data :hyperfiddle.io/http-status-code status)
-                                                   (ex-cause err)))
+      (data/ex-info? response-body) (throw (ex-info (:msg response-body)
+                                                    (assoc data :hyperfiddle.io/http-status-code status)
+                                                    (ex-cause err)))
       (and (= 502 status)
            (not (ex-message err))) (throw (ex-info "Service Unavailable"
                                                    (assoc data :hyperfiddle.io/http-status-code 502)

@@ -49,8 +49,7 @@
   (do-result
 
     (when-let [e (runtime/get-error rt pid)]
-      #_(throw e)                                           ; hypercrud.types.Err is not Throwable
-      (throw (ex-info (pr-str e) {} (ex-cause e))))
+      (throw e))
 
     (let [; todo runtime should prevent invalid routes from being set
           route (from-result (route/invert-route route (partial runtime/tempid->id! rt pid)))

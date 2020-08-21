@@ -10,7 +10,6 @@
     [hypercrud.types.DbRef]
     [hypercrud.types.ThinEntity]
     [hypercrud.types.EntityRequest]
-    [hypercrud.types.Err]
     [hypercrud.types.QueryRequest]
     )
   #?(:clj
@@ -52,7 +51,6 @@
    'long hyperfiddle.readers/long-edn-reader
    'hypercrud.types.DbRef.DbRef hypercrud.types.DbRef/map->DbRef
    'hypercrud.types.EntityRequest.EntityRequest hypercrud.types.EntityRequest/map->EntityRequest
-   'hypercrud.types.Err.Err hypercrud.types.Err/map->Err
    'hypercrud.types.QueryRequest.QueryRequest hypercrud.types.QueryRequest/map->QueryRequest
    'hypercrud.types.QueryRequest.EvalRequest hypercrud.types.QueryRequest/map->EvalRequest
    })

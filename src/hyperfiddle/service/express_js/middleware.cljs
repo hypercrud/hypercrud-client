@@ -3,7 +3,6 @@
     [contrib.uuid :refer [read-uuid]]
     [goog.object :as object]
     [hypercrud.transit :as transit]
-    [hypercrud.types.Err :refer [->Err]]
     [hyperfiddle.domain :as domain :refer [Domain]]
     [hyperfiddle.service.cookie :as cookie]
     [hyperfiddle.service.domain :as service-domain]
@@ -78,7 +77,7 @@
           (doto res
             (.status 401)
             (.clearCookie cookie-name (clj->js (cookie/jwt-options-express cookie-domain)))
-            (.format #js {"application/transit+json" #(.send res (transit/encode (->Err (ex-message e))))
+            (.format #js {"application/transit+json" #(.send res (transit/encode e))
                           ; todo flesh out a real session expiration page
                           "text/html" #(.send res "Session expired, please refresh and login")})))))))
 

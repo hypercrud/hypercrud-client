@@ -6,19 +6,9 @@
     [contrib.reducers :as reducers]
     [contrib.pprint :refer [pprint-str]]
     [clojure.set :refer [superset? difference intersection]]
-    [hypercrud.types.Err :refer [->Err]]
     [hyperfiddle.api :as hf]
     [hyperfiddle.route]                                     ; spec validation
     [taoensso.timbre :as timbre]))
-
-
-(defn- serializable-error [e]
-  ; need errors to be serializable, so crapily pr-str
-  (let [?message (ex-message e)]
-    (cond
-      (string? e) e
-      ?message (assoc (->Err (str ?message)) :data (pprint-str (ex-data e)))
-      :else (pr-str e))))
 
 (defn global-basis-reducer [global-basis action & args]
   (case action
@@ -150,7 +140,7 @@
                          (fn [partition]
                            (-> partition
                              (dissoc :hydrate-id)
-                             (assoc :error (serializable-error error))))))
+                             (assoc :error error)))))
 
     :open-popover (let [[pid popover-id] args]
                     (assert (some? (get partitions pid)))

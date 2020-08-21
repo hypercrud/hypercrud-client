@@ -2,14 +2,14 @@
   (:require
     [contrib.pprint :refer [pprint-str]]
     [contrib.reactive :as r]
-    [hypercrud.types.Err :as Err]
+    [contrib.data :as data]
     [hyperfiddle.ui.staging :as staging]))
 
 
 (defn e->map [e]
   (cond
-    (Err/Err? e) {:message (:msg e)
-                  :data (:data e)}
+    (data/ex-info? e) {:message (ex-message e)
+                       :data    (ex-data e)}
     (map? e) e
     (string? e) {:message e}
     :else {:message (ex-message e)

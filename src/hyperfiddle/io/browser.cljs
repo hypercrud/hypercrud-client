@@ -1,7 +1,6 @@
 (ns hyperfiddle.io.browser
   (:require
     [goog.object :as object]
-    [hypercrud.types.Err :as Err]
     [hyperfiddle.api :as hf]
     [hyperfiddle.io.core :as io]
     [hyperfiddle.io.http-client :as http-client]
@@ -44,9 +43,8 @@
                    ; the runtime does not do anything on transact failures yet...
                    (let [message (cond
                                    (string? e) e
-                                   (Err/Err? e) (:msg e)
-                                   (map? e) (:message e)
-                                   :else (ex-message e))]
+                                   (map? e)    (:message e)
+                                   :else       (ex-message e))]
                      (if (= "Please refresh your browser" message)
                        (js/alert "We deployed some updates and your client is out of date, press OK and we will refresh your page")
                        (js/alert message)))
