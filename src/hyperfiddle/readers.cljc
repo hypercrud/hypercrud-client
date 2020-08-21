@@ -6,7 +6,6 @@
     [contrib.uri]
     #?(:cljs [contrib.uuid])
     #?(:cljs [goog.math])
-    [hypercrud.types.DbName]
     [hypercrud.types.DbRef]
     [hypercrud.types.ThinEntity]
     [hypercrud.types.EntityRequest]
@@ -43,7 +42,6 @@
    'uuid #?(:cljs contrib.uuid/read-uuid :clj clojure.tools.reader.default-data-readers/default-uuid-reader)
    ;'queue #?(:cljs cljs.reader/read-queue) ; queue not supported on JVM: https://dev.clojure.org/jira/browse/CLJ-976
    ;'js #?(:cljs cljs.tagged-literals/read-js) ; compiler, not reader ?
-   'dbname hypercrud.types.DbName/dbname-edn-reader
    'entity hypercrud.types.ThinEntity/entity-edn-reader
    'schema hyperfiddle.readers/schema-edn-reader
    'uri contrib.uri/uri-edn-reader

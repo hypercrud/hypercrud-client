@@ -13,7 +13,6 @@
     [contrib.string :refer [blank->nil]]
     [contrib.try$ :refer [try-either]]
     [datascript.parser #?@(:cljs [:refer [FindRel FindColl FindTuple FindScalar Variable Aggregate Pull]])]
-    [hypercrud.types.DbName :refer [#?(:cljs DbName)]]
     [hypercrud.types.ThinEntity :refer [->ThinEntity #?(:cljs ThinEntity)]]
     [hyperfiddle.api :as hf]
     [hyperfiddle.fiddle :as fiddle]
@@ -25,7 +24,6 @@
   #?(:clj
      (:import
        (datascript.parser FindRel FindColl FindTuple FindScalar Variable Aggregate Pull)
-       (hypercrud.types.DbName DbName)
        (hypercrud.types.ThinEntity ThinEntity))))
 
 
@@ -1071,7 +1069,6 @@ a speculative db/id."
         is-element-level (= (pull-depth ctx) 0)]
     (cond
       (instance? ThinEntity v) v                            ; legacy compat with IDE legacy #entity formulas
-      #_#_(instance? DbName v) v
 
       is-element-level                                      ; includes hf/new
       (do

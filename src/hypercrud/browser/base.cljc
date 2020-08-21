@@ -14,7 +14,6 @@
     [contrib.reader :as reader :refer [memoized-read-edn-string+]]
     [contrib.try$ :refer [try-either]]
     [hypercrud.browser.context :as context]
-    [hypercrud.types.DbName :refer [#?(:cljs DbName)]]
     [hypercrud.types.EntityRequest :refer [->EntityRequest]]
     [hypercrud.types.QueryRequest :refer [->QueryRequest ->EvalRequest]]
     [hypercrud.types.ThinEntity :refer [#?(:cljs ThinEntity)]]
@@ -28,7 +27,6 @@
     [hyperfiddle.def :as hf-def])
   #?(:clj
      (:import
-       (hypercrud.types.DbName DbName)
        (hypercrud.types.ThinEntity ThinEntity))))
 
 (declare eval-fiddle+)
@@ -242,9 +240,7 @@
                                appended-needle false]
                           (let [[query-arg next-route-args] (cond
                                                               (string/starts-with? hole "$")
-                                                              (if false #_(instance? DbName route-arg)
-                                                                [(runtime/db rt pid (:dbname route-arg)) next-route-args]
-                                                                [(runtime/db rt pid hole) (seq route-args)])
+                                                              [(runtime/db rt pid hole) (seq route-args)]
 
                                                               (instance? ThinEntity route-arg)
                                                               ; I think it already has the correct identity and tempid is already accounted
@@ -288,10 +284,8 @@
 
     :entity
     (let [args (::route/datomic-args route)                 ; Missing entity param is valid state now https://github.com/hyperfiddle/hyperfiddle/issues/268
-          [dbname ?e] (if false #_(instance? DbName (first args))
-                        [(:dbname (first args)) (second args)]
-                        [nil (first args)])]
-      (if-let [dbname (or dbname (:fiddle/pull-database fiddle))]
+          ?e (first args)]
+      (if-let [dbname (:fiddle/pull-database fiddle)]
         (let [db (runtime/db rt pid dbname)
               pull-exp (or (-> (cond (string? (:fiddle/pull fiddle)) (reader/memoized-read-string+ (:fiddle/pull fiddle))
                                      () (either/right (:fiddle/pull fiddle)))

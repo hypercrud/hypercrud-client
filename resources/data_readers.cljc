@@ -1,6 +1,5 @@
 {
  long hyperfiddle.readers/long-clj-reader
- dbname hypercrud.types.DbName/dbname-clj-reader
  entity hypercrud.types.ThinEntity/entity-clj-reader
  uri contrib.uri/uri-clj-reader
  ;env contrib.config/env-clj-reader ; no env reads in .clj files
