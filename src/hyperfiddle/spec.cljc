@@ -31,6 +31,13 @@
   [ctx]
   (:fiddle/spec @(:hypercrud.browser/fiddle ctx)))
 
+(defn fdef? [?spec]
+  (and #?(:clj  (instance? clojure.lang.ILookup ?spec)
+          :cljs (satisfies? cljs.core.ILookup ?spec))
+       (contains? ?spec :args)
+       (contains? ?spec :ret)
+       (contains? ?spec :fn)))
+
 (defn names [spec]
   (case (:type spec)
     ::keys (->> spec :children (map :name))
@@ -60,6 +67,11 @@
     (if (= ::fn (:type fspec))
       (:args fspec)
       (throw (ex-info "This spec is not a function spec, cannot extract argument spec from it." {:fspec fspec})))))
+
+(defn args [ctx]
+  (when-let [spec (spec ctx)]
+    (and (fdef? spec)
+         (:args spec))))
 
 (defn best-match-for
   [arities args]
