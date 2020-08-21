@@ -200,7 +200,7 @@
   "Get route, with default values. Rember default route values get overwritten by
   user-provided values"
   [ctx]
-  @(:hypercrud.browser/route-defaults ctx))
+  @(:hypercrud.browser/route-defaults-hydrated ctx))
 
 ;; multiple params can depend on each other so set defaults centrally per fiddle
 (defmulti defaults first)

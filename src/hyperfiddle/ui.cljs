@@ -566,7 +566,7 @@ nil. call site must wrap with a Reagent component"          ; is this just hyper
   [val ctx & [props]]
   {:pre [(not= val clojure.core/val)]}                      ; check for busted call while we migrate away from this param
   [:<>
-   (when (and (some? (:hypercrud.browser/route-defaults ctx))
+   (when (and (some? (:hypercrud.browser/route-defaults-hydrated ctx))
               (some? (spec/args ctx)))
      [render-args ctx props])
    (doall
@@ -615,7 +615,7 @@ nil. call site must wrap with a Reagent component"          ; is this just hyper
 (letfn [(render-edn [data]
           [contrib.ui/async-code {:value data :read-only true}])]
   (defn ^:export fiddle-api [_ {rt             :runtime
-                                route-defaults :hypercrud.browser/route-defaults
+                                route-defaults :hypercrud.browser/route-defaults-hydrated
                                 :as            ctx} & [props]]
     [:div.hyperfiddle.display-mode-api (select-keys props [:class])
      (render-edn (some-> (:hypercrud.browser/result ctx) deref))

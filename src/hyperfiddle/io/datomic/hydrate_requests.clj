@@ -90,7 +90,7 @@
             hf/*$*      (get-db get-secure-db-with pid "$")
             hf/*get-db* (partial get-db get-secure-db-with pid)]
     (let [defaults (hf/defaults route)]
-      [(hf/view-defaults defaults) (eval-as-fexpr! defaults)])))
+      [defaults (hf/view-defaults defaults) (eval-as-fexpr! defaults)])))
 
 ; todo i18n
 (def ERROR-BRANCH-PAST ":hyperfiddle.error/basis-stale Branching the past is currently unsupported, please refresh your basis by refreshing the page")
