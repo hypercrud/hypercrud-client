@@ -84,13 +84,14 @@
 (defn- get-db [getterf pid dbname]
   (:db (getterf dbname pid)))
 
-(defmethod hydrate-request* EvalRequest [{:keys [pid route]} _domain get-secure-db-with]
+(defmethod hydrate-request* EvalRequest [{:keys [pid route]} domain get-secure-db-with]
   {:pre [route]}
   (binding [hf/*route*  route
             hf/*$*      (get-db get-secure-db-with pid "$")
             hf/*get-db* (partial get-db get-secure-db-with pid)]
-    (let [defaults (hf/defaults route)]
-      [defaults (hf/view-defaults defaults) (eval-as-fexpr! defaults)])))
+    (with-bindings (hf/bindings domain)
+      (let [defaults (hf/defaults route)]
+        [defaults (hf/view-defaults defaults) (eval-as-fexpr! defaults)]))))
 
 ; todo i18n
 (def ERROR-BRANCH-PAST ":hyperfiddle.error/basis-stale Branching the past is currently unsupported, please refresh your basis by refreshing the page")
@@ -133,7 +134,8 @@
                                             tx (binding [hf/*subject* ?subject
                                                          hf/*$* db-with
                                                          hf/*domain* domain]
-                                                 (try-on (expand-hf-tx (hf/process-tx db-with domain dbname ?subject tx))))
+                                                 (with-bindings (hf/bindings domain)
+                                                   (try-on (expand-hf-tx (hf/process-tx db-with domain dbname ?subject tx)))))
                                             ;_ (assert schema "needed for d/with") ; not available for hydrate-schemas in request bootstrapping
                                             {:keys [db-after tempids]} (exception/try-on (hf/with db-with {:tx-data tx
                                                                                                           #_(if-not schema
