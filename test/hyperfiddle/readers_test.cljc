@@ -10,7 +10,6 @@
             #?(:cljs [goog.math])
             [hyperfiddle.readers]
             [hypercrud.transit :as transit]
-            [hypercrud.types.DbRef :refer [->DbRef]]
             [hypercrud.types.ThinEntity :refer [->ThinEntity]]
             [hypercrud.types.EntityRequest :refer [->EntityRequest]]
             [hypercrud.types.QueryRequest :refer [->QueryRequest ->EvalRequest]]
@@ -50,12 +49,6 @@
 
 #?(:clj
    (do
-     (deftest DbRef []
-       (test-all-forms (->DbRef "foo" "bar")
-                       #hypercrud.types.DbRef.DbRef{:dbname "foo" :branch "bar"}
-                       "#hypercrud.types.DbRef.DbRef{:dbname \"foo\" :branch \"bar\"}"
-                       "{\"~#DbRef\":[\"foo\",\"bar\"]}"))
-
      (deftest entity []
        (test-all-forms (->ThinEntity "foo" "bar")
                        #entity["foo" "bar"]

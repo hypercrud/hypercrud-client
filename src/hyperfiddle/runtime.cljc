@@ -7,7 +7,6 @@
     [contrib.datomic]
     [hyperfiddle.transaction :as tx]
     [contrib.reactive :as r]
-    [hypercrud.types.DbRef :refer [->DbRef]]
     [hyperfiddle.api :as hf]
     [hyperfiddle.domain :as domain]
     [hyperfiddle.io.core :as io]
@@ -127,7 +126,7 @@
   (cond
     #_#_(not (branched? rt pid)) (db rt (parent-pid rt pid) dbname)
     #_#_(domain/valid-dbname? (domain rt) dbname) (throw (ex-info "Invalid dbname" {:dbname dbname}))
-    :else (->DbRef dbname pid)))
+    :else [dbname pid]))
 
 (defn get-schemas
   "Returns a map[k,v]

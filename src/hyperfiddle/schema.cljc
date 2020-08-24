@@ -8,10 +8,7 @@
     [hyperfiddle.api :as hf]
     [hyperfiddle.io.core :as io]
     [hyperfiddle.runtime :as runtime]
-    [promesa.core :as p])
-  #?(:clj
-     (:import
-       (hypercrud.types.DbRef DbRef))))
+    [promesa.core :as p]))
 
 
 (defn hydrate-schemas [rt pid local-basis partitions]
@@ -40,8 +37,7 @@
   See https://github.com/hyperfiddle/hyperfiddle/issues/1003"
   [domain db-name $]
   (let [result ((hyperfiddle.io.datomic.core/qf (hf/databases domain)
-                                                [(let [branch nil] ; qf ignores branch
-                                                   (DbRef. db-name branch))])
+                                                [[db-name nil]])
                 {:query '[:find (pull ?attr [*
                                              {:db/valueType [:db/ident]
                                               :db/cardinality [:db/ident]

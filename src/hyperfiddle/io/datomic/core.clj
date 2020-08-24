@@ -1,9 +1,6 @@
 (ns hyperfiddle.io.datomic.core
-  (:require
-    [hypercrud.types.DbRef])
-  (:import
-    (hypercrud.types.DbRef DbRef)
-    (java.io FileNotFoundException)))
+  (:import (java.io FileNotFoundException))
+  (:require [clojure.spec.alpha :as s]))
 
 
 ; TODO Migrate these fns to hyperfiddle.api multimethods
@@ -44,11 +41,24 @@
     (and uri (not @peer-supported)) (throw (ex-info "Unable to resolve datomic peer library on classpath" {:database/uri uri}))
     (and db-name (not @client-supported)) (throw (ex-info "Unable to resolve datomic client library on classpath" {:database/db-name db-name}))))
 
+
+(defn ^:temporary dbref? [x]
+  (and (vector? x)
+       (= 2 (count x))
+       (let [[dbname branch] x]
+         (and (string? dbname)
+              (string? branch)))))
+
+;; Temporary, @see `qf 's docstring
+(s/def ::dbref (s/cat :dbname string? :branch (s/nilable string?)))
+(s/def ::parameter (s/or :dbref ::dbref
+                         :default any?))
+
 (defn qf
   "Resolve a datomic query function from a Datomic product line (adapted to a consistent interface)
   to query a :domain/database indicated as a hyperfiddle parameter. You can have both client and peer
   databases available, thus you have to look at the :domain/database config to know for sure which Datomic
   product line is needed. This interface is really confusing and needs work"
   [dbs params]
-  (let [{:keys [dbname branch]} (some #(when (instance? DbRef %) %) params)] ; TODO lift this sentinel type out?
+  (let [[dbname branch] (some #(when (s/valid? ::dbref %) %) params)]
     (qf2 (get dbs dbname))))

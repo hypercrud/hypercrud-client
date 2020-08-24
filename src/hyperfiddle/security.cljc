@@ -6,10 +6,7 @@
     [hyperfiddle.transaction :refer [remove-tx]]
     #?(:clj [contrib.pprint :refer [pprint-str pprint-datoms-str]])
     #?(:clj [taoensso.timbre :as timbre])
-    [hyperfiddle.api :as hf])
-  #?(:clj
-     (:import
-       (hypercrud.types.DbRef DbRef))))
+    [hyperfiddle.api :as hf]))
 
 
 (def root "hyperfiddle.security/root")                      ; todo uuid/real account
@@ -55,8 +52,7 @@
      ; TODO this is IO for non-local datomic configurations
      (let [whitelist (try
                        ((hyperfiddle.io.datomic.core/qf (hf/databases domain)
-                                                        [(let [branch nil] ; qf ignores branch
-                                                           (DbRef. db-name branch))])
+                                                        [[db-name nil]])
                         (attr-whitelist-query $))
                        (catch Exception e
                          ; datomic.impl.Exceptions$IllegalArgumentExceptionInfo:

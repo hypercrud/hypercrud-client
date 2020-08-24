@@ -7,7 +7,6 @@
     #?(:cljs [com.cognitect.transit.types])
     [contrib.datomic :refer [->Schema #?(:cljs Schema)]]
     [contrib.uri :refer [->URI #?(:cljs URI)]]
-    [hypercrud.types.DbRef :refer [->DbRef #?(:cljs DbRef)]]
     [hypercrud.types.EntityRequest :refer [->EntityRequest #?(:cljs EntityRequest)]]
     [hypercrud.types.QueryRequest :refer [->QueryRequest #?(:cljs QueryRequest)
                                           ->EvalRequest #?(:cljs EvalRequest)]]
@@ -19,7 +18,6 @@
        (cats.monad.exception Failure Success)
        (clojure.lang ExceptionInfo)
        (contrib.datomic Schema)
-       (hypercrud.types.DbRef DbRef)
        (hypercrud.types.EntityRequest EntityRequest)
        (hypercrud.types.QueryRequest QueryRequest EvalRequest)
        (hypercrud.types.ThinEntity ThinEntity)
@@ -29,7 +27,6 @@
 (def read-handlers
   (atom
     {"schema-v" (t/read-handler #(apply ->Schema %))
-     "DbRef" (t/read-handler #(apply ->DbRef %))
      "EReq" (t/read-handler #(apply ->EntityRequest %))
      "EvalReq" (t/read-handler #(apply ->EvalRequest %))
      "QReq" (t/read-handler #(apply ->QueryRequest %))
@@ -51,7 +48,6 @@
 (def write-handlers
   (atom
     {Schema (t/write-handler (constantly "schema-v") (fn [^Schema v] (vector (.-schema-by-attr v))))
-     DbRef (t/write-handler (constantly "DbRef") (fn [v] [(:dbname v) (:branch v)]))
      EntityRequest (t/write-handler (constantly "EReq") (fn [v] [(:e v) (:db v) (:pull-exp v)]))
      QueryRequest (t/write-handler (constantly "QReq") (fn [v] [(:query v) (:params v) (:opts v)]))
      EvalRequest (t/write-handler (constantly "EvalReq") (fn [v] [(:form v) (:pid v) (:route v)]))

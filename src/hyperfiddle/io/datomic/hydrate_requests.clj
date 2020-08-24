@@ -1,40 +1,39 @@
 (ns hyperfiddle.io.datomic.hydrate-requests
   (:require
-    [cats.core :as cats :refer [mlet]]
-    [cats.monad.either :as either]
-    [cats.monad.exception :as exception :refer [try-on]]
-    [clojure.edn :as edn]
-    [clojure.set :as set]
-    [clojure.string :as string]
-    [contrib.data :as data :refer [cond-let map-values parse-query-element]]
-    [contrib.do :as do]
-    [contrib.datomic]
-    [contrib.pprint :refer [pprint-str]]
-    [contrib.try$ :refer [try-either]]
-    [hypercrud.types.EntityRequest]
-    [hypercrud.types.QueryRequest]
-    [hypercrud.types.DbRef :refer [->DbRef]]
-    [hyperfiddle.api :as hf]
-    [hyperfiddle.io.datomic.core :as d]
-    [hyperfiddle.security]
-    [taoensso.timbre :as timbre]
-    [hyperfiddle.def :as hf-def]
-    [hyperfiddle.spec :as spec]
-    [hyperfiddle.transaction :refer [expand-hf-tx]])
+   [cats.core :as cats :refer [mlet]]
+   [cats.monad.either :as either]
+   [cats.monad.exception :as exception :refer [try-on]]
+   [clojure.edn :as edn]
+   [clojure.set :as set]
+   [clojure.string :as string]
+   [contrib.data :as data :refer [cond-let map-values parse-query-element]]
+   [contrib.do :as do]
+   [contrib.datomic]
+   [contrib.pprint :refer [pprint-str]]
+   [contrib.try$ :refer [try-either]]
+   [hypercrud.types.EntityRequest]
+   [hypercrud.types.QueryRequest]
+   [hyperfiddle.api :as hf]
+   [hyperfiddle.io.datomic.core :as d]
+   [hyperfiddle.security]
+   [taoensso.timbre :as timbre]
+   [hyperfiddle.def :as hf-def]
+   [hyperfiddle.spec :as spec]
+   [hyperfiddle.transaction :refer [expand-hf-tx]]
+   [clojure.spec.alpha :as s])
   (:import
-    (hypercrud.types.DbRef DbRef)
-    (hypercrud.types.EntityRequest EntityRequest)
-    (hypercrud.types.QueryRequest QueryRequest EvalRequest)))
+   (hypercrud.types.EntityRequest EntityRequest)
+   (hypercrud.types.QueryRequest QueryRequest EvalRequest)))
 
 
 (defrecord SecureDbWith [db id->tempid])
 
-(defmulti parameter (fn [this & args] (class this)))
+(defmulti parameter (fn [this & args] (first (s/conform ::d/parameter this))))
 
 (defmethod parameter :default [this & args] this)
 
-(defmethod parameter DbRef [dbval get-secure-db-with]
-  (-> (get-secure-db-with (:dbname dbval) (:branch dbval)) :db))
+(defmethod parameter :dbref [[dbname branch] get-secure-db-with]
+  (-> (get-secure-db-with dbname branch) :db))
 
 (defmulti hydrate-request* (fn [this & args] (class this)))
 
