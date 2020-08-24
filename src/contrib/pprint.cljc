@@ -5,8 +5,9 @@
     [hyperfiddle.pprint]
     #?(:cljs [contrib.printer :as printer])))
 
-(defn ^:export pprint [o]
-  (binding [clojure.pprint/*print-pprint-dispatch* hyperfiddle.pprint/simple-dispatch]
+(defn ^:export pprint [o & [columns]]
+  (binding [clojure.pprint/*print-pprint-dispatch* hyperfiddle.pprint/simple-dispatch
+            clojure.pprint/*print-right-margin*    (or columns clojure.pprint/*print-right-margin*)]
     (clojure.pprint/pprint o)))
 
 ;; This function should not be used for debug purposes. Please use Chrome
@@ -31,6 +32,8 @@
 
 (defn pprint-async
   "Like pprint, but run in another thread."
-  [o callback]
-  #?(:clj  (callback (pprint o))
-     :cljs (printer/pprint o callback)))
+  ([o callback]
+   (pprint-async o nil callback))
+  ([o columns callback]
+   #?(:clj  (callback (pprint o columns))
+      :cljs (printer/pprint o columns callback))))

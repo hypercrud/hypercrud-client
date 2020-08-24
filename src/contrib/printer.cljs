@@ -52,14 +52,17 @@
                                                       ;; Var indirection
                                                       (call-cc e)))))))
 
-(defn send! [value callback]
+(defn send! [value columns callback]
   (let [id     (now)
         buffer (.encode encoder (transit/encode value))]
     (swap! callbacks assoc id callback)
     (.postMessage (get-worker!)
-                  #js{:id     id
-                      :buffer (.-buffer buffer)}
+                  #js{:id      id
+                      :columns columns
+                      :buffer  (.-buffer buffer)}
                   #js[(.-buffer buffer)])))
 
-(defn pprint [o callback]
-  (send! o callback))
+(defn pprint
+  "Set columns to nil for default behavior"
+  [o columns callback]
+  (send! o columns callback))

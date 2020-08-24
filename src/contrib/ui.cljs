@@ -267,7 +267,7 @@
   (text props))
 
 (defn- stable-pprint-async [set-props props]
-  (pprint-async (:value props) #(set-props (assoc props :value %))))
+  (pprint-async (:value props) 120 #(set-props (assoc props :value %))))
 
 (defn async-code [props]
   [async-props code stable-pprint-async props])
