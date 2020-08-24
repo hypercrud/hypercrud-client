@@ -41,7 +41,7 @@
       (hf-http/via
         (fn [context]
           (let [domain (get-in context [:request :domain])
-                [method path] (-> context :request (select-keys [:request-method :path-info]) vals)
+                [method path query-string] (-> context :request (select-keys [:request-method :path-info :query-string]) vals)
                 route (domain/api-match-path domain path :request-method method)]
 
             (when-not (= (:handler route) :static-resource)
@@ -57,7 +57,7 @@
                      is-auth-configured                        ; if there is an auth0 config, require logins
                      is-no-subject
                      prevent-infinite-redirect))
-              (let [redirect (hf/url-decode domain path)
+              (let [redirect (hf/url-decode domain (str path "?" query-string))
                     url (hf/url-encode domain `(hyperfiddle.foundation/please-login ~redirect))]
                 (-> context
                     (assoc-in [:response :status] 302)
