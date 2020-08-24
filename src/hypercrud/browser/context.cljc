@@ -704,7 +704,7 @@ a speculative db/id."
           ;; We want to render as a form, so qfind is FindScalar
           :hypercrud.browser/qfind (r/pure (fiddle/shape 'FindScalar))
           ;; But we want to validate against s/cat, so we set the default route as sexp […]
-          :hypercrud.browser/result (r/fmap rest route-defaults-hydrated)) ; drop ƒ
+          :hypercrud.browser/result (r/fmap rest route)) ; drop ƒ
         (as-> ctx
             ;; validate against default route
           (assoc ctx :hypercrud.browser/validation-hints (r/track (partial validation-hints-enclosure! args-spec) ctx))
