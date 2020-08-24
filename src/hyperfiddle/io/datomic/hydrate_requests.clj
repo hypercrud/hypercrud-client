@@ -47,7 +47,8 @@
       {})))
 
 (defmethod hydrate-request* EntityRequest [{:keys [e db pull-exp]} domain get-secure-db-with]
-  (let [{pull-db :db} (get-secure-db-with (:dbname db) (:branch db))]
+  (let [[dbname branch] db
+        {pull-db :db}   (get-secure-db-with dbname branch)]
     (cond
       (nil? e) nil                                          ; This is probably an error, report it? Datomic says: (d/pull $ [:db/id] nil) => #:db{:id nil}
       (contrib.datomic/tempid? e) {:db/id e}                ; This introduces sloppy thinking about time!   https://github.com/hyperfiddle/hyperfiddle/issues/584
