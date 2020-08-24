@@ -16,6 +16,7 @@
     [hyperfiddle.api :as hf]
     [hyperfiddle.data]
     [hyperfiddle.runtime :as runtime]
+    [hyperfiddle.spec :as spec]
     #_[hyperfiddle.ui]
     [hyperfiddle.ui.util :refer [entity-change->tx]]
     [taoensso.timbre :as timbre]))
@@ -159,33 +160,18 @@
 
 (declare invalid-message-popup validation-message)
 
-(defn spec-invalid? [ctx]
-  (when-let [attr (:db/ident (hf/attr ctx))]
-    (when (s/get-spec attr)
-      (some->> (s/explain-data attr (hf/data ctx))
-               (::s/problems)
-               (map (fn [{:keys [path pred val]}]
-                      [path (or
-                             (context/get-validation-message attr)
-                             (str (pr-str val) " failed " (name pred)))]))
-               (into {})))))
-
 (defn input-group
   [_ ctx props & body]
-  (let [props (if-let [problems (spec-invalid? ctx)]
-                (assoc props ::hf/is-invalid true
-                       ::hf/invalid-messages (r/pure problems))
-                props)]
-    (if (or (::hf/is-invalid props))
-      (if (= (::hf/validation-display props) :popup)
-        [:div.hyperfiddle-input-group.hyperfiddle-invalid
-         (into [invalid-message-popup (select-keys props [::hf/invalid-messages])] body)]
-        (conj
-         (into
-          [:div.hyperfiddle-input-group.hyperfiddle-invalid]
-          body)
-         [validation-error {} @(::hf/invalid-messages props)]))
-      (into [:div.hyperfiddle-input-group] body))))
+  (if (or (::hf/is-invalid props))
+    (if (= (::hf/validation-display props) :popup)
+      [:div.hyperfiddle-input-group.hyperfiddle-invalid
+       (into [invalid-message-popup (select-keys props [::hf/invalid-messages])] body)]
+      (conj
+       (into
+        [:div.hyperfiddle-input-group.hyperfiddle-invalid]
+        body)
+       [validation-error {} @(::hf/invalid-messages props)]))
+    (into [:div.hyperfiddle-input-group] body)))
 
 (defn ^:export ref [val ctx & [props]]
   [input-group val ctx props

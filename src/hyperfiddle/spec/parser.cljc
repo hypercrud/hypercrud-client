@@ -70,6 +70,14 @@
   {:type     :hyperfiddle.spec/and
    :children (map parse children)})
 
+(defmethod parse-spec `s/? [[_ child]]
+  {:type :hyperfiddle.spec/?
+   :children [(parse child)]})
+
+(defmethod parse-spec `s/nilable [[_ child]]
+  {:type :hyperfiddle.spec/nilable
+   :children [(parse child)]})
+
 ; no spec defaults to predicate
 ; spec with {:args ()} defaults to predicate
 

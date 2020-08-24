@@ -89,11 +89,14 @@
    [route-editor (get-route rt pid false) (get-route rt pid true) (r/partial set-route rt pid)])
   ([route default on-change]
    (let [parse-string (fn [s]
-                        (let [route (seq (reader/read-edn-string! s))]
+                        (let [route (seq (reader/read-edn-string! s))
+                              cat   (some-> route first s/get-spec :args)]
                           (try
                             (s/assert :hyperfiddle/route route)
+                            (when (some? cat)
+                              (s/assert cat (rest route)))
                             (catch :default err
-                              (js/console.error "Invalid route" err)
+                              (js/console.error "Invalid route" (s/explain-data cat (rest route)))
                               (throw err)))
                           route))
          to-string    pprint-str]

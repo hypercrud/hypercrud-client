@@ -16,7 +16,7 @@
    [hypercrud.browser.context :as context]
    [hyperfiddle.data :as data]
    [hyperfiddle.ui.error :as ui-error]
-   [hyperfiddle.ui.util]
+   [hyperfiddle.ui.util :as utils]
    ["react-bootstrap-typeahead" :refer [Typeahead AsyncTypeahead #_TypeaheadInputSingle]]))
 
 (defn disabled? [ctx props]
@@ -59,7 +59,7 @@
        :value (get @(-> ctx :hypercrud.browser/route) needle-key "")
        :on-change (fn [o n]
                     (try
-                      (hf/swap-route! ctx assoc needle-key n)
+                      (hf/swap-route! ctx utils/assoc-in-route [needle-key] n)
                       (catch js/Error e
                         (runtime/set-error runtime partition-id e))))}
       props)
@@ -74,8 +74,7 @@
       :value (get by @(-> ctx :hypercrud.browser/route) "")
       :on-change (fn [o n]
                    (try
-                     (hf/swap-route! ctx
-                                     assoc by n)
+                     (hf/swap-route! ctx utils/assoc-in-route [by] n)
                      (catch js/Error e
                        (runtime/set-error runtime partition-id e))))}
      (fn []
@@ -233,7 +232,7 @@
 
           :on-search (fn [s]
                        (try
-                         (hf/swap-route! ctx assoc (::hf/needle-key props) s)
+                         (hf/swap-route! ctx utils/assoc-in-route [(::hf/needle-key props)] s)
                          (catch js/Error e
                            (runtime/set-error rt (:partition-id ctx) e))))
 
