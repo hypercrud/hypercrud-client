@@ -11,9 +11,10 @@
                                                 (hf/with-db))]
                                      (binding [hf/*subject* subject
                                                hf/*$* $]
-                                       ; Security can query the database e.g. for attribute whitelist
-                                       ; no basis on transacts nor staging areas
-                                       [dbname (expand-hf-tx (hf/process-tx $ domain dbname subject tx))]))))
+                                       (with-bindings (hf/bindings domain)
+                                         ; Security can query the database e.g. for attribute whitelist
+                                         ; no basis on transacts nor staging areas
+                                         [dbname (expand-hf-tx (hf/process-tx $ domain dbname subject tx))])))))
                             (doall)                         ; allow any exceptions to fire before transacting anythng
                             (map (fn [[dbname dtx]]
                                    (let [conn (hf/connect domain dbname)

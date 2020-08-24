@@ -106,6 +106,9 @@
        tx]
     (get-in (databases domain) [dbname :database/write-security :db/ident] ::allow-anonymous-edits)))
 
+(defmulti bindings (fn [domain] (:db/ident domain)))
+(defmethod bindings :default [domain] {})
+
 (defmethod process-tx ::allow-anonymous-edits [$ domain dbname subject tx] tx)
 
 (defmulti tx-meta

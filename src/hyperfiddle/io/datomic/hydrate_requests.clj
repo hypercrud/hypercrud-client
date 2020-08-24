@@ -58,7 +58,8 @@
                                             tx (binding [hf/*subject* ?subject
                                                          hf/*$* db-with
                                                          hf/*domain* domain]
-                                                 (try-on (expand-hf-tx (hf/process-tx db-with domain dbname ?subject tx))))
+                                                 (with-bindings (hf/bindings domain)
+                                                   (try-on (expand-hf-tx (hf/process-tx db-with domain dbname ?subject tx)))))
                                             ;_ (assert schema "needed for d/with") ; not available for hydrate-schemas in request bootstrapping
                                             {:keys [db-after tempids]} (exception/try-on (hf/with db-with {:tx-data tx
                                                                                                           #_(if-not schema
@@ -161,14 +162,15 @@
 (defn- get-db [getterf pid dbname]
   (:db (getterf dbname pid)))
 
-(defn hydrate-request [_domain get-secure-db-with+ [route pid :as F] ?subject]
+(defn hydrate-request [domain get-secure-db-with+ [route pid :as F] ?subject]
   (binding [hf/*subject* ?subject]
     (either/branch-left
       ; Force exceptions here. How?
      (try-either
       (binding [hf/*get-db* (partial get-db (comp exception/extract get-secure-db-with+) pid)]
-        (let [defaults (hf/defaults route)]
-          [defaults (hf/view-defaults defaults) (eval-as-fexpr! defaults)])))
+        (with-bindings (hf/bindings domain)
+          (let [defaults (hf/defaults route)]
+            [defaults (hf/view-defaults defaults) (eval-as-fexpr! defaults)]))))
       (fn [e] (either/left (error-cleaner e F))))))
 
 ;; F is [ƒ, pid].
