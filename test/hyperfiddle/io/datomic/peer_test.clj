@@ -42,8 +42,8 @@
                   {:dustingetz/email "charlie@example.com" :dustingetz/gender :dustingetz/male :dustingetz/shirt-size :dustingetz/mens-medium}])))
   (def q (hyperfiddle.io.datomic.core/qf2 (hf/database domain "$")))
 
-  (is (= [17592186045428 17592186045429 17592186045430]
-        (q {:query '[:find [?e ...] :where [?e :dustingetz/email]] :args [$] :limit 50})
+  (is (= [17592186045441 17592186045442 17592186045440]
+        (q {:query '[:find [?e ...] :where [?e :dustingetz/email]] :args [$] :limit 50}) 
         (q {:query '[:find [?e ...] :where [?e :dustingetz/email]] :args [$] :limit -1})
         (q {:query '[:find [?e ...] :where [?e :dustingetz/email]] :args [$]})))
   )

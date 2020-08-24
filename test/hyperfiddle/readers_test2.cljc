@@ -11,8 +11,6 @@
 ;    [hyperfiddle.readers]
 ;    [hypercrud.transit :as transit]
 ;    [hypercrud.types.ThinEntity :refer [->ThinEntity]]
-;    [hypercrud.types.EntityRequest :refer [->EntityRequest]]
-;    [hypercrud.types.QueryRequest :refer [->QueryRequest ->EvalRequest]]
 ;    [contrib.uri :refer [->URI]])
 ;  (:import #?(:clj java.util.Date)))
 ;
@@ -65,27 +63,8 @@
 ;    )
 ;  )
 ;
-;; Test saffolding needs to be improved to distinguish readers
-;;(deftest EvalReq []
-;;                 (test-all-forms (->EvalRequest "foo" "pid" {:hyperfiddle.route/where nil})
-;;                   #hypercrud.types.QueryRequest.EvalRequest{:form "foo"}
-;;                   "#hypercrud.types.QueryRequest.EvalRequest{:form \"foo\"}"
-;;                   "{\"~#EvalReq\":[\"foo\"]}")
-;;              (test-all-forms #_(->EvalRequest '(datomic.api/entity :db/ident foo [:db/ident *]))
-;;                              (->EvalRequest 'foo)
-;;                              #hypercrud.types.QueryRequest.EvalRequest{:form 'foo}
-;;                              "#hypercrud.types.QueryRequest.EvalRequest{:form foo}"
-;;                              "{\"~#EvalReq\":[\"~$foo\"]}"))
-;
-;
 ;
 ;(tests
-;
-;  (test-all-forms (->QueryRequest "foo" "bar" "baz")
-;    #hypercrud.types.QueryRequest.QueryRequest{:query "foo" :params "bar" :opts "baz"}
-;    "#hypercrud.types.QueryRequest.QueryRequest{:query \"foo\" :params \"bar\" :opts \"baz\"}"
-;    "{\"~#QReq\":[\"foo\",\"bar\",\"baz\"]}")
-;  (check! true?)
 ;
 ;  (test-all-forms (->Err "foo")
 ;    "{\"~#err\":\"foo\"}")
@@ -98,12 +77,6 @@
 ;    #inst "2017-12-31"
 ;    "#inst \"2017-12-31\""
 ;    "{\"~#t\":\"2017-12-31\"}")
-;  (check! true?)
-;
-;  (test-all-forms (->EntityRequest "foo" "fizz" "buzz")
-;    #hypercrud.types.EntityRequest.EntityRequest{:e "foo" :db "fizz" :pull-exp "buzz"}
-;    "#hypercrud.types.EntityRequest.EntityRequest{:e \"foo\" :db \"fizz\" :pull-exp \"buzz\"}"
-;    "{\"~#EReq\":[\"foo\",\"fizz\",\"buzz\"]}")
 ;  (check! true?)
 ;
 ;  (test-all-forms (->ThinEntity "foo" "bar")

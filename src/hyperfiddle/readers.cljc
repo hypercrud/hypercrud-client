@@ -6,10 +6,7 @@
     [contrib.uri]
     #?(:cljs [contrib.uuid])
     #?(:cljs [goog.math])
-    [hypercrud.types.ThinEntity]
-    [hypercrud.types.EntityRequest]
-    [hypercrud.types.QueryRequest]
-    )
+    [hypercrud.types.ThinEntity])
   #?(:clj
      (:import
        [java.lang Long])))
@@ -46,7 +43,4 @@
    'uri contrib.uri/uri-edn-reader
    'env contrib.config/env-edn-reader
    'long hyperfiddle.readers/long-edn-reader
-   'hypercrud.types.EntityRequest.EntityRequest hypercrud.types.EntityRequest/map->EntityRequest
-   'hypercrud.types.QueryRequest.QueryRequest hypercrud.types.QueryRequest/map->QueryRequest
-   'hypercrud.types.QueryRequest.EvalRequest hypercrud.types.QueryRequest/map->EvalRequest
    })

@@ -425,7 +425,7 @@
 
 
 (def pull-link [:db/id :link/class :link/formula :link/path :link/rel :link/tx-fn
-                #:link{:fiddle [:db/id :fiddle/ident :fiddle/query :fiddle/type]}])
+                #:link{:fiddle [:db/id :fiddle/ident  ]}])
 (def pull-fiddle [:db/id :fiddle/ident #:fiddle{:links pull-link}])
 
 (deftest query-parsing

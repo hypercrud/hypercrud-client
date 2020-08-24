@@ -7,15 +7,9 @@
 
 (def fiddles
   {:hyperfiddle.ide/domain
-   [{:fiddle/pull-database "$domains",
-     :fiddle/pull
-     "[:db/id\n :domain/ident\n :domain/environment\n :domain/aliases\n :domain/disable-javascript\n :domain/home-route\n #_ :domain/router\n :domain/code\n :domain/css\n {:domain/databases [:db/id \n                     :domain.database/name \n                     {:domain.database/record [:db/id \n                                               :database/uri\n                                               #_#_#_:hyperfiddle/owners\n                                               {:database/write-security [:db/ident]}\n                                               :database.custom-security/client\n                                               :database.custom-security/server]}]}\n {:domain/fiddle-database [:database/uri\n                           #_#_#_#_:hyperfiddle/owners\n                           {:database/write-security [:db/ident]}\n                           :database.custom-security/client\n                           :database.custom-security/server]}\n :hyperfiddle/owners]",
-     :fiddle/ident :hyperfiddle.ide/domain,
-     :fiddle/renderer
-     "(let [ctx (update ctx :hypercrud.browser/result (partial contrib.reactive/fmap hyperfiddle.foundation/shadow-domain))]\n  [:div props\n   [:h3 \"Environment: \" [hyperfiddle.ui/value [:domain/ident] ctx #(str %)]]\n   [hyperfiddle.ui/field [:domain/ident] ctx hyperfiddle.ide.fiddles.domain/domain-ident-renderer]\n   [hyperfiddle.ui/field [:hyperfiddle/owners] ctx hyperfiddle.ui/hyper-control]\n   [hyperfiddle.ui/field [:domain/databases] ctx\n    (fn [val ctx props]\n      [hyperfiddle.ui/table\n       (fn [ctx]\n         [[hyperfiddle.ui/field [:db/id] ctx \n           (fn [val ctx props]\n             (hyperfiddle.ui/link #{:domain/databases :hf/remove} ctx \"remove\"))]\n          [hyperfiddle.ui/field [:domain.database/name] ctx hyperfiddle.ui/hyper-control]\n          [hyperfiddle.ui/field [:domain.database/record :database/uri] ctx hyperfiddle.ui/hyper-control]])\n       ctx])]\n   [hyperfiddle.ui/field [:domain/fiddle-database] ctx hyperfiddle.ui/hyper-control \n    {:options :database/options-list\n     :option-label (comp :database/uri first)}]\n   [hyperfiddle.ui/field [:domain/aliases] ctx hyperfiddle.ui/hyper-control]\n   [hyperfiddle.ui/field [:domain/disable-javascript] ctx hyperfiddle.ui/hyper-control]\n   [hyperfiddle.ui/field [:domain/home-route] ctx hyperfiddle.ui/hyper-control]\n   [hyperfiddle.ui/field [:domain/environment] ctx hyperfiddle.ui/hyper-control]\n   [:p \"Source code concerns. todo migrate into fiddle-database\"]\n   [hyperfiddle.ui/field [:domain/code] ctx hyperfiddle.ui/hyper-control]\n   [hyperfiddle.ui/field [:domain/css] ctx hyperfiddle.ui/hyper-control]\n   [:p \"Attribute renderers. todo migrate into fiddle-database\"]\n   [hyperfiddle.ui/browse :hyperfiddle.ide/domain-attribute-renderers ctx]])",
+   [{:fiddle/ident :hyperfiddle.ide/domain,
      :db/doc "Databases, DNS, API keys, etc",
      :db/id 17592186045564,
-     :fiddle/type :entity,
      :fiddle/links
      [{:db/id 17592186061425,
        :link/class [:hf/iframe],
@@ -23,9 +17,9 @@
        {:db/id 17592186060438,
         :fiddle/ident
         :hyperfiddle.ide/domain-attribute-renderers,
-        :fiddle/query
-        "[:find \n [(pull ?e [:db/id :attribute/ident :attribute/renderer]) ...]\n :where [?e :attribute/ident]]",
-        :fiddle/type :query},
+        :fiddle/shape '[:find
+                        [(pull ?e [:db/id :attribute/ident :attribute/renderer]) ...]
+                        :where [?e :attribute/ident]]},
        :link/path :hyperfiddle.ide/domain}
       {:db/id 17592186061562,
        :link/class [:hf/remove],
@@ -37,18 +31,47 @@
        :link/class [:hf/new],
        :link/fiddle
        {:db/id 17592186061548,
-        :fiddle/ident :domain.databases/add,
-        :fiddle/type :entity},
+        :fiddle/ident :domain.databases/add},
        :link/path "$domains :domain/databases"}
       {:db/id 17592186061770,
        :link/class [:hf/iframe],
        :link/fiddle
        {:db/id 17592186061550,
         :fiddle/ident :database/options-list,
-        :fiddle/query
-        "[:find \n (pull $domains ?e [:db/id :database/uri]) \n ?name\n :in $domains \n :where \n [$domains ?e :database/uri ?uri]\n [(str ?uri) ?suri]\n [(.substring ?suri 28) ?name]]",
-        :fiddle/type :query},
-       :link/path :hyperfiddle.ide/domain}]}
+        :fiddle/shape '[:find
+                        (pull $domains ?e [:db/id :database/uri])
+                        ?name
+                        :in $domains
+                        :where
+                        [$domains ?e :database/uri ?uri]
+                        [(str ?uri) ?suri]
+                        [(.substring ?suri 28) ?name]]},
+       :link/path :hyperfiddle.ide/domain}]
+     :fiddle/shape '[:find (pull $domains ?e [:db/id
+                                              :domain/ident
+                                              :domain/environment
+                                              :domain/aliases
+                                              :domain/disable-javascript
+                                              :domain/home-route
+                                              #_ :domain/router
+                                              :domain/code
+                                              :domain/css
+                                              {:domain/databases [:db/id
+                                                                  :domain.database/name
+                                                                  {:domain.database/record [:db/id
+                                                                                            :database/uri
+                                                                                            #_#_#_:hyperfiddle/owners
+                                                                                            {:database/write-security [:db/ident]}
+                                                                                            :database.custom-security/client
+                                                                                            :database.custom-security/server]}]}
+                                              {:domain/fiddle-database [:database/uri
+                                                                        #_#_#_#_:hyperfiddle/owners
+                                                                        {:database/write-security [:db/ident]}
+                                                                        :database.custom-security/client
+                                                                        :database.custom-security/server]}
+                                              :hyperfiddle/owners])
+                     .
+                     :where [?e]]}
     {:db/id 17592186045517,
      :domain/home-route "[:hyperfiddle/topnav [#entity[\"$\" \"tempid\"]]]",
      :domain/databases
@@ -60,7 +83,9 @@
        :domain.database/name "$users",
        :domain.database/record {:db/id 17592186046100, :database/uri #uri "datomic:free://datomic:4334/hyperfiddle-users"}}
       {:db/id 17592186046513, :domain.database/name "$", :domain.database/record {:db/id 17592186046090, :database/uri #uri "datomic:free://datomic:4334/root"}}],
-     :hyperfiddle/owners [#uuid "87108fa3-e7d5-4ed5-a87a-81a6eb6e1aae" #uuid "acd054a8-4e36-4d6c-a9ec-95bdc47f0d39" #uuid "ca192cc8-4ccb-48c6-853f-6fc7dcdd1810"],
+     :hyperfiddle/owners [#uuid "87108fa3-e7d5-4ed5-a87a-81a6eb6e1aae"
+                          #uuid "acd054a8-4e36-4d6c-a9ec-95bdc47f0d39"
+                          #uuid "ca192cc8-4ccb-48c6-853f-6fc7dcdd1810"],
      :domain/fiddle-database {:database/uri #uri "datomic:free://datomic:4334/root"},
      :domain/css
      "/* Not th – that hits fiddle shortcuts */\ndiv.hyperfiddle.ui div.hyperfiddle.field.-fiddle-pull,\ndiv.hyperfiddle.ui div.hyperfiddle.field.-fiddle-query,\ndiv.hyperfiddle.ui div.hyperfiddle.field.-fiddle-renderer,\ndiv.hyperfiddle.ui div.hyperfiddle.field.-fiddle-css,\ndiv.hyperfiddle.ui div.hyperfiddle.field.-fiddle-markdown { display: block !important; }",
@@ -71,7 +96,6 @@
    [{:db/id 17592186061550,
      :fiddle/query
      "[:find \n (pull $domains ?e [:db/id :database/uri]) \n ?name\n :in $domains \n :where \n [$domains ?e :database/uri ?uri]\n [(str ?uri) ?suri]\n [(.substring ?suri 28) ?name]]",
-     :fiddle/type :query,
      :fiddle/ident :database/options-list}
     [[{:db/id 17592186046713, :database/uri #uri "datomic:free://datomic:4334/mbrainz"} "mbrainz"]
      [{:db/id 17592186046090, :database/uri #uri "datomic:free://datomic:4334/root"} "root"]
@@ -113,7 +137,6 @@
        {:db/ident :fiddle/pull-database, :db/valueType {:db/ident :db.type/string}, :db/cardinality {:db/ident :db.cardinality/one}, :db/doc "Argument to `datomic.api/pull`"}
        {:db/ident :fiddle/query, :db/valueType {:db/ident :db.type/string}, :db/cardinality {:db/ident :db.cardinality/one}, :db/doc "Datomic query. Database inputs are resolved by name through the `:domain/environment`. Pull `:db/id` for editable forms. Currently no support yet for rules, d/history or d/log."}
        {:db/ident :fiddle/renderer, :db/valueType {:db/ident :db.type/string}, :db/cardinality {:db/ident :db.cardinality/one}, :db/doc "Reagent expression for the view. Clear to restore default. There are some bugs related to default values, so if Hyperfiddle generates a datoms conflict, just fix it at the stage."}
-       {:db/ident :fiddle/type, :db/valueType {:db/ident :db.type/keyword}, :db/cardinality {:db/ident :db.cardinality/one}, :db/doc "Datomic API for data fetching, blank means nothing"}
        {:db/ident :hyperfiddle/owners, :db/valueType {:db/ident :db.type/uuid}, :db/cardinality {:db/ident :db.cardinality/many}, :db/doc "FK to users who have administrator role on this domain."}
        {:db/ident :link/class, :db/valueType {:db/ident :db.type/keyword}, :db/cardinality {:db/ident :db.cardinality/many}, :db/doc "App-specific semantic class of the link, like HTML's css classes. Fiddle views and API clients should select links by class with: \n* `hyperfiddle.data/select`\n* `hyperfiddle.data/select-all`\n* `hyperfiddle.data/select-here`\n* `hyperfiddle.data/browse`"}
        {:db/ident :link/fiddle, :db/valueType {:db/ident :db.type/ref}, :db/cardinality {:db/ident :db.cardinality/one}, :db/doc "Links point to fiddles. Any fiddle dependencies needed for the query or pull are passed by URL and encoded as \"ednish\". Allowed parameters are entity identifiers and scalars."}
@@ -137,7 +160,6 @@
             {:db/ident :fiddle/pull-database, :db/valueType {:db/ident :db.type/string}, :db/cardinality {:db/ident :db.cardinality/one}, :db/doc "Argument to `datomic.api/pull`, defaults to $"}
             {:db/ident :fiddle/query, :db/valueType {:db/ident :db.type/string}, :db/cardinality {:db/ident :db.cardinality/one}, :db/doc "Datomic query datalog. \n\nWarning: no support yet for rules, d/history, d/log or other datomic API access."}
             {:db/ident :fiddle/renderer, :db/valueType {:db/ident :db.type/string}, :db/cardinality {:db/ident :db.cardinality/one}, :db/doc "Reagent expression for the view."}
-            {:db/ident :fiddle/type, :db/valueType {:db/ident :db.type/keyword}, :db/cardinality {:db/ident :db.cardinality/one}, :db/doc "Which Datomic query API"}
             {:db/ident :fiddle/uuid, :db/valueType {:db/ident :db.type/uuid}, :db/cardinality {:db/ident :db.cardinality/one}, :db/unique {:db/ident :db.unique/identity}, :db/doc "For creating new fiddles without needing a human to fill in an ident"}
             {:db/ident :hyperfiddle/owners, :db/valueType {:db/ident :db.type/uuid}, :db/cardinality {:db/ident :db.cardinality/many}, :db/doc "Used in opt-in entity-level ACLs configured through hyperfiddle.net subdomains"}
             {:db/ident :hyperfiddle/starred, :db/valueType {:db/ident :db.type/boolean}, :db/cardinality {:db/ident :db.cardinality/one}}

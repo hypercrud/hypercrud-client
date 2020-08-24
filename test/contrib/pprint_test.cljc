@@ -13,7 +13,7 @@
      [:db/add 17592186046902 :link/disabled? true]
      [:db/add 17592186046578 :link/disabled? true]]}})
 
-(def stage-str "{nil\n   {#uri \"datomic:free://datomic:4334/hyperfiddle-blog-source\"\n    [[:db/retract 17592186045579 :fiddle/type :blank]\n     [:db/add 17592186045579 :fiddle/type :entity]\n     [:db/retract 17592186045579 :fiddle/pull \"[:db/id *]\"]\n     [:db/add 17592186045579 :fiddle/pull \"[:db/id :post/title]\"]\n     [:db/add 17592186046902 :link/disabled? true]\n     [:db/add 17592186046578 :link/disabled? true]\n ]}}")
+(def stage-str "{nil\n   {#uri \"datomic:free://datomic:4334/hyperfiddle-blog-source\"\n    [[:db/retract 17592186045579  :blank]\n     [:db/add 17592186045579 ]\n     [:db/retract 17592186045579 :fiddle/pull \"[:db/id *]\"]\n     [:db/add 17592186045579 :fiddle/pull \"[:db/id :post/title]\"]\n     [:db/add 17592186046902 :link/disabled? true]\n     [:db/add 17592186046578 :link/disabled? true]\n ]}}")
 
 ;(deftest pprint-datoms-1
 ;  []

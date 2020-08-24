@@ -46,19 +46,21 @@
                     {:person/name "Sue"
                      :person/age 50}]
                "$src" [{:fiddle/ident :persons
-                        :fiddle/type :query
-                        :fiddle/query (str '[:find (pull ?e [*]) :where [?e :person/name]])}]}))
+                        #_#_:fiddle/query (str '[:find (pull ?e [*]) :where [?e :person/name]])
+                        }]}))
+
+(prefer-method clojure.pprint/simple-dispatch clojure.lang.IPersistentMap clojure.lang.IDeref)
 
 (deftest duplicate-datoms []
   (testing "non source db"
-    (let [pid hf/root-pid
+    (let [pid       hf/root-pid
           response (timbre/with-config {:enabled? false}
                      (let [local-basis (datomic-sync/sync test-domain ["$" "$src"])
-                           route {::route/fiddle :persons}
-                           partitions {hf/root-pid {:is-branched true
-                                                            :stage {"$" [[:db/add [:person/name "Bob"] :person/age 41]
-                                                                         [:db/add [:person/name "Bob"] :person/age 42]]}}}
-                           subject nil]
+                           route       `(:persons)
+                           partitions  {hf/root-pid {:is-branched true
+                                                     :stage       {"$" [[:db/add [:person/name "Bob"] :person/age 41]
+                                                                        [:db/add [:person/name "Bob"] :person/age 42]]}}}
+                           subject     nil]
                        @(hydrate-route/hydrate-route test-domain local-basis route pid partitions subject)))]
       (is (exception/failure? (get-in response [pid :schemas "$"])))
       (is (exception/success? (get-in response [pid :schemas "$src"])))))

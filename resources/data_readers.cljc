@@ -4,7 +4,4 @@
  uri contrib.uri/uri-clj-reader
  ;env contrib.config/env-clj-reader ; no env reads in .clj files
  schema hyperfiddle.readers/schema-clj-reader
-
- ; defrecords get these for free in clj
- hypercrud.types.EntityRequest.EntityRequest hypercrud.types.EntityRequest/map->EntityRequest
- hypercrud.types.QueryRequest.QueryRequest hypercrud.types.QueryRequest/map->QueryRequest}
+}

@@ -545,10 +545,6 @@ a speculative db/id."
   ; todo applying fiddle defaults should happen above here
   ; todo fiddle should already be valid
   (mlet [r-qparsed @(r/apply-inner-r (r/fmap hyperfiddle.fiddle/parse-fiddle-query+ r-fiddle))
-         _ (if (and (not= :eval @(r/cursor r-fiddle [:fiddle/type]))
-                    @(r/fmap (r/comp nil? :qfind) r-qparsed))
-             (either/left (ex-info "Invalid qfind" {}))     ; how would this ever happen?
-             (either/right nil))
          _ @(r/apply contrib.datomic/validate-qfind-attrs+
                      [(r/track runtime/get-schemas (:runtime ctx) (:partition-id ctx))
                       (r/fmap :qfind r-qparsed)])
@@ -868,14 +864,7 @@ a speculative db/id."
   "Use this with `for` which means reagent needs the key."
   [ctx]
   (let [r-fiddle (:hypercrud.browser/fiddle ctx)]
-    ; could also dispatch on qfind. Is fiddle/type unnecessary now?
-    (condp some [(:fiddle/type @r-fiddle)]
-      #{:eval} [[(:fiddle/ident @r-fiddle) ctx]]            ; Option[Tuple[_]]
-      #{:query :entity} [[(:fiddle/ident @r-fiddle)
-                          ; inference is lazy
-                          ; But it needs to add something, so that we know that it is inferrable now
-                          ; presence of path param?
-                          ctx #_(-infer-implicit-element ctx)]])))
+    [[(:fiddle/ident @r-fiddle) ctx]]))
 
 (defn ^:export spread-elements "yields [i ctx] foreach element.
   All query dimensions have at least one element.

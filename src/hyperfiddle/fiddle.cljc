@@ -25,11 +25,6 @@
 (s/def :swing/quux string?)
 (s/def :fiddle/ident (s/or :legacy keyword? :ƒ qualified-symbol?))
 (s/def :fiddle/uuid uuid?)
-(s/def :fiddle/type #{:entity :query :eval})
-(s/def :fiddle/query (some-fn string? coll?))
-#_(s/def :fiddle/query-needle string?)
-(s/def :fiddle/pull (some-fn string? coll?))
-(s/def :fiddle/pull-database string?)
 (s/def :fiddle/links (s/coll-of (s/and (s/keys :req [:link/path]
                                                :opt [:link/class :link/fiddle :link/formula :link/tx-fn])
                                        #_(s/multi-spec fiddle-link :link/class))))
@@ -44,17 +39,7 @@
 
 (s/def :hyperfiddle/owners (s/coll-of uuid?))
 
-(defmulti fiddle-type :fiddle/type)
-(defmethod fiddle-type :eval [_] (s/keys :req [:fiddle/ident]))
-(defmethod fiddle-type :query [_]
-  (s/keys :req [:fiddle/ident
-                :fiddle/query]))
-(defmethod fiddle-type :entity [_]
-  (s/keys :req [:fiddle/ident
-                :fiddle/pull
-                :fiddle/pull-database]))
-
-(s/def :hyperfiddle/fiddle (s/multi-spec fiddle-type :fiddle/type))
+(s/def :hyperfiddle/fiddle (s/keys :req [:fiddle/ident]))
 
 (declare fiddle-defaults)
 (declare apply-defaults)
@@ -99,13 +84,10 @@
     (last xorxs)
     xorxs))
 
-(defmethod hf/formula :default [ctx {:keys [link/formula link/class link/fiddle]} value]
-  (when-let [value (cond
-                     (some #{:hf/new} class) (hyperfiddle.api/tempid! ctx)
-                     ;; If there is a fiddle-target, infer the expected :in shape
-                     fiddle                  (case (get fiddle :fiddle/type ((:fiddle/type fiddle-defaults) fiddle))
-                                               (:query :entity :eval) value)
-                     :else                   value)]
+(defmethod hf/formula :default [ctx {:keys [:link/class]} value]
+  (when-let [value (if (some #{:hf/new} class)
+                     (hyperfiddle.api/tempid! ctx)
+                     value)]
     (list value)))
 
 (def link-defaults
@@ -150,12 +132,7 @@
 
 (def fiddle-defaults
   ; touching this is sensitive to build-pid-from-link and can cause deepbugs in the rt
-  {:fiddle/markdown (fn [fiddle] (str/fmt "### %s" (some-> fiddle :fiddle/ident str)))
-   :fiddle/pull (constantly "[:db/id\n *]")
-   :fiddle/pull-database (constantly "$")
-   :fiddle/query (constantly "" #_(load-resource "fiddle-query-default.edn"))
-   :fiddle/type (constantly :eval) ; Toggling default to :query degrades perf in ide
-   })
+  {:fiddle/markdown (fn [fiddle] (str/fmt "### %s" (some-> fiddle :fiddle/ident str)))})
 
 (defn- composite-link?
   "See `:hyperfiddle.def/link-key` spec"
@@ -202,14 +179,7 @@
   [fiddle]
   ; touching this is sensitive to build-pid-from-link and can cause deepbugs in the rt
   (as-> fiddle fiddle
-    (update fiddle :fiddle/type (orf ((:fiddle/type fiddle-defaults) fiddle)))
-    (case (:fiddle/type fiddle)
-      :query (update fiddle :fiddle/query or-str ((:fiddle/query fiddle-defaults) fiddle))
-      :entity (-> fiddle
-                  (update :fiddle/pull-database or-str ((:fiddle/pull-database fiddle-defaults) fiddle))
-                  (cond->
-                      (empty? (:fiddle/pull fiddle)) (assoc :fiddle/pull ((:fiddle/pull fiddle-defaults) fiddle))))
-      :eval   (update fiddle :fiddle/shape (orf (:fiddle/shape fiddle-defaults))))
+    (update-existing fiddle :fiddle/shape (orf (:fiddle/shape fiddle-defaults)))
     (update fiddle :fiddle/markdown or-str ((:fiddle/markdown fiddle-defaults) fiddle))))
 
 (defn apply-fiddle-links-defaults+ "Link defaults require a parsed qfind, so has to be done separately later."
@@ -223,19 +193,11 @@
   (cond (string? val) (contrib.reader/memoized-read-edn-string+ val)
         () (either/right val)))
 
-(defn parse-fiddle-query+ [{:keys [fiddle/type fiddle/query fiddle/shape fiddle/pull fiddle/pull-database]}]
-  (case type
-    :eval (do-result
-           (datascript.parser/parse-query (if shape
-                                            (from-result (as-expr shape))
-                                            (template [:find [(pull $ ?e [*]) ...] :in $ :where [$ ?e]]))))
-    :entity (do-result
-              (let [pull (from-result (as-expr pull))]
-                (let [source (symbol pull-database)
-                      ;fake-q (template [:find (pull ~source ?e ~pull) . :in ~source :where [~source ?e]])
-                      fake-q `[:find (~'pull ~source ~'?e ~pull) . :in ~source :where [~source ~'?e]]]
-                  (datascript.parser/parse-query fake-q))))
-    :query (do-result (datascript.parser/parse-query (from-result (as-expr query))))))
+(defn parse-fiddle-query+ [{:keys [fiddle/shape]}]
+  (do-result
+   (datascript.parser/parse-query (if shape
+                                    (from-result (as-expr shape))
+                                    (template [:find [(pull $ ?e [*]) ...] :in $ :where [$ ?e]])))))
 
 (defn shape
   "Build a fiddle shape by type. Useful to change a fiddle qfind on the fly."

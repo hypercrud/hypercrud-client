@@ -129,10 +129,12 @@
 
 ; clj only
 (def ^:dynamic *$* nil)
-(def ^:dynamic *get-db* nil)
+(def ^:dynamic ^:private *get-db* nil)
+(defn get-db [dbname]
+  (*get-db* dbname))
 (def ^:dynamic *domain* nil)
 (def ^:dynamic *subject*)                              ; FK into $hyperfiddle-users, e.g. #uuid "b7a4780c-8106-4219-ac63-8f8df5ea11e3"
-(def ^:dynamic *route* nil)
+(def ^:dynamic *route*)
 
 ; cljs!
 (defmulti stmt-id->tempid "Deep introspection of args to transaction fns in order to reverse tempids"
@@ -257,8 +259,6 @@
   ([hf-route] (arg hf-route 0))
   ([hf-route ix]
    (arg* (get (:hyperfiddle.route/datomic-args hf-route) ix))))
-
-(defn with-hf-args [f] (f *$* (arg *route*)))
 
 (defn ^:temporary ->either-domain                           ; todo remove
   "Wrap a domain `x` as `Right x`. Useful to make existing (either-branched) code

@@ -8,7 +8,6 @@
     [hyperfiddle.api :as hf]
     [hyperfiddle.domain :as domain]
     [hyperfiddle.runtime :as runtime]
-    #?(:cljs [hyperfiddle.project :as project])
     #?(:cljs [hyperfiddle.ui :as ui])
     #?(:cljs [hyperfiddle.spec.ui])
     #?(:cljs [hyperfiddle.ui.checkbox :refer [Checkbox Radio RadioGroup]])
@@ -148,7 +147,7 @@
          .
          :in $ ?subject
          :where [?user :user/user-id ?subject]]
-       (hf/*get-db* "$users") hf/*subject*)))               ; non-$ schema is specified in :shape
+       (hf/get-db "$users") hf/*subject*)))               ; non-$ schema is specified in :shape
 
 (s/fdef account :args (s/cat))
 

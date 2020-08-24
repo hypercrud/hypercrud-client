@@ -24,8 +24,6 @@
  ;#:db{:ident :fiddle/query-needle :valueType :db.type/string :cardinality :db.cardinality/one}
  #:db{:ident :fiddle/renderer :valueType :db.type/string :cardinality :db.cardinality/one
       :doc "Reagent expression for the fiddle view"}
- #:db{:ident :fiddle/type :valueType :db.type/keyword :cardinality :db.cardinality/one
-      :doc "Which Datomic query API"}
  #:db{:ident :fiddle/uuid :valueType :db.type/uuid :cardinality :db.cardinality/one :unique :db.unique/identity
       :doc "For naming anonymous fiddles"}
 

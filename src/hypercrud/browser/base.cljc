@@ -12,10 +12,7 @@
     [contrib.datomic.common.query :as query]
     [contrib.reactive :as r]
     [contrib.reader :as reader :refer [memoized-read-edn-string+]]
-    [contrib.try$ :refer [try-either]]
     [hypercrud.browser.context :as context]
-    [hypercrud.types.EntityRequest :refer [->EntityRequest]]
-    [hypercrud.types.QueryRequest :refer [->QueryRequest ->EvalRequest]]
     [hypercrud.types.ThinEntity :refer [#?(:cljs ThinEntity)]]
     [hyperfiddle.api :as hf]
     [hyperfiddle.fiddle :as fiddle]
@@ -31,7 +28,6 @@
 
 (declare eval-fiddle+)
 (declare resolve-fiddle+)
-(declare request-for-fiddle+)
 (declare nil-or-hydrate+)
 
 (defn explode-result
@@ -55,7 +51,7 @@
           ;_ (timbre/debug "route " route)
           r-fiddle (from-result @(r/apply-inner-r (r/track resolve-fiddle+ route ctx))) ; inline query
           ;_ (timbre/debug "fiddle" @r-fiddle)
-          r-request (from-result @(r/apply-inner-r (r/fmap->> r-fiddle (request-for-fiddle+ rt pid route))))
+          r-request (from-result @(r/apply-inner-r (r/fmap (fn [_] (either/right (list route pid))) r-fiddle)))
           ;_ (timbre/debug "request" @r-request)
           r-response (from-result @(r/apply-inner-r (r/fmap->> r-request (nil-or-hydrate+ rt pid))))
           ;_ (timbre/debug "result" @r-fiddle :-> @r-result)
@@ -84,8 +80,7 @@
 
 (defn browse-result-as-fiddle+ [{rt :runtime pid :partition-id :as ctx}]
   (timbre/warn "legacy invocation; browse-route+ is deprecated")
-  ; This only makes sense on :fiddle/type :query because it has arbitrary arguments
-  ; EntityRequest args are too structured.
+  ; TODO remove, this is legacy from query fiddles
   (let [[inner-fiddle & inner-args] (::route/datomic-args (runtime/get-route rt pid))
         route (cond-> {:hyperfiddle.route/fiddle inner-fiddle}
                 (seq inner-args) (assoc :hyperfiddle.route/datomic-args (vec inner-args)))]
@@ -184,19 +179,12 @@
                                   :link/class
                                   {:link/fiddle [:db/id
                                                  :fiddle/ident       ; routing
-                                                 :fiddle/query       ; validation
-                                                 :fiddle/type        ; validation
-                                                 #_:fiddle/eval      ; todo validation ?
                                                  ]}
                                   :link/formula
                                   :link/path
                                   :link/tx-fn]}
                   :fiddle/markdown
-                  :fiddle/pull
-                  :fiddle/pull-database
-                  :fiddle/query
                   :fiddle/renderer
-                  :fiddle/type
                   #_*                                                ; For hyperblog, so we can access :hyperblog.post/title etc from the fiddle renderer
                   ])
 
@@ -216,88 +204,6 @@
                    {:ctx    ctx
                     :route  route
                     :domain (hf/domain (:runtime ctx))}))))
-
-; This factoring is legacy, can the whole thing can be inlined right above the datomic IO?
-; UI runs it as validation for tooltip warnings (does the query match the params)
-(defn request-for-fiddle+ [rt pid route fiddle]             ; no ctx
-  (case (:fiddle/type fiddle)
-    ; Needles, which should really be query params. Query params can be resolved client-side with code splicing?
-    ; How does this impact routing? Server rendering?
-
-    ; Schema editor - many params
-    ; Sub requests - peer function, no params other than entity
-
-    ; Can we just do sub requests first, no need for splicing?
-
-    :query (mlet [q (cond (string? (:fiddle/query fiddle)) (reader/memoized-read-string+ (:fiddle/query fiddle))
-                      () (either/right (:fiddle/query fiddle))) ; todo why read-string instead of read-edn-string?
-                  needle-clauses (either/right nil) #_(reader/memoized-read-edn-string+ (:fiddle/query-needle fiddle))
-                  :let [[inputs appended-$] (if-let [in (:in (query/q->map q))]
-                                              [(mapv str in) false]
-                                              [["$"] true])
-                        [query-args unused appended-needle]
-                        (loop [query-args []
-                               [route-arg & next-route-args :as route-args] (::route/datomic-args route)
-                               [hole & next-holes] inputs
-                               appended-needle false]
-                          (let [[query-arg next-route-args] (cond
-                                                              (string/starts-with? hole "$")
-                                                              [(runtime/db rt pid hole) (seq route-args)]
-
-                                                              (instance? ThinEntity route-arg)
-                                                              ; I think it already has the correct identity and tempid is already accounted
-                                                              #_(context/smart-entity-identifier ctx route-arg)
-                                                              [(.-id route-arg) next-route-args] ; throw away dbname
-
-                                                              :else [route-arg next-route-args])
-                                query-args (conj query-args query-arg)]
-                            (cond
-                              next-holes (recur query-args next-route-args next-holes appended-needle)
-                              (and next-route-args (some? needle-clauses)) (recur query-args next-route-args ["?hf-needle"] true)
-                              :else [query-args next-route-args appended-needle])))]]
-             (cond
-               #_#_(seq unused) (either/left (ex-info "unused param" {:query q :params query-args :unused unused}))
-
-               (not= (count query-args) (if appended-needle
-                                          (+ 1 (count inputs))
-                                          (count inputs)))
-               (either/left (ex-info "missing params" {:query q :params query-args :unused unused}))
-
-               :else (let [q (cond-> q
-                               appended-needle (-> ((partial apply query/append-where-clauses) needle-clauses)
-                                                   (as-> q (if appended-$
-                                                             (query/append-inputs q '$ '?hf-needle)
-                                                             (query/append-inputs q '?hf-needle))))
-
-                               (seq (::route/where route)) ((partial apply query/append-where-clauses) (::route/where route)))]
-                       (return (->QueryRequest q query-args {:limit hf/browser-query-limit})))))
-
-    :eval                                                   ; '(datomic.api/pull $ [:db/ident '*] :db/ident)
-    (let [#_#_form (-> #_(memoized-read-edn-string+ (:fiddle/eval fiddle))
-                 (reader/memoized-read-string+ (:fiddle/eval fiddle))
-                 (either/branch (constantly nil) identity))]
-      ; todo, this path needs abstraction assistance for paging/offset
-      ;(timbre/debug :eval "fiddle" (:fiddle/eval fiddle))
-      ;(timbre/debug :eval "form" form)
-      (either/right (->EvalRequest (:fiddle/ident fiddle)
-                                   pid                      ; dbval is reconstructed from the pid on the backend
-                                   ; ::route/where ::route/datomic-args
-                                   route)))                 ; Other request types are able to abstract over the route; but the eval path needs full control
-
-    :entity
-    (let [args (::route/datomic-args route)                 ; Missing entity param is valid state now https://github.com/hyperfiddle/hyperfiddle/issues/268
-          ?e (first args)]
-      (if-let [dbname (:fiddle/pull-database fiddle)]
-        (let [db (runtime/db rt pid dbname)
-              pull-exp (or (-> (cond (string? (:fiddle/pull fiddle)) (reader/memoized-read-string+ (:fiddle/pull fiddle))
-                                     () (either/right (:fiddle/pull fiddle)))
-                               ; todo it SHOULD be assertable that fiddle/pull is valid edn (and datomic-pull) by now (but its not yet)
-                               (either/branch (constantly nil) identity))
-                           ; todo this default is garbage, fiddle/pull should never be nil (defaults already applied)
-                           ; and invalid edn should just fail, not nil-pun
-                           ['*])]
-          (either/right (->EntityRequest (or (:db/id ?e) ?e) db pull-exp)))
-        (either/left (ex-info "Missing :fiddle/pull-database" {:fiddle (:fiddle/ident fiddle)}))))))
 
 (defn- nil-or-hydrate+ [rt pid request]
   (if request
@@ -375,12 +281,10 @@
                       (do/! :Eval.get-var :eval/env)))
                   () (merge val
                        (-> (get-fiddle-def (:fiddle/ident val))
-                           (select-keys [:db/id :fiddle/type :fiddle/query :fiddle/pull :fiddle/spec])
-                           (update-existing :fiddle/query str)
-                           (update-existing :fiddle/pull str)
+                           (select-keys [:db/id :fiddle/spec])
                            (update-existing :fiddle/eval str)))))
 
           () val)
 
     (cond-> val
-      ((-> key name keyword) #{:renderer :markdown :query :pull :eval}) str)))
+      ((-> key name keyword) #{:markdown :eval}) str)))

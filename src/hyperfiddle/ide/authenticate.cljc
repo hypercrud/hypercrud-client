@@ -4,15 +4,14 @@
     [cats.core :refer [mlet return]]
     [cats.labs.promise]
     #?(:cljs [goog.object :as object])
-    [hypercrud.types.EntityRequest :refer [map->EntityRequest]]
     [hyperfiddle.api :as hf]
     [hyperfiddle.domain :as domain]
     [hyperfiddle.io.core :as io]
     [hyperfiddle.service.jwt :as jwt]
     [promesa.core :as p]
-    [taoensso.timbre :as timbre])
-  #?(:clj
-     (:import
+    #?(:clj [datomic.api :as d]))
+   #?(:clj
+      (:import
        (com.auth0.client.auth AuthAPI)
        (java.util Date UUID))))
 
@@ -48,10 +47,8 @@
                                  (-> config :auth0 :client-secret)
                                  (-> config :auth0 :domain))]
                     (p/do! (verify encoded-id-token)))
-         basis (io/sync io #{"$users"})
-         user-record (->> (map->EntityRequest {:e [:user/sub (:sub id-token)]
-                                               :db ["$users" hf/root-pid]
-                                               :pull-exp [:db/id :user/user-id :user/created-date]})
+         basis (io/sync io #{"$" "$users"})
+         user-record (->> `((subject ~(:sub id-token)) ~hf/root-pid)
                           (io/hydrate-one! io basis {hf/root-pid {:is-branched true}}))
          :let [user-id (:user/user-id user-record #?(:clj (UUID/randomUUID) :cljs (random-uuid)))
                now #?(:clj (Date.) :cljs (js/Date.))]
@@ -65,3 +62,9 @@
     (-> (assoc id-token :user-id (str user-id))
         (jwt/sign (-> config :auth0 :client-secret))               ; todo maybe use a different secret to sign
         (return))))
+
+(defn subject [jwt-sub]
+  #?(:clj
+     (d/pull (hf/get-db "$users")
+             '[:db/id :user/user-id :user/created-date]
+             [:user/sub jwt-sub])))

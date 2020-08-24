@@ -6,9 +6,10 @@
     [clojure.tools.reader.reader-types :as reader-types]
     [contrib.expr :refer :all]
     [contrib.do :refer [do-result]]
-    [contrib.data :refer [qualify trim-str for-kv orf]]
+    [contrib.data :as data :refer [qualify trim-str for-kv orf]]
     [hyperfiddle.fiddle]
-    [hyperfiddle.spec :as hf-spec]))
+    [hyperfiddle.spec :as hf-spec]
+    [hyperfiddle.api :as hf]))
 
 
 (declare def!) ; main definitions
@@ -164,12 +165,11 @@
   (assert (or (qualified-symbol? ident)
               (qualified-keyword? ident)))
   (let [attrs (read-spec ::def attrs)
-        spec (some-> (s/get-spec ident) (hf-spec/parse))]
+        spec  (some-> (s/get-spec ident) (hf-spec/parse))]
     (map-attrs type
-               (cond-> {:ident       ident
-                        :fiddle/type :eval}
+               (cond-> {:ident ident}
                  spec (assoc :fiddle/spec (hf-spec/fiddle-spec spec))
-                 spec (update :fiddle/shape (orf [(hf-spec/shape spec)])) ; wrapped in [] for hf-def quoted syntax
+                 spec (data/update-existing :fiddle/shape (orf [(hf-spec/shape spec)])) ; wrapped in [] for hf-def quoted syntax
                  )
       (when (= type :fiddle)
         {:fiddle/source (symbol (.name *ns*))})
@@ -221,20 +221,8 @@
     [kv
      (case (qualify type k)
 
-       :fiddle/pull
-       (let [[db q] (->> v map-expr (split-with (some-fn string? seq?)))]
-         (cond->
-           {:fiddle/type :entity
-            :fiddle/pull (one q)}
-           (not (empty? db)) (merge {:fiddle/pull-database (one db)})))
-
-       :fiddle/query
-       {:fiddle/type  :query
-        :fiddle/query (-> v one map-expr)}
-
        :fiddle/eval
-       {:fiddle/type :eval
-        :fiddle/eval (-> v one map-expr)}
+       {:fiddle/eval (-> v one map-expr)}
 
        ;; TODO remove, now defined by spec
        :fiddle/shape
@@ -279,17 +267,6 @@
     (if (not (map? kv))
       {kv v} kv)))
 
-(defn adjust-type
-  "When a fiddle is of type :fiddle/eval we want to be able to infer the resultset
-  schema from a static definition. Passing a :query parameter to a fiddle
-  provides a way to infer a schema, but this doesn't make this fiddle a :query
-  fiddle, so it should stay of type :eval.
-  FIXME: deprecated once :query and :pull are removed."
-  [fiddle]
-  (if (contains? fiddle :fiddle/eval)
-    (assoc fiddle :fiddle/type :eval)
-    fiddle))
-
 (defn map-attrs [type & attrs]
   (->>
     (apply merge attrs)
@@ -302,11 +279,9 @@
           {k (cond
                (and (= type :fiddle)
                     (= (hyperfiddle.fiddle/kind acc) :fn)) (map-val v)
-               (-> k name keyword #{:query :pull}) (map-expr v)
                (-> k name keyword #{:renderer :markdown}) (repr-val v)
                () v)}))
-      {})
-    (adjust-type)))
+      {})))
 
 ; ---
 

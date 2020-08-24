@@ -71,14 +71,14 @@
 (deftest fvor-1 []
   (is (= ((fvor #(.toLocaleDateString %) "–") nil) "–")))
 
-(def ordering [:fiddle/ident :fiddle/type :fiddle/pull-database :fiddle/pull :fiddle/query
+(def ordering [:fiddle/ident :fiddle/pull-database :fiddle/pull
                :fiddle/renderer :fiddle/markdown :fiddle/links :fiddle/hydrate-result-as-fiddle])
 (deftest compare-by-index-
   []
   (is (= (apply sorted-set-by
                 (compare-by-index ordering)
-                [:fiddle/renderer :fiddle/ident :fiddle/markdown :fiddle/type])
-         (sorted-set :fiddle/ident :fiddle/type :fiddle/renderer :fiddle/markdown))))
+                [:fiddle/renderer :fiddle/ident :fiddle/markdown ])
+         (sorted-set :fiddle/ident :fiddle/renderer :fiddle/markdown))))
 
 (deftest ancestry-common-1
   []
