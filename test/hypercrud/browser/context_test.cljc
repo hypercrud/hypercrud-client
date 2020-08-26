@@ -222,7 +222,7 @@
            [nil nil [:dustingetz.reg/email "bob@example.com"]]))))
 
 (deftest context-c
-  (testing "fiddle/type :pull"
+  (testing "legacy fiddle/type :pull"
     (is (= (for [ctx [(mock-fiddle! :hyperfiddle/ide)]
                  [_ ctx] (context/spread-rows ctx)
                  [_ ctx] (context/spread-elements ctx)]
@@ -810,8 +810,8 @@
     (let [xx (hyperfiddle.data/spread-links-here ctx-blog-slug)]
       (is (= (map first xx)
             ; Hash is not cross platform here. The vals are proven equal below. Problem?
-             #?(:cljs [-149644189 -1537857194]
-                :clj [925230688 1235745664])))
+             #?(:cljs [-122855804 -239169834]
+                :clj [-933444643 2059059608])))
 
       (is (= (map (comp deref second) xx)
             ; Test passes both clj and cljs, proving the values are equal on both platforms,
@@ -819,9 +819,6 @@
             [{:db/id 17592186047370,
               :link/fiddle {:db/id 17592186047371,
                             :fiddle/ident 'dustingetz.tutorial/view-post,
-                            :fiddle/type :entity,
-                            :fiddle/pull-database "$",
-                            :fiddle/pull "[:db/id\n *]",
                             :fiddle/markdown "### dustingetz.tutorial/view-post"}
               :link/path :dustingetz.post/slug,
               :link/rel :hf/self}
@@ -829,9 +826,6 @@
               :link/class [:hf/new],
               :link/fiddle {:db/id 17592186047373,
                             :fiddle/ident 'dustingetz.tutorial.blog/new-post,
-                            :fiddle/type :entity,
-                            :fiddle/pull-database "$",
-                            :fiddle/pull "[:db/id\n *]",
                             :fiddle/markdown "### dustingetz.tutorial.blog/new-post"}
               :link/path :dustingetz.post/slug,
               :link/rel :hf/new,
@@ -1047,7 +1041,7 @@
 
     (is (= (count (for [[_ ctx] (context/spread-rows ctx-schema)]
                     nil))
-           97))))
+           96))))
 
 (deftest findcoll-ident-card-many
   (is (-> (let [ctx (mock-fiddle! :dustingetz.test/findcoll-ident-cardinality-many)]
@@ -1251,12 +1245,7 @@
     ))
 
 (deftest reachable-attrs
-  (is (= (-> ctx-ide-domain
-             (context/attribute :domain/databases)
-             (context/row 17592186046511)
-             (context/attribute :db/id)
-             (context/reachable-attrs))
-         [:db/id
+  (is (= [:db/id
           :domain/ident
           :domain/environment
           :domain/disable-javascript
@@ -1268,7 +1257,12 @@
           :domain.database/record
           :database/uri
           :database.custom-security/server
-          :domain/fiddle-database]))
+          :domain/fiddle-database]
+         (-> ctx-ide-domain
+             (context/attribute :domain/databases)
+             (context/row 17592186046511)
+             (context/attribute :db/id)
+             (context/reachable-attrs))))
 
   )
 

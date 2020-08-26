@@ -3,94 +3,19 @@
    [cats.core :as cats :refer [mlet]]
    [cats.monad.either :as either]
    [cats.monad.exception :as exception :refer [try-on]]
-   [clojure.edn :as edn]
    [clojure.set :as set]
    [clojure.string :as string]
    [contrib.data :as data :refer [cond-let map-values parse-query-element]]
-   [contrib.do :as do]
    [contrib.datomic]
+   [contrib.do :as do]
    [contrib.pprint :refer [pprint-str]]
    [contrib.try$ :refer [try-either]]
-   [hypercrud.types.EntityRequest]
-   [hypercrud.types.QueryRequest]
    [hyperfiddle.api :as hf]
-   [hyperfiddle.io.datomic.core :as d]
    [hyperfiddle.security]
-   [taoensso.timbre :as timbre]
-   [hyperfiddle.def :as hf-def]
-   [hyperfiddle.spec :as spec]
    [hyperfiddle.transaction :refer [expand-hf-tx]]
-   [clojure.spec.alpha :as s])
-  (:import
-   (hypercrud.types.EntityRequest EntityRequest)
-   (hypercrud.types.QueryRequest QueryRequest EvalRequest)))
-
+   [taoensso.timbre :as timbre]))
 
 (defrecord SecureDbWith [db id->tempid])
-
-(defmulti parameter (fn [this & args] (first (s/conform ::d/parameter this))))
-
-(defmethod parameter :default [this & args] this)
-
-(defmethod parameter :dbref [[dbname branch] get-secure-db-with]
-  (-> (get-secure-db-with dbname branch) :db))
-
-(defmulti hydrate-request* (fn [this & args] (class this)))
-
-(defn resolve-map []
-  (->>
-    (hf-def/get-def)
-    (select-keys [:attribute])
-    (reduce-kv
-      (fn [defs k v]
-        (merge defs v))
-      {})))
-
-(defmethod hydrate-request* EntityRequest [{:keys [e db pull-exp]} domain get-secure-db-with]
-  (let [[dbname branch] db
-        {pull-db :db}   (get-secure-db-with dbname branch)]
-    (cond
-      (nil? e) nil                                          ; This is probably an error, report it? Datomic says: (d/pull $ [:db/id] nil) => #:db{:id nil}
-      (contrib.datomic/tempid? e) {:db/id e}                ; This introduces sloppy thinking about time!   https://github.com/hyperfiddle/hyperfiddle/issues/584
-      :else (hf/pull pull-db {:selector pull-exp :eid e}))))
-
-(defmethod hydrate-request* QueryRequest [{:keys [query params opts]} domain get-secure-db-with]
-  (assert query "hydrate: missing query")
-  (let [q (d/qf (hf/databases domain) params)
-        arg-map (-> (select-keys opts [:limit :offset])
-                    (assoc :query query
-                           :args (map #(parameter % get-secure-db-with) params)))]
-    (q arg-map)))
-
-(defn max-arity [avar]
-  (or (some->> avar meta :arglists
-               (map (fn [args] (count (remove #{'&} args))))
-               (apply max))
-      0))
-
-(defmethod hf/defaults :default [[f & args]]
-  (cons f (data/zipseq args (repeat (max-arity (find-var f)) nil))))
-
-(defmethod hf/view-defaults :default [route] route)
-
-(defn eval-as-fexpr!
-  "Like `clojure.core/eval`, but don't evaluate operands.
-  https://en.wikipedia.org/wiki/Fexpr ."
-  [[fn-sym & args]]
-  (-> (find-var fn-sym)
-      (deref)
-      (apply args)))
-
-(defn- get-db [getterf pid dbname]
-  (:db (getterf dbname pid)))
-
-(defmethod hydrate-request* EvalRequest [{:keys [pid route]} _domain get-secure-db-with]
-  {:pre [route]}
-  (binding [hf/*route*  route
-            hf/*$*      (get-db get-secure-db-with pid "$")
-            hf/*get-db* (partial get-db get-secure-db-with pid)]
-    (let [defaults (hf/defaults route)]
-      [defaults (hf/view-defaults defaults) (eval-as-fexpr! defaults)])))
 
 ; todo i18n
 (def ERROR-BRANCH-PAST ":hyperfiddle.error/basis-stale Branching the past is currently unsupported, please refresh your basis by refreshing the page")
@@ -209,27 +134,52 @@
   (->> (get @db-with-lookup pid)
        (map-values extract-tempid-lookup+)))
 
-(defn hydrate-request [domain get-secure-db-with+ request ?subject]
-  {:pre [(or (instance? EntityRequest request)
-             (instance? QueryRequest request)
-             (instance? EvalRequest request))]}
+
+;;;;;;;;;;;;;;;
+;; HYDRATION ;;
+;;;;;;;;;;;;;;;
+
+(defn max-arity [avar]
+  (or (some->> avar meta :arglists
+               (map (fn [args] (count (remove #{'&} args))))
+               (apply max))
+      0))
+
+(defmethod hf/defaults :default [[f & args]]
+  (cons f (data/zipseq args (repeat (max-arity (find-var f)) nil))))
+
+(defmethod hf/view-defaults :default [route] route)
+
+(defn eval-as-fexpr!
+  "Like `clojure.core/eval`, but don't evaluate operands.
+  https://en.wikipedia.org/wiki/Fexpr ."
+  [[fn-sym & args]]
+  (-> (find-var fn-sym)
+      (deref)
+      (apply args)))
+
+(defn- get-db [getterf pid dbname]
+  (:db (getterf dbname pid)))
+
+(defn hydrate-request [_domain get-secure-db-with+ [route pid :as F] ?subject]
   (binding [hf/*subject* ?subject]
     (either/branch-left
       ; Force exceptions here. How?
-      (try-either (hydrate-request* request domain (comp exception/extract get-secure-db-with+)))
-      (fn [e] (either/left (error-cleaner e request))))))
+     (try-either
+      (binding [hf/*get-db* (partial get-db (comp exception/extract get-secure-db-with+) pid)]
+        (let [defaults (hf/defaults route)]
+          [defaults (hf/view-defaults defaults) (eval-as-fexpr! defaults)])))
+      (fn [e] (either/left (error-cleaner e F))))))
 
-(defn hydrate-requests [domain local-basis requests partitions ?subject]
-  {:pre [requests
-         (not-any? nil? requests)
-         (every? #(or (instance? EntityRequest %)
-                      (instance? QueryRequest %)
-                      (instance? EvalRequest %)) requests)]}
-  (do/scope [`hydrate-requests requests]
+;; F is [ƒ, pid].
+;; F is a fiddle function evaluation in the context of a given branch.
+(defn hydrate-requests [domain local-basis Fs partitions ?subject]
+  {:pre [Fs (not-any? nil? Fs)]}
+  (do/scope [`hydrate-requests Fs]
     (let [db-with-lookup (atom {})
           local-basis (into {} local-basis)                 ; :: ([dbname 1234]), but there are some duck type shenanigans happening
           get-secure-db-with+ (build-get-secure-db-with+ domain (constantly partitions) db-with-lookup local-basis ?subject)
-          pulled-trees (->> requests
+          pulled-trees (->> Fs
                             (map #(hydrate-request domain get-secure-db-with+ % ?subject))
                             (doall))
           tempid-lookups (map-values #(map-values extract-tempid-lookup+ %) @db-with-lookup)]

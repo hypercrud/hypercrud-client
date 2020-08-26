@@ -237,21 +237,7 @@ User renderers should not be exposed to the reaction."
   ; each prop might have special rules about his default, for example :visible is default true,
   ; does this get handled here?
   (-> +?route
-      (>>= (fn [?route]
-             ; todo should still allow routing even if these checks fail, all that matters if it can be encoded to an url
-             ; We specifically hydrate this deep just so we can validate anchors like this.
-             (let [?fiddle (:link/fiddle @link-ref)]
-               (case (:fiddle/type ?fiddle)
-                 :query (->>
-                          ; just check if a request can be built
-                          (base/request-for-fiddle+ (:runtime ctx) (:partition-id ctx) ?route ?fiddle)
-                          (cats/fmap (constantly ?route)))
-                 :entity (let [[$1 :as params] (::route/datomic-args ?route)]
-                           ; todo just run base/request-for-fiddle+
-                           (if (not= nil $1)                ; todo check conn
-                             (either/right ?route)
-                             (either/left {:message "malformed entity param" :data {:params params}})))
-                 (either/right ?route)))))
+      (>>= (fn [?route] (either/right ?route))) ;; FIXME
       (either/branch
         (fn [e]
           (-> props
@@ -496,17 +482,7 @@ User renderers should not be exposed to the reaction."
                      (select-keys props [:hf/where :hf/where-spec]))]
     [needle-input unfilled-where ctx props]))
 
-(defn hint [val {:keys [hypercrud.browser/fiddle] :as ctx} props]
-  (case @(r/fmap :fiddle/type fiddle)
-    :entity (when (empty? val)
-              [:div.hyperfiddle.alert.alert-warning "Warning: invalid route (d/pull requires an entity argument). To add a tempid entity to the URL, click here: "
-               [:a {:href "~entity('$','tempid')"} [:code "~entity('$','tempid')"]] "."])
-    :query (when (= hf/browser-query-limit (count val))
-             [:div.hyperfiddle.alert.alert-warning
-              (str/format "Warning: Query resultset has been truncated to %s records."
-                          hf/browser-query-limit)])
-    :eval nil
-    ))
+(def hint (constantly nil))
 
 (defn form "Not an abstraction." [columns val ctx & [props]]
   {:pre [(s/assert :hypercrud/context ctx)]}

@@ -27,9 +27,8 @@
      (def route {:hyperfiddle.route/fiddle ::submission-master})
      (def o (from-result (eval-fiddle+ fiddle route)))
 
-     (is (= (select-keys o [:fiddle/type :fiddle/ident])
-           {:fiddle/type  :eval
-            :fiddle/ident ::submission-master}))
+     (is (= (select-keys o [ :fiddle/ident])
+           {:fiddle/ident ::submission-master}))
 
      (is (= (:fiddle/links o)
            [{:link/fiddle #:fiddle{:ident :hypercrud.browser.base-test/submission-detail},

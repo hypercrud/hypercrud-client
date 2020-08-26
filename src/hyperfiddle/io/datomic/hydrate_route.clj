@@ -1,6 +1,5 @@
 (ns hyperfiddle.io.datomic.hydrate-route
   (:require
-    [cats.core :refer [alet]]
     [cats.monad.either :as either]
     [cats.labs.promise]
     [contrib.performance :as perf]
@@ -12,12 +11,10 @@
     [hyperfiddle.api :as hf]
     [hyperfiddle.io.core :as io]
     [hyperfiddle.io.datomic.hydrate-requests :as hydrate-requests]
-    [hyperfiddle.project :as project]
     [hyperfiddle.runtime :as runtime]
     [hyperfiddle.schema :as schema]
     [hyperfiddle.state :as state]
     [hyperfiddle.def :as hf-def]
-    [hyperfiddle.domain :as domain]
     [promesa.core :as p]
     [taoensso.timbre :as timbre]))
 
@@ -51,7 +48,7 @@
 (defn hydrate-route [domain local-basis route pid partitions ?subject]
 
   (do-async
-    (scope [`hydrate-route (:hyperfiddle.route/fiddle route)]
+   (scope [`hydrate-route (first route)]
 
       (let [aux-io (reify io/IO
                      (hydrate-requests [io local-basis partitions requests]

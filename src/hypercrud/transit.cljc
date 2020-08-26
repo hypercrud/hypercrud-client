@@ -7,19 +7,14 @@
     #?(:cljs [com.cognitect.transit.types])
     [contrib.datomic :refer [->Schema #?(:cljs Schema)]]
     [contrib.uri :refer [->URI #?(:cljs URI)]]
-    [hypercrud.types.EntityRequest :refer [->EntityRequest #?(:cljs EntityRequest)]]
-    [hypercrud.types.QueryRequest :refer [->QueryRequest #?(:cljs QueryRequest)
-                                          ->EvalRequest #?(:cljs EvalRequest)]]
     [hypercrud.types.ThinEntity :refer [->ThinEntity #?(:cljs ThinEntity)]]
-    [contrib.orderedmap :refer [with-order ordered-map]])
+    [contrib.orderedmap :refer [with-order]])
   #?(:clj
      (:import
        (cats.monad.either Left Right)
        (cats.monad.exception Failure Success)
        (clojure.lang ExceptionInfo)
        (contrib.datomic Schema)
-       (hypercrud.types.EntityRequest EntityRequest)
-       (hypercrud.types.QueryRequest QueryRequest EvalRequest)
        (hypercrud.types.ThinEntity ThinEntity)
        (java.io ByteArrayInputStream ByteArrayOutputStream))))
 
@@ -27,9 +22,6 @@
 (def read-handlers
   (atom
     {"schema-v" (t/read-handler #(apply ->Schema %))
-     "EReq" (t/read-handler #(apply ->EntityRequest %))
-     "EvalReq" (t/read-handler #(apply ->EvalRequest %))
-     "QReq" (t/read-handler #(apply ->QueryRequest %))
      "entity" (t/read-handler #(apply ->ThinEntity %))
      "r" (t/read-handler ->URI)
      "left" (t/read-handler #(either/left %))
@@ -48,9 +40,6 @@
 (def write-handlers
   (atom
     {Schema (t/write-handler (constantly "schema-v") (fn [^Schema v] (vector (.-schema-by-attr v))))
-     EntityRequest (t/write-handler (constantly "EReq") (fn [v] [(:e v) (:db v) (:pull-exp v)]))
-     QueryRequest (t/write-handler (constantly "QReq") (fn [v] [(:query v) (:params v) (:opts v)]))
-     EvalRequest (t/write-handler (constantly "EvalReq") (fn [v] [(:form v) (:pid v) (:route v)]))
      ThinEntity (t/write-handler (constantly "entity") (fn [^ThinEntity v] [(.-dbname v) (.-id v)]))
      Left (t/write-handler (constantly "left-v") (fn [v] (vector (cats/extract v))))
      Right (t/write-handler (constantly "right-v") (fn [v] (vector (cats/extract v))))
