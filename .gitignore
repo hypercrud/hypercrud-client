@@ -6,3 +6,4 @@
 /node_modules
 .cpcache
 /cljs-test-runner-out
+.m2

@@ -1,0 +1,14 @@
+-p ./src
+  hyperfiddle.hx.Meta
+  hyperfiddle.hx.DF
+
+  --each
+    --next
+    --java out
+    --debug
+    -D jvm
+
+
+    --next
+    -js resources/js/DF.js
+    -D nodejs
