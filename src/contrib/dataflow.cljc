@@ -1,4 +1,4 @@
-(ns hxes.dataflow
+(ns contrib.dataflow
   (:require
     [clojure.core :as clojure]
     #?(:cljs
@@ -113,8 +113,11 @@
     df))
 
 (defn input
-  [& [f]]
-  (->dataflow ((.-input Origin) f)))
+  [& [value f]]
+  (let [df (->dataflow ((.-input Origin) f))]
+    (when value
+      (.put df v))
+    df))
 
 (defn put
   [input v]
