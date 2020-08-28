@@ -163,15 +163,17 @@
   (:db (getterf dbname pid)))
 
 (defn hydrate-request [domain get-secure-db-with+ [route pid :as F] ?subject]
-  (binding [hf/*subject* ?subject]
-    (either/branch-left
-      ; Force exceptions here. How?
-     (try-either
-      (binding [hf/*get-db* (partial get-db (comp exception/extract get-secure-db-with+) pid)]
-        (with-bindings (hf/bindings domain)
-          (let [defaults (hf/defaults route)]
-            [defaults (hf/view-defaults defaults) (eval-as-fexpr! defaults)]))))
-      (fn [e] (either/left (error-cleaner e F))))))
+  (either/branch-left
+    ; Force exceptions here. How?
+    (try-either
+      (let [get-db' (partial get-db (comp exception/extract get-secure-db-with+) pid)]
+        (binding [hf/*subject* ?subject
+                  hf/*get-db* get-db'
+                  hf/*$* (get-db' "$")]
+          (with-bindings (hf/bindings domain)
+            (let [defaults (hf/defaults route)]
+              [defaults (hf/view-defaults defaults) (eval-as-fexpr! defaults)])))))
+    (fn [e] (either/left (error-cleaner e F)))))
 
 ;; F is [ƒ, pid].
 ;; F is a fiddle function evaluation in the context of a given branch.
