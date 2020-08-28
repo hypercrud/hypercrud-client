@@ -59,16 +59,12 @@
 
             schemas @(schema/hydrate-schemas aux-rt pid local-basis partitions)
 
-            attr-renderers
-            (into {} (map (fn [[k v]] {k (:attribute/renderer v)}) (hyperfiddle.def/get-def :attribute)))
-
             db-with-lookup (atom {})
 
             initial-state {::runtime/user-id    ?subject
                            ; should this be constructed with reducers?
                            ; why dont we need to preheat the tempid lookups here for parent branches?
                            ::runtime/partitions (update partitions pid assoc
-                                                  :attr-renderers attr-renderers
                                                   :local-basis local-basis
                                                   :route route
                                                   :schemas schemas)}
@@ -107,5 +103,5 @@
                                                      :partition-children
                                                      :parent-pid
                                                      :route :route-defaults :local-basis
-                                                     :attr-renderers :error :ptm :schemas :tempid-lookups])]))
+                                                     :error :ptm :schemas :tempid-lookups])]))
                  (into {})))))))

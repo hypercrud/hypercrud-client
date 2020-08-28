@@ -205,7 +205,6 @@
      :local-basis identity
 
      ; response data of hydrating a partition
-     :attr-renderers identity
      :error identity
      :ptm identity
      :schemas identity

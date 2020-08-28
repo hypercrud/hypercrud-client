@@ -12,7 +12,7 @@
   (for-kv m m (fn [acc k v] (assoc acc k (f v)))))
 
 (defn map-keys [f m]
-  (for-kv m m (fn [acc k v] (assoc acc (f k) v))))
+  (for-kv m (empty m) (fn [acc k v] (assoc acc (f k) v))))
 
 (defn filter-keys [f? m]
   (for-kv m m (fn [acc k _] (if (f? k) acc (dissoc acc k)))))
