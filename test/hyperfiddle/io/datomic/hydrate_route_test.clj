@@ -62,8 +62,8 @@
                                                                         [:db/add [:person/name "Bob"] :person/age 42]]}}}
                            subject     nil]
                        @(hydrate-route/hydrate-route test-domain local-basis route pid partitions subject)))]
-      (is (exception/failure? (get-in response [pid :schemas "$"])))
-      (is (exception/success? (get-in response [pid :schemas "$src"])))))
+      (is (exception/failure? (get-in response [pid :schemas "$"]))) ; only $ tx is busted (can't even get the schema with a busted tx)
+      (is (exception/success? (get-in response [pid :schemas "$src"]))))) ; don't leak errors across databases
 
   (testing "source db"
     (let [response+ (timbre/with-config {:enabled? false}

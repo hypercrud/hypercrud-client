@@ -8,6 +8,8 @@
 (defn unwrap [lf v+]
   (either/branch v+ lf identity))
 
+(defn silence! [v+]
+  (unwrap (constantly nil) v+))
 
 (defn maybe [v]
   (if (some? v)

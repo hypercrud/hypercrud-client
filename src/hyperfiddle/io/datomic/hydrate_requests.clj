@@ -3,6 +3,8 @@
    [cats.core :as cats :refer [mlet]]
    [cats.monad.either :as either]
    [cats.monad.exception :as exception :refer [try-on]]
+   [contrib.do :refer [from-result do-result]]
+   [contrib.ct :refer [silence!]]
    [clojure.set :as set]
    [clojure.string :as string]
    [contrib.data :as data :refer [cond-let map-values parse-query-element]]
@@ -167,9 +169,11 @@
     ; Force exceptions here. How?
     (try-either
       (let [get-db' (partial get-db (comp exception/extract get-secure-db-with+) pid)]
-        (binding [hf/*subject* ?subject
-                  hf/*get-db* get-db'
-                  hf/*$* (get-db' "$")]
+        (binding [hf/*get-db* get-db'
+                  hf/*subject* ?subject
+                  ; get-db will realize the database, possibly throwing on a bad stage
+                  ; which should not break the page here. See test
+                  hf/*$* (silence! (do-result (get-db' "$")))]
           (with-bindings (hf/bindings domain)
             (let [defaults (hf/defaults route)]
               [defaults (hf/view-defaults defaults) (eval-as-fexpr! defaults)])))))
