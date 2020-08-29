@@ -173,7 +173,8 @@
                   hf/*subject* ?subject
                   ; get-db will realize the database, possibly throwing on a bad stage
                   ; which should not break the page here. See test
-                  hf/*$* (silence! (do-result (get-db' "$")))]
+                  #_#_hf/*$* (silence! (do-result (get-db' "$")))
+                  hf/*$* (get-db' "$")]
           (with-bindings (hf/bindings domain)
             (let [defaults (hf/defaults route)]
               [defaults (hf/view-defaults defaults) (eval-as-fexpr! defaults)])))))
