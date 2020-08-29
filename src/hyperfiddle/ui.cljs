@@ -531,32 +531,40 @@ User renderers should not be exposed to the reaction."
        (mapcat identity)                                    ; Don't flatten the hiccup
        doall))
 
-(defn render-args [ctx & [props]]
+(defn args [ctx & [props]]
   (let [ctx (context/derive-for-args-rendering ctx)]
     [:div {:class "hyperfiddle search-defaults"
            :style {:margin-bottom "1rem"}}
      [result (hf/data ctx) ctx props]]))
 
-(defn ^:export result "Default result renderer. Invoked as fn, returns seq-hiccup, hiccup or
+(defn result' [ctx props]
+  (let [val (hf/data ctx)]
+    [:<>
+     (doall
+       (for [[k ctx] (hypercrud.browser.context/spread-result ctx)]
+         [:<> {:key k}
+          (hint val ctx props)
+          (when-let [unfilled-where (:hf/where props)]
+            [needle-input2 ctx props])
+          (let [qtype (type @(:hypercrud.browser/qfind ctx))] ; i think we need to make up a qfind for this case
+            (if-not qtype
+              [table ctx (update props :columns (orf table-column-product))]
+              (condp some [qtype]                           ; spread-rows
+                #{FindRel FindColl} [table ctx (update props :columns (orf table-column-product))] ; identical result?
+                #{FindTuple FindScalar} [form table-column-product val ctx props])))]))]))
+
+(defn ^:export sexpr "Default result renderer. Invoked as fn, returns seq-hiccup, hiccup or
 nil. call site must wrap with a Reagent component"          ; is this just hyper-control ?
   [val ctx & [props]]
   {:pre [(not= val clojure.core/val)]}                      ; check for busted call while we migrate away from this param
   [:<>
    (when (and (some? (:hypercrud.browser/route-defaults-hydrated ctx))
               (some? (spec/args ctx)))
-     [render-args ctx props])
-   (doall
-     (for [[k ctx] (hypercrud.browser.context/spread-result ctx)]
-       [:<> {:key k}
-        (hint val ctx props)
-        (when-let [unfilled-where (:hf/where props)]
-          [needle-input2 ctx props])
-        (let [qtype (type @(:hypercrud.browser/qfind ctx))] ; i think we need to make up a qfind for this case
-          (if-not qtype
-            [table ctx (update props :columns (orf table-column-product))]
-            (condp some [qtype]                             ; spread-rows
-              #{FindRel FindColl} [table ctx (update props :columns (orf table-column-product))] ; identical result?
-              #{FindTuple FindScalar} [form table-column-product val ctx props])))]))])
+     [args ctx props])
+   [result' ctx props]])
+
+(def render-args args)                                      ; compat
+(def result sexpr)                                          ; compat
 
 ;(defmethod render :hf/blank [ctx props]
 ;  [iframe-field-default val ctx props])
