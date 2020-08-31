@@ -25,9 +25,10 @@
 (s/def :swing/quux string?)
 (s/def :fiddle/ident (s/or :legacy keyword? :ƒ qualified-symbol?))
 (s/def :fiddle/uuid uuid?)
-(s/def :fiddle/links (s/coll-of (s/and (s/keys :req [:link/path]
-                                               :opt [:link/class :link/fiddle :link/formula :link/tx-fn])
-                                       #_(s/multi-spec fiddle-link :link/class))))
+(s/def :fiddle/link (s/and (s/keys :req [:link/path]
+                                   :opt [:link/class :link/fiddle :link/formula :link/tx-fn])
+                           #_(s/multi-spec fiddle-link :link/class)))
+(s/def :fiddle/links (s/coll-of :fiddle/link))
 (s/def :fiddle/markdown string?)
 
 (s/def :link/class (s/coll-of keyword?))                    ; hf/new is not allowed on FindScalar at the top (no parent)
@@ -46,8 +47,8 @@
 
 (defn kind [fiddle]
   (cond (:fiddle/apply fiddle) :eval
-        (:fiddle/args fiddle) :fn
-        () :static))
+        (:fiddle/args fiddle)  :fn
+        :else                  :static))
 
 (defn infer-query-formula [query]
   (unwrap

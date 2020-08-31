@@ -132,7 +132,7 @@
 
 ; clj only
 (def ^:dynamic *$* nil)
-(def ^:dynamic ^:private *get-db* nil)
+(def ^:dynamic *get-db* nil)
 (defn get-db [dbname]
   (*get-db* dbname))
 (def ^:dynamic *domain* nil)

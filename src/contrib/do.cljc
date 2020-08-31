@@ -37,12 +37,14 @@
 (defn as-either [v]
   (if (either/either? v) v (either/right v)))
 
-(defmacro do-result [& body]
+(defmacro do-result
+  "Try to evaluate `body` and return an Either instead of throwing an exception."
+  [& body]
   `(as-either (try* ~@body
                    (catch :default e# (either/left e#)))))
 
 (defmacro from-result
-  "Map an either into an exception or a value"
+  "Map an either into an exception (thrown) or a value"
   [& body]
   `(either/branch (do-result ~@body)
      (fn [e#] (throw e#))

@@ -149,10 +149,6 @@
   {:pre [pid]}
   (get (get-schemas rt pid) dbname))
 
-(defn get-attr-renderer
-  [rt pid ident]
-  @(state-ref rt [::partitions (get-branch-pid rt pid) :attr-renderers ident]))
-
 (defn get-local-basis [rt pid]
   {:pre [pid]}
   @(state-ref rt [::partitions (get-branch-pid rt pid) :local-basis]))
