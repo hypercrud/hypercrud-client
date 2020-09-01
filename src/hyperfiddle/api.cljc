@@ -7,8 +7,8 @@
 
     [clojure.spec.alpha :as s]
     [clojure.string :as str]
-    [taoensso.timbre :as timbre]
-    [hypercrud.types.ThinEntity :refer [thinentity?]]))     ; Exceptional hf require, the deftype should lift up to here or be removed
+    [clojure.edn :as edn]
+    [taoensso.timbre :as timbre]))
 
 
 (defprotocol ConnectionFacade
@@ -247,22 +247,6 @@
 (s/def :hf/where any?)
 (s/def :hf/where-spec any?)
 
-(defn arg* [e]
-  (cond
-    (thinentity? e) (.-id e)
-    (number? e) e                                        ; dbid
-    (string? e) e                                        ; tempid
-    (some? e) (throw (ex-info "unrecognized route param type" {:e e}))
-    () nil ; don't crash if missing entirely
-    ))
-
-(defn arg "Silly extractor for a HF deftype with poor ergonomics. Todo cleanup.
-  Used by Rosie"
-  ;([] (hf-arg hf/*route*))
-  ([hf-route] (arg hf-route 0))
-  ([hf-route ix]
-   (arg* (get (:hyperfiddle.route/datomic-args hf-route) ix))))
-
 (defn ^:temporary ->either-domain                           ; todo remove
   "Wrap a domain `x` as `Right x`. Useful to make existing (either-branched) code
   compatible with unested, reshaped domain values."
@@ -291,3 +275,21 @@
   `(hyperfiddle.def/serve-ns! ~*ns*))
 
 (defn ^::fiddle index [])
+
+
+;;; New ThinEntity impl
+
+(defn colored-tempid? [s]
+  (and (string? s)
+       (str/starts-with? s "hyperfiddle.tempid-")))
+
+(defn ->colored-tempid [dbname id]
+  (str "hyperfiddle.tempid-" (str id) "@" dbname))
+
+(defn parse
+  "Parse a given `tempid` to `[db id]`."
+  [id]
+  ;; TODO guard against malformed tempids
+  (when (colored-tempid? id)
+    (-> (str/replace id "hyperfiddle.tempid-" "")
+        (str/split #"@"))))

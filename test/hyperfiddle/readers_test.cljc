@@ -8,9 +8,9 @@
             [contrib.eval :as eval :refer [eval-expr-str!]]
             [contrib.reader :as reader :refer [read-edn-string!]]
             #?(:cljs [goog.math])
+            [hyperfiddle.api :as hf]
             [hyperfiddle.readers]
             [hypercrud.transit :as transit]
-            [hypercrud.types.ThinEntity :refer [->ThinEntity]]
             [contrib.uri :refer [->URI]])
   (:import #?(:clj java.util.Date)))
 
@@ -48,10 +48,8 @@
 #?(:clj
    (do
      (deftest entity []
-       (test-all-forms (->ThinEntity "foo" "bar")
-                       #entity["foo" "bar"]
-                       "#entity[\"foo\" \"bar\"]"
-                       "{\"~#entity\":[\"foo\",\"bar\"]}"))
+       (is (= "hyperfiddle.tempid-id@dbname" (hf/->colored-tempid "dbname" "id")))
+       (is (= ["id" "dbname"] (hf/parse (hf/->colored-tempid "dbname" "id")))))
 
      (comment
       (test-edn-read {:form 'foo} (pr-str {:form 'foo}))

@@ -14,11 +14,10 @@
     [contrib.string :refer [empty->nil]]
     [contrib.try$ :refer [try-either]]
     [cuerdas.core :as str]
-    [hypercrud.types.ThinEntity :refer [->ThinEntity #?(:cljs ThinEntity)]]
+    [hyperfiddle.api :as hf]
     [hyperfiddle.fiddle]                                    ; for ::fiddle spec
-    [taoensso.timbre :as timbre])
-  #?(:clj
-     (:import (hypercrud.types.ThinEntity ThinEntity))))
+    [taoensso.timbre :as timbre]
+    [hyperfiddle.api :as hf]))
 
 
 (s/def ::fiddle (s/or
@@ -126,8 +125,9 @@
        identity)))
 
 (defn invert-datomic-arg [v invert-id]
-  (if (instance? ThinEntity v)
-    (->ThinEntity (.-dbname v) (invert-id (.-dbname v) (.-id v)))
+  (if (hf/colored-tempid? v)
+    (let [[_ db] (hf/parse v)]
+      (invert-id db v))
     v))
 
 (defn invert-datomic-args [invert-id datomic-args]
