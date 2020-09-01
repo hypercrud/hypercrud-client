@@ -94,12 +94,12 @@
                    ; todo who is this executed on behalf of? system/root or the end user?
                    (p/do! (transact! domain nil tx-groups))))
 
-            jwt (from-async (hyperfiddle.ide.authenticate/login
-                              (:config (R/from context))
-                              domain
-                              (R/via context R/uri-for :/)
-                              io
-                              (-> request :query-params :code)))]
+            [jwt max-age] (from-async (hyperfiddle.ide.authenticate/login
+                               (:config (R/from context))
+                               domain
+                               (R/via context R/uri-for :/)
+                               io
+                               (-> request :query-params :code)))]
 
         (hf-http/response
           context
@@ -108,7 +108,7 @@
            :cookies {"jwt" (-> domain :hyperfiddle.ide.directory/ide-domain
                                                  (cookie/jwt-options-pedestal)
                                                  (assoc :value jwt
-                                                        #_#_:expires expiration))}
+                                                        :max-age max-age))}
            :body ""}))
       )))
 
