@@ -59,9 +59,11 @@
                                                 :user/last-seen now
                                                 :user/user-id user-id}
                                          (nil? (:user/created-date user-record)) (assoc :user/created-date now))]})]
-    (-> (assoc id-token :user-id (str user-id))
-        (jwt/sign (-> config :auth0 :client-secret))               ; todo maybe use a different secret to sign
-        (return))))
+        (return [(-> (assoc id-token :user-id (str user-id))
+                     (jwt/sign (-> config :auth0 :client-secret)) ; todo maybe use a different secret to sign
+                     )
+                 (- (:exp id-token)
+                    (quot (System/currentTimeMillis) 1000))])))
 
 (defn subject [jwt-sub]
   #?(:clj
