@@ -288,7 +288,10 @@
        (re-matches colored-tempid s)))
 
 (defn ->colored-tempid [dbname id]
-  (str "hyperfiddle.tempid-" (str id) "@" dbname))
+  (when (and (string? dbname)
+             (not-empty dbname)
+             (number? id))
+    (str "hyperfiddle.tempid-" (str id) "@" dbname)))
 
 (defn parse
   "Parse a given `id` to `[id db]`. See `colored-tempid`."
