@@ -9,7 +9,6 @@
     [cognitect.transit :as t]
     [hypercrud.transit :as hc-t]
     #?(:clj [hyperfiddle.io.datomic.core :as d])
-    [hypercrud.browser.router-bidi :as router-bidi]
 
     [bidi.bidi :as bidi]
     [clojure.set :as set]
@@ -85,30 +84,8 @@
   #?(:clj (connect [domain dbname] (d/dyna-connect (hf/database domain dbname) ?datomic-client)))
   #?(:clj (connect [domain dbname on-created!] (d/dyna-connect (hf/database domain dbname) ?datomic-client on-created!))))
 
-(defrecord BidiDomain [config basis fiddle-dbname databases environment router ?datomic-client memoize-cache]
-  hf/Domain
-  (basis [domain] basis)
-  (fiddle-dbname [domain] fiddle-dbname)
-  (database [domain dbname] (get databases dbname))
-  (databases [domain] databases)
-  (environment [domain] environment)
-  (url-decode [domain s]
-    (either/branch
-      (try-either (router-bidi/decode router s))
-      (fn [e] (route/decoding-error e s))
-      identity))
-  (url-encode [domain route] (router-bidi/encode router route))
-  (api-routes [domain] (R/domain-routes config))
-  #?(:clj (connect [domain dbname] (d/dyna-connect (hf/database domain dbname) ?datomic-client))))
-
 (hypercrud.transit/register-handlers
   EdnishDomain
   (str 'hyperfiddle.domain/EdnishDomain)
   #(-> (into {} %) (dissoc :?datomic-client :memoize-cache))
   #(-> (into {} %) (assoc :memoize-cache (atom nil)) map->EdnishDomain))
-
-(hypercrud.transit/register-handlers
-  BidiDomain
-  (str 'hyperfiddle.domain/BidiDomain)
-  #(-> (into {} %) (dissoc :?datomic-client :memoize-cache))
-  #(-> (into {} %) (assoc :memoize-cache (atom nil)) map->BidiDomain))

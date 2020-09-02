@@ -7,7 +7,6 @@
     #?(:cljs [com.cognitect.transit.types])
     [contrib.datomic :refer [->Schema #?(:cljs Schema)]]
     [contrib.uri :refer [->URI #?(:cljs URI)]]
-    [hypercrud.types.ThinEntity :refer [->ThinEntity #?(:cljs ThinEntity)]]
     [contrib.orderedmap :refer [with-order]])
   #?(:clj
      (:import
@@ -15,14 +14,12 @@
        (cats.monad.exception Failure Success)
        (clojure.lang ExceptionInfo)
        (contrib.datomic Schema)
-       (hypercrud.types.ThinEntity ThinEntity)
        (java.io ByteArrayInputStream ByteArrayOutputStream))))
 
 
 (def read-handlers
   (atom
     {"schema-v" (t/read-handler #(apply ->Schema %))
-     "entity" (t/read-handler #(apply ->ThinEntity %))
      "r" (t/read-handler ->URI)
      "left" (t/read-handler #(either/left %))
      "right" (t/read-handler #(either/right %))
@@ -40,7 +37,6 @@
 (def write-handlers
   (atom
     {Schema (t/write-handler (constantly "schema-v") (fn [^Schema v] (vector (.-schema-by-attr v))))
-     ThinEntity (t/write-handler (constantly "entity") (fn [^ThinEntity v] [(.-dbname v) (.-id v)]))
      Left (t/write-handler (constantly "left-v") (fn [v] (vector (cats/extract v))))
      Right (t/write-handler (constantly "right-v") (fn [v] (vector (cats/extract v))))
      Failure (t/write-handler (constantly "failure-v") (fn [v] (vector (cats/extract v))))

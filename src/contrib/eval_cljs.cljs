@@ -17,8 +17,7 @@
 ; These are like clj readers in resources/data-readers.cljc ??
 ; Should we just slurp those here?
 (def clj-readers
-  {'entity hypercrud.types.ThinEntity/entity-clj-reader
-   'uri contrib.uri/uri-clj-reader
+  {'uri contrib.uri/uri-clj-reader
    'long hyperfiddle.readers/long-clj-reader
    'schema hyperfiddle.readers/schema-clj-reader})
 

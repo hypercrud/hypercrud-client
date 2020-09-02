@@ -12,8 +12,6 @@
          ":hyperfiddle.blog!post"))
   (is (= (encode-ednish (pr-str "kobe"))
          "'kobe'"))
-  (is (= (encode-ednish (pr-str #entity["$" [:user/sub "google-oauth2|116635422485042503270"]]))
-         "~entity('$',(:user!sub,'google-oauth2|116635422485042503270'))"))
   (is (= (encode-ednish (pr-str #{"events" "news"}))
          "~{'news','events'}"))
   (is (= (encode-ednish (pr-str #uuid "07655f77-608d-472b-bc5e-86fcecc40b00"))

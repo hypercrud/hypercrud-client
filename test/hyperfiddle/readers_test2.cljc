@@ -10,7 +10,6 @@
 ;    #?(:cljs [goog.math])
 ;    [hyperfiddle.readers]
 ;    [hypercrud.transit :as transit]
-;    [hypercrud.types.ThinEntity :refer [->ThinEntity]]
 ;    [contrib.uri :refer [->URI]])
 ;  (:import #?(:clj java.util.Date)))
 ;
@@ -77,12 +76,6 @@
 ;    #inst "2017-12-31"
 ;    "#inst \"2017-12-31\""
 ;    "{\"~#t\":\"2017-12-31\"}")
-;  (check! true?)
-;
-;  (test-all-forms (->ThinEntity "foo" "bar")
-;    #entity["foo" "bar"]
-;    "#entity[\"foo\" \"bar\"]"
-;    "{\"~#entity\":[\"foo\",\"bar\"]}")
 ;  (check! true?)
 ;
 ;  #?(:cljs

@@ -13,7 +13,6 @@
     [contrib.string :refer [blank->nil]]
     [contrib.try$ :refer [try-either]]
     [datascript.parser #?@(:cljs [:refer [FindRel FindColl FindTuple FindScalar Variable Aggregate Pull]])]
-    [hypercrud.types.ThinEntity :refer [->ThinEntity #?(:cljs ThinEntity)]]
     [hyperfiddle.api :as hf]
     [hyperfiddle.fiddle :as fiddle]
     [hyperfiddle.route :as route]
@@ -23,8 +22,7 @@
     [taoensso.timbre :as timbre])
   #?(:clj
      (:import
-       (datascript.parser FindRel FindColl FindTuple FindScalar Variable Aggregate Pull)
-       (hypercrud.types.ThinEntity ThinEntity))))
+       (datascript.parser FindRel FindColl FindTuple FindScalar Variable Aggregate Pull))))
 
 
 ; This file is coded in reactive style, which means no closures because they cause unstable references.
@@ -1042,9 +1040,9 @@ a speculative db/id."
     (refocus-in-element+ (browse-element ctx 0) a')))
 
 (defn tag-v-with-color' [ctx v]
-  (if v
-    (->ThinEntity (or (dbname ctx) "$")                     ; busted element level
-                  v)))
+  (if (string? v)
+    (hf/->colored-tempid (or (dbname ctx) "$") v)
+    v))
 
 (defn tag-element-v-with-color [{:keys [:hypercrud.browser/element] :as ctx} v]
   {:pre [element]}
@@ -1057,8 +1055,7 @@ a speculative db/id."
   (let [[e a _] (eav ctx)
         is-element-level (= (pull-depth ctx) 0)]
     (cond
-      (instance? ThinEntity v) v                            ; legacy compat with IDE legacy #entity formulas
-
+      (hf/colored-tempid? v) v
       is-element-level                                      ; includes hf/new
       (do
         ; Includes FindColl and FindScalar inferred above
@@ -1187,7 +1184,7 @@ a speculative db/id."
                         (recur parent-pid tx)
                         tx)))
                   hash-portable
-                  (str "hyperfiddle.tempid-")))]
+                  (hf/->colored-tempid dbname)))]
   (defn tempid! "Generate a stable unique tempid that will never collide and also can be deterministicly
   reproduced in any tab or the server"
     ([ctx]
