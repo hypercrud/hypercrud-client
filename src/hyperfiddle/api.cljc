@@ -279,17 +279,21 @@
 
 ;;; New ThinEntity impl
 
+(def ^:private colored-tempid
+  "Matches \"hyperfiddle.tempid--123456789@dbname\""
+  #"^hyperfiddle\.tempid\-(\-?\d+)@(.+)$")
+
 (defn colored-tempid? [s]
   (and (string? s)
-       (str/starts-with? s "hyperfiddle.tempid-")))
+       (re-matches colored-tempid s)))
 
 (defn ->colored-tempid [dbname id]
   (str "hyperfiddle.tempid-" (str id) "@" dbname))
 
 (defn parse
-  "Parse a given `tempid` to `[db id]`."
+  "Parse a given `id` to `[id db]`. See `colored-tempid`."
   [id]
-  ;; TODO guard against malformed tempids
-  (when (colored-tempid? id)
-    (-> (str/replace id "hyperfiddle.tempid-" "")
-        (str/split #"@"))))
+  (if (colored-tempid? id)
+    (rest (re-find colored-tempid id))
+    [id nil]))
+
