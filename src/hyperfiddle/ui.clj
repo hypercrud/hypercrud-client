@@ -7,7 +7,7 @@
         state-marker-sym (gensym 'state-marker)]
     `(let [~outputs-sym (volatile! [])
            ~state-marker-sym (atom 0)]
-       (let ~@bindings
+       (let ~bindings
            (reagent/create-class
             {:render
              (fn []
@@ -32,12 +32,6 @@
                (doseq [output# @~outputs-sym]
                  (df/end output#)))})))))
 
-
-(def i (df/input))
-
-
-(->> i df/sequence (df/consume println))
-
 ; i <- [1 2 3 4]
 ; sequence
 ; | -> stream[1]  -> render
@@ -53,16 +47,16 @@
 ;   -> stream[3]  -> render
 ;   -> stream[5]  -> render
 
-(df/put i [1 2 3 4])
-(df/put i [1 2 3 5])
-
-
-{:a 1 :b 2}
-
-(|> [<a> (df/map :a <ctx>)]
-    [:pre (str a)])
-
-
+; (df/put i [1 2 3 4])
+; (df/put i [1 2 3 5])
+;
+;
+; {:a 1 :b 2}
+;
+; (|> [<a> (df/map :a <ctx>)]
+;     [:pre (str a)])
+;
+;
 
 ; (defmacro <|>
 ;   [bindings & body]

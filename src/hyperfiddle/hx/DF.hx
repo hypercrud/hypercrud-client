@@ -50,19 +50,18 @@ using hyperfiddle.hx.Meta.X;
 @:publicFields class View<A> {
   var F : Flow;
   var node : Push<A>;
+  function end() {F.put(node, End);}
   function new(f, n) {F = f; node = n;}
 }
 
 @:expose("Input")
 @:publicFields class Input<A> extends View<A> {
   function put(a : A) {F.put(node, Val(a));}
-  function end() {F.put(node, End);}
 }
 
 @:expose("Output")
 @:publicFields class Output<A> extends View<A> {
   function init() {F.update(node);}
-  function off() {F.put(node, End);}
 }
 
 @:expose("NodeDef")

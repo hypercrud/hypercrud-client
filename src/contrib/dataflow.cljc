@@ -1,6 +1,7 @@
 (ns contrib.dataflow
   (:require
     [clojure.core :as clojure]
+    [clojure.set :as set]
     [contrib.data :refer [contains-in?]]
     #?(:cljs
         ["DF.js" :as df :refer [Origin View]]))
@@ -18,7 +19,10 @@
     (cond
       #?@(:clj
           [(ifn? any)
-           clojure.lang.IFn])
+           clojure.lang.IFn]
+          :cljs
+          [(ifn? any)
+           :function])
 
       :else
       (type any))))
@@ -30,11 +34,25 @@
        [-1 -1]
        (__hx_invokeDynamic
         [args]
-        (clojure/apply cljf (seq args))))))
+        (try
+          (clojure/apply cljf (seq args))
+          (catch Exception e (.printStackTrace e))))))
+   :cljs
+   (defmethod clj->hx :function
+     [cljf]
+     (fn [& args]
+       (try
+         (clojure/apply cljf (seq args))
+         (catch js/Error e
+           (println 'ERROR!)
+           (println e))))))
+
 
 (defmethod clj->hx :default
   [any]
   any)
+
+#?(:cljs (set! (.-onError Origin) (clj->hx println)))
 
 (defn haxe-array
   [seq]
@@ -63,7 +81,7 @@
   IEndable
   (-end
     [_]
-    (.off #?(:clj impl :cljs ^js impl)))
+    (.end #?(:clj impl :cljs ^js impl)))
   IValued
   (-value
     [_]
@@ -110,17 +128,19 @@
     (.put impl value))
   (-filter
     [_ f]
-    (->dataflow (#?(:clj Origin/filter :cljs (.-filter Origin)) impl (clj->hx f)) value))
+    (->dataflow (#?(:clj Origin/filter :cljs (.-filter Origin)) impl (clj->hx f)) @value))
   (-reduce
     [_ f init]
-    (->dataflow (#?(:clj Origin/reduce :cljs (.-reduce Origin)) impl init (clj->hx f)) value))
+    (->dataflow (#?(:clj Origin/reduce :cljs (.-reduce Origin)) impl init (clj->hx f)) @value))
   (-on
     [_ f]
+    (when-not (nil? @value)
+      (f @value))
     (->Output (#?(:clj Origin/on :cljs (.-on Origin)) impl (clj->hx f)) value))
   IEndable
   (-end
     [_]
-    ((.-end impl)))
+    (.end impl))
   IValued
   (-value
     [_]
@@ -205,25 +225,11 @@
 
 (defn mmap
   [f df]
-  (map (fn [value] (clojure/map f value)) df))
+  (map (fn [value] (clojure/mapv f value)) df))
 
 (defn map-by
   [key-fn coll]
   (into {} (clojure/map (juxt key-fn identity) coll)))
-
-(defn *
-  [key-fn f df]
-  (let [streams (atom {})
-        df (map #(map-by key-fn %) df)]
-    (->> df
-         (map
-           (fn [vals]
-             (clojure/map
-               (fn [[key row]]
-                 (when-not (contains? @streams key)
-                   (swap! streams assoc key (map #(get % key) df))
-                   (f (get @streams key))))
-               vals))))))
 
 (defn end
   [df]
@@ -273,29 +279,48 @@
           (map
            (fn [value] (vreset! last (by value)) value))))))
 
-; (defn by-key
-;   [df]
-;   (when-not (empty? @df)
-;     (lazy-seq (cons (map first df) (sequence (map rest df))))))
+(defn nil-safe-f
+  [f]
+  (fn [first & args]
+    (when-not (nil? first)
+      (clojure/apply f first args))))
 
-; (defn sequence
-;   [df]
-;   (let [streams (atom [])]
-;     (dmap
-;      (fn [vals]
-;        (doseq [dropped (subvec @streams (count vals))]
-;          (end dropped))
-;        (swap! streams subvec 0 (count vals))
-;        df))
-;     (map
-;      (fn [xs]
-;        (clojure/map
-;          (fn [i x]
-;            (or (nth @streams i nil)
-;                (nth (swap! streams assoc i (map #(nth % i) df)) i)))
-;          (range)
-;          xs))
-;      df)))
+(defn sequence-map
+  [df]
+  (let [streams (atom {})]
+    (map
+     (fn [xs]
+       (let [removals (set/difference (set (keys @streams)) (set (keys xs)))]
+         (when-not (empty? removals)
+           (doseq [[k dropped] (select-keys @streams removals)]
+             (end dropped))
+           (swap! streams (fn [streams] (clojure/apply dissoc streams removals)))))
+
+       (into {}
+         (clojure/mapv
+           (fn [[k v]]
+             [k (or (get @streams k nil)
+                    (get (swap! streams assoc k (map #(get % k) df)) k))])
+           xs)))
+     df)))
+
+(defn sequence
+  [df]
+  (let [streams (atom [])]
+    (map
+     (fn [xs]
+       (when (< (count xs) (count @streams))
+         (doseq [dropped (subvec @streams (count xs))]
+           (end dropped))
+         (swap! streams subvec 0 (count xs)))
+
+       (clojure/mapv
+         (fn [i x]
+           (or (nth @streams i nil)
+               (nth (swap! streams assoc i (map #(nth % i) df)) i)))
+         (range)
+         xs))
+     df)))
 
 (defn example
   []

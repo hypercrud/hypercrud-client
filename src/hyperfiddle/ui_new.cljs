@@ -11,13 +11,7 @@
   (:require-macros
    [hyperfiddle.ui :refer [|>]]))
 
-(defn react
-  [df]
-  (let [force (reagent/atom @df)]
-    (->> df
-         df/dedupe
-         (df/consume (fn [& val] (reset! force val))))
-    @force))
+
 
 (defn fiddle-shape-columns
   [ctx]
@@ -44,12 +38,13 @@
 (defn on-change
   [ctx]
   (let [last (atom (::value ctx))]
-    (fn [o n]
-      (runtime/with-tx
-        (context/youngest ctx ::context/runtime)
-        (context/youngest ctx ::context/partition-id)
-        "$"
-        [[:db/add (context/youngest ctx ::context/entity) (::context/attribute ctx) n]]))))
+    (fn [e]
+      (let [n (.. e -target -value)]
+        (runtime/with-tx
+          (context/youngest ctx ::context/runtime)
+          (context/youngest ctx ::context/partition-id)
+          "$"
+          [[:db/add (context/youngest ctx ::context/entity) (::context/attribute ctx) n]])))))
 
 (defn cell-
   [<ctx>]
@@ -61,33 +56,42 @@
   (|> [<id> (df/map context/entity <ctx>)
        <cells> (->> <ctx>
                  (df/map context/focus*)
-                 (df/map (fn [ctxs] (select-keys ctxs columns))))]
-    (into
-      [:tr {:key @<id>}]
-      (map (fn [<ctx>] [cell- <ctx>])
-           (vals (df/sequence <cells>))))))
+                 (df/map (fn [ctxs] (select-keys ctxs columns)))
+                 df/sequence-map
+                 (df/map vals)
+                 (df/mmap (fn [<ctx>] [cell- <ctx>]))
+                 (df/map (fn [cells] (into [:tr {:key @<id>}] cells))))]
+    @<cells>))
 
 (defn table-
   [<ctx>]
-  (|> [<columns> (->> <ctx> (df/map columns))
-       <empty?> (->> <ctx> (df/map ::context/value) (df/map empty?))
-       <rows> (->> <ctx> (df/map context/focus*))]
-    (df/consume println <ctx>)
+  (|> [<columns> (->> <ctx>
+                      (df/map columns))
+       <thead>   (->> <columns>
+                      (df/mmap (fn [column] [:td (str column)]))
+                      (df/map (fn [columns] (into [:tr {}] columns)))
+                      (df/map (fn [header-row] [:thead {} header-row])))
+       <tbody> (->> <ctx>
+                    (df/map context/focus*)
+                    df/sequence
+                    (df/mmap (fn [<ctx>] [row- <ctx> @<columns>]))
+                    (df/map (fn [rows] (into [:tbody {}] rows))))
+       <xbody> (->> <ctx>
+                    (df/map context/focus*)
+                    df/sequence
+                    (df/mmap (fn [<ctx>] [row- <ctx> @<columns>]))
+                    (df/map (fn [rows] (into [:tbody {}] rows))))
+       <tbody> (->> <ctx>
+                    (df/map context/focus*)
+                    df/sequence
+                    (df/mmap (fn [<ctx>] [row- <ctx> @<columns>]))
+                    (df/map (fn [rows] (into [:tbody {}] rows))))]
     [:table
-     [:thead {}
-      (->> @<columns>
-         (map (fn [v] [:td (str v)]))
-         (apply (fn [tds] (into [:tr {}] tds))))]
-     (when-not @<empty?>
-       (into
-        [:tbody {}]
-        (map (fn [<ctx>] [row- <ctx> @<columns>]) (df/sequence <rows>))))]))
+     @<thead>
+     @<tbody>]))
 
 
-(defonce <ctx> (df/input nil (fn [] (println 'open!) (fn [] (println 'close!)))))
-(defonce indirection (atom nil))
-(add-watch indirection ::watcher (fn [k r o n]
-                                   (df/put <ctx> n)))
+(defonce <ctx> (df/input nil))
 
 (defn ui0-adapter
   [{:keys [:hypercrud.browser/result] :as ctx}]
@@ -97,5 +101,8 @@
       (df/put <ctx> (context/ctx0-adapter ctx)))
     :render
     (fn [x]
-      (js/setTimeout (fn [] (reset! indirection (context/ctx0-adapter (second (.. ^js x -props -argv)))) 0))
-      [table- <ctx>])}))
+      (doseq [[k v] ctx]
+        (when (satisfies? IDeref v)
+          @v))
+      (js/setTimeout (fn [] (df/put <ctx> (context/ctx0-adapter ctx))) 0)
+      [table- (df/remove nil? <ctx>)])}))

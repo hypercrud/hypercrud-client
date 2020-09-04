@@ -620,14 +620,12 @@ User renderers should not be exposed to the reaction."
 nil. call site must wrap with a Reagent component"          ; is this just hyper-control ?
   [val ctx & [props]]
   {:pre [(not= val clojure.core/val)]}                      ; check for busted call while we migrate away from this param
-  (let [reactive-stream-result (df/input @(:hypercrud.browser/result ctx))
-        ctx (assoc ctx :hypercrud.browser/result reactive-stream-result)]
-    [:<>
-     ; (when (and (some? (:hypercrud.browser/route-defaults-hydrated ctx))
-     ;            (some? (spec/args ctx)))
-     ;   [args ctx props])
+  [:<>
+   ; (when (and (some? (:hypercrud.browser/route-defaults-hydrated ctx))
+   ;            (some? (spec/args ctx)))
+   ;   [args ctx props])
 
-     [hyperfiddle.ui-new/ui0-adapter (assoc ctx :hypercrud.browser/result reactive-stream-result)]]))
+   [hyperfiddle.ui-new/ui0-adapter ctx]])
 
 (def render-args args)                                      ; compat
 (def result sexpr)                                          ; compat
