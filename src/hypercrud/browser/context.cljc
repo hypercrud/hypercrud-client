@@ -817,6 +817,13 @@ a speculative db/id."
       ; It is not our job here to focus that. I dont think we can set the E to the tempid in that case.
       )))
 
+; (defn attribute
+;   [ctx a]
+;   (-> ctx
+;       set-parent
+;       (update :hypercrud.browserpull-path (fnil conj []) a)
+;       (assoc :hypercrud.browser/eav )))
+
 (defn validation-hints-here [ctx]
   (for [[path hint] @(:hypercrud.browser/validation-hints ctx)
         :when (= path (:hypercrud.browser/result-path ctx))
@@ -881,14 +888,9 @@ a speculative db/id."
 
 (defn ^:export spread-attributes "not recursive, just one entity level"
   [ctx]
-  (let [{:keys [:hypercrud.browser/element] :as ctx} (-infer-implicit-element ctx)
-        el @element]
-    (case (unqualify (contrib.datomic/parser-type el))
-      ; Handle variable and aggregate above
-      :variable [#_[(get-in element [:variable :symbol]) ctx]]
-      :aggregate [#_[(get-in element [:fn :symbol]) ctx]]
-      :pull (for [k (children ctx)]
-              [k (attribute ctx k)]))))
+  (let [{:keys [:hypercrud.browser/element] :as ctx} (-infer-implicit-element ctx)]
+    (for [k (children ctx)]
+            [k (attribute ctx k)])))
 
 ; var first, then can always use db/id on row. No not true – collisions! It is the [?e ?f] product which is unique
 

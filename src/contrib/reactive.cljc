@@ -3,6 +3,7 @@
   (:require [cats.core :as cats]
             [clojure.spec.alpha :as s]
             [contrib.data :as util]
+            [contrib.dataflow :as df]
             #?(:clj [taoensso.timbre :as log])
     #?(:cljs [reagent.core :as reagent])
     #?(:cljs [reagent.ratom :refer [IReactiveAtom]]))
@@ -16,7 +17,7 @@
 
 (defn reactive? [v]
   #?(:clj  (instance? IDeref v)
-     :cljs (satisfies? IReactiveAtom ^js v)))
+     :cljs (or (satisfies? IReactiveAtom ^js v) (df/dataflow? v))))
 
 (defn atom [x & rest]
   (clojure.core/apply #?(:clj clojure.core/atom :cljs reagent/atom) x rest))
@@ -156,11 +157,7 @@
   ([f rv]
    {:pre [f]}
    (assert (reactive? rv) (str "fmap rv: " rv " did you pass nil instead of (r/atom nil)?"))
-   (track (comp f deref) rv))
-  ; Not idiomatic
-  #_([f rv & rvs]
-    ; java.lang.RuntimeException: Can't have fixed arity function with more params than variadic function
-   (apply f (cons rv rvs))))
+   (track (comp f deref) rv)))
 
 (defn apply
   ([f rvs]

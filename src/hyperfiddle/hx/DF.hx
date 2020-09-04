@@ -19,7 +19,9 @@ using hyperfiddle.hx.Meta.X;
   }
 
   static function on<A>(v : View<A>, f : A -> Void) {
-    return new Output(get(), new Push([v.node], Into(f))).init();
+    var output = new Output(get(), new Push([v.node], Into(f)));
+    output.init();
+    return output;
   }
 
   static function apply(ns : Array<View<Dynamic>>, f : Dynamic) {

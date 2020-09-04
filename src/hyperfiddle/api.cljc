@@ -171,28 +171,35 @@
 (defn extract-set [ctx & fs]
   (->> ctx ((apply juxt fs)) set))
 
+(defn schema->set
+  [schema]
+  (into #{}
+    (map :db/ident (vals (select-keys schema [:db/cardinality :db/valueType])))))
+
 (defn render-dispatch [ctx props]
   ; Is there a method which is a subset of what we've got?
-  (or
-    (if (hyperfiddle.api/display-mode? ctx :user)
-      (or
+  (if-not (record? ctx)
+    (schema->set (:schema props))
+    (or
+     (if (hyperfiddle.api/display-mode? ctx :user)
+       (or
         (let [d (extract-set ctx hyperfiddle.api/fiddle hyperfiddle.api/a)]
           (if (contains? (methods render) d)
             d))
         (let [d (extract-set ctx hyperfiddle.api/a)]
           (if (contains? (methods render) d)
             d))))
-    ; Legacy compat - options by fiddle/renderer explicit props route to select via ref renderer
-    (if (:options props)
-      (extract-set (hyperfiddle.api/attr ctx) :db/valueType :db/cardinality))
-    (let [?parent-a (some-> (:hypercrud.browser/parent ctx) (hyperfiddle.api/a))
-          is-component (boolean (if ?parent-a (hyperfiddle.api/attr? ctx ?parent-a :db/isComponent)))]
-      (if (and (not is-component) (hyperfiddle.api/identity? ctx))
-        #{:db.unique/identity}))
-    (if-let [attr (hyperfiddle.api/attr ctx)]
-      (extract-set attr :db/valueType :db/cardinality))
-    (if (hyperfiddle.api/element ctx)
-      (extract-set ctx hyperfiddle.api/element-type))))       ; :hf/variable, :hf/aggregate, :hf/pull
+     ; Legacy compat - options by fiddle/renderer explicit props route to select via ref renderer
+     (if (:options props)
+       (extract-set (hyperfiddle.api/attr ctx) :db/valueType :db/cardinality))
+     (let [?parent-a (some-> (:hypercrud.browser/parent ctx) (hyperfiddle.api/a))
+           is-component (boolean (if ?parent-a (hyperfiddle.api/attr? ctx ?parent-a :db/isComponent)))]
+       (if (and (not is-component) (hyperfiddle.api/identity? ctx))
+         #{:db.unique/identity}))
+     (if-let [attr (hyperfiddle.api/attr ctx)]
+       (extract-set attr :db/valueType :db/cardinality))
+     (if (hyperfiddle.api/element ctx)
+       (extract-set ctx hyperfiddle.api/element-type)))))       ; :hf/variable, :hf/aggregate, :hf/pull
     ;(contrib.datomic/parser-type (context/qfind ctx))       ; :hf/find-rel :hf/find-scalar
     ;:hf/blank
 

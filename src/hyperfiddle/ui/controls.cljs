@@ -330,18 +330,15 @@
     [tooltip-thick [validation-error {} @invalid-messages] content]
     content))
 
-(let [on-change (fn [ctx o n]
-                  (->> (entity-change->tx ctx (empty->nil o) (empty->nil n))
-                       (runtime/with-tx (:runtime ctx) (:partition-id ctx) (context/dbname ctx))))]
-  (defn ^:export string [val ctx & [props]]
-    [input-group val ctx props
-     (let [props' (-> props
-                      (assoc :value val
-                             :on-change #_(r/partial on-change ctx) ((::hf/view-change! ctx) ctx))
-                      (dissoc ::hf/invalid-messages ::hf/is-invalid)
-                      (cond-> (::hf/is-invalid props) (update :class contrib.css/css "invalid")))]
-       [debounced props' contrib.ui/text #_contrib.ui/textarea])
-     (render-related-links val ctx)]))
+(defn ^:export string [val ctx & [props]]
+  [input-group val ctx props
+   (let [props (-> props
+                   (assoc :value val
+                          :on-change ((::hf/view-change! ctx) ctx))
+                   (dissoc ::hf/invalid-messages ::hf/is-invalid)
+                   (cond-> (::hf/is-invalid props) (update :class contrib.css/css "invalid")))]
+    [debounced props contrib.ui/text])
+   (render-related-links val ctx)])
 
 (defn ^:export long [val ctx & [props]]
   [input-group val ctx props

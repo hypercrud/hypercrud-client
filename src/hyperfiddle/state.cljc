@@ -2,6 +2,7 @@
   (:require
     [clojure.spec.alpha :as s]
     [contrib.data :refer [map-values update-existing for-kv]]
+    [contrib.dataflow :as df]
     [hyperfiddle.transaction :as tx]
     [contrib.reducers :as reducers]
     [contrib.pprint :refer [pprint-str]]
@@ -235,7 +236,16 @@
   ;; - JS/JVM specific optimizations
   ;; - unified runtime-specific logging configuration / flags
   #_#?(:clj (timbre/debug "dispatch!" action)
-     :cljs (js/console.debug "dispatch!" action))
+       :cljs (js/console.debug "dispatch!" action))
   (reducers/dispatch! (hf/state rt) root-reducer action))
+
+(defn reducer
+  [state action]
+  (reducers/dispatch state root-reducer action))
+
+
+(defn stream
+  [initial]
+  (->> (df/input) (df/reduce reducer initial)))
 
 (defn initialize [v] (root-reducer v nil))

@@ -6,7 +6,8 @@
     [clojure.core.match :refer [match*]]
     [clojure.string :as string]
     [contrib.css :refer [css css-slugify]]
-    [contrib.data :refer [unqualify orf]]
+    [contrib.data :refer [unqualify orf empty->nil]]
+    [contrib.dataflow :as df]
     [contrib.hfrecom]
     [contrib.pprint :refer [pprint-str]]
     [contrib.reactive :as r]
@@ -25,6 +26,7 @@
     [hyperfiddle.route :as route]
     [hyperfiddle.runtime :as runtime]
     [hyperfiddle.spec :as spec]
+    [hyperfiddle.ui-new]
     [hyperfiddle.ui.controls :as controls :refer [identity-label ref-label element-label]]
     [hyperfiddle.ui.error :as ui-error]
     [hyperfiddle.ui.iframe :as iframe]
@@ -32,7 +34,11 @@
     [hyperfiddle.ui.sort :as sort]
     [hyperfiddle.ui.stale :as stale]
     [hyperfiddle.ui.util :as ui-utils]
-    [spec-coerce.alpha]))
+    [reagent.core :as reagent]
+    [spec-coerce.alpha])
+  (:require-macros
+   [hyperfiddle.ui :refer [|>]]))
+
 
 (declare result)
 (declare pull)
@@ -42,6 +48,12 @@
 (declare ui-from-link)
 (declare fiddle-api)
 (declare fiddle-xray)
+
+(defn react
+  [df]
+  (let [force (reagent/atom @df)]
+    (df/consume (fn [& val] (reset! force val)) df)
+    @force))
 
 (defn entity-links-iframe [ctx & [props]]
   ; Remove links that are also available at our ancestors.
@@ -107,7 +119,8 @@
   [controls/keyword (context/data ctx) ctx props])
 
 (defmethod hf/render #{:db.type/string :db.cardinality/one} [ctx props]
-  [controls/string (context/data ctx) ctx props])
+  (println (keys ctx))
+  [controls/string (::context/value ctx) ctx props])
 
 (defmethod hf/render #{:db.type/symbol :db.cardinality/one} [ctx props]
   [controls/string (context/data ctx) ctx props])
@@ -119,15 +132,16 @@
   [controls/instant (context/data ctx) ctx props])
 
 (defmethod hf/render :default [ctx props]
-  (cond
-    (context/attr? ctx :db.cardinality/one)
-    [controls/edn (context/data ctx) ctx props]
-
-    (context/attr? ctx :db.cardinality/many)
-    [controls/edn-many (context/data ctx) ctx props]
-
-    :else
-    [:pre (pr-str "render: no match for eav: " (context/eav ctx))]))
+  [:h1 (str (hf/render-dispatch ctx props))])
+  ; (cond
+  ;   (context/attr? ctx :db.cardinality/one)
+  ;   [controls/edn (context/data ctx) ctx props]
+  ;
+  ;   (context/attr? ctx :db.cardinality/many)
+  ;   [controls/edn-many (context/data ctx) ctx props]
+  ;
+  ;   :else
+  ;   [:pre (pr-str "render: no match for eav: " (context/eav ctx))]))
 
 (defn ^:export hyper-control
   [ctx & [props]]
@@ -178,8 +192,8 @@
   (or
     (and (context/component? ctx)
          (writable-entity? (:hypercrud.browser/parent ctx)))
-    (boolean (hf/e ctx))                                    ; you have some sort of entity identity (db/id, lookup ref, etc)
-    ))
+    (boolean (hf/e ctx))))                                    ; you have some sort of entity identity (db/id, lookup ref, etc)
+
 
 (defn- redirect-to-route?
   "State if changes to the currently focused attr should go to the route"
@@ -374,40 +388,96 @@ User renderers should not be exposed to the reaction."
       ^{:key (str relative-path)}                           ; could be a product, does eav as key work for that?
       [form-field ctx Body Head props])))
 
+(defn fiddle-shape-columns
+  [ctx]
+  (some->> ctx
+           :hypercrud.browser/fiddle
+           deref
+           :fiddle/shape
+           datascript.parser/parse-query
+           :qfind
+           :elements
+           (mapcat (comp :value :pattern))))
+
+(defn data-columns
+  [ctx]
+  (some->> ctx
+           :hypercrud.browser/result
+           react
+           (reduce (fn [acc row] (into acc (keys row))) #{})))
+
+(defn columns
+  [ctx & [props]]
+  (or
+    (empty->nil (fiddle-shape-columns ctx))
+    (empty->nil (data-columns ctx))))
+
 (defn row
   [ctx props & cs]
   (let [props (select-keys props [:keys])]
-    (into [:tr props] cs)))
+    (into [:tr props] (map (fn [attr] [field [attr] ctx]) cs))))
 
 (defn rows
-  [ctx {:keys [columns row]
-        :or {columns columns, row row}
+  [ctx {:keys [row]
+        :or {row row}
         :as props}
+   columns
    rows]
   (for [[ix [?k ctx]] rows]
-    (into [row ctx (merge props {:key (or ?k ix)})] (columns ctx))))
+    (into ^{:key (or ?k ix)} [row ctx props] columns)))
+
+(defn cell-
+  [{:keys [:hypercrud.browser/result] :as ctx}]
+  [:td {} [:input {:value (react result)}]])
+
+(defn row-
+  [{:keys [:hypercrud.browser/result] :as ctx}]
+  (let [ks (react (df/map keys result))
+        id (react (df/map :id result))]
+    (into
+      [:tr {}]
+      (->> ks
+           (map (fn [k] (df/map #(get % k) result)))
+           (map (fn [s] [cell- s]))))))
+
+(defn table-
+  [{:keys [:hypercrud.browser/result] :as ctx}]
+  (let [count (->> result (df/map count) react)
+        header (->> result (df/map columns) react)
+        empty? (zero? count)]
+    (when-not empty?
+      [:table
+       [:thead {}
+        (into
+         [:tr {}]
+         (map (fn [v] [:td (str v)]) header))]
+       (into
+        [:tbody {}]
+        (->> (range count)
+             (mapv (fn [n] (context/focus ctx [n])))
+             (mapv (fn [s] [row- s]))))])))
 
 (defn ^:export table "Semantic table; columns driven externally" ; this is just a widget
   [ctx & [{:keys [rows row columns headers colgroup]
            :or {rows rows, row row, columns columns, headers columns, colgroup (fn [& _] nil)}
            :as props}]]
-  {:pre [(s/assert :hypercrud/context ctx)]}
+  ; {:pre [(s/assert :hypercrud/context ctx)]}
   ; Need backwards compat arity
   (let [sort-col (r/atom (::sort/initial-sort props))
         page-size (if (> 0 hf/browser-query-limit) 20 hf/browser-query-limit)
         page (r/atom 0)]
     (fn [ctx & [props]]
-      {:pre [(s/assert :hypercrud/context ctx)]}
+      ; {:pre [(s/assert :hypercrud/context ctx)]}
       (let [props (update props :class (fnil css "hyperfiddle") "unp") ; fnil case is iframe root (not a field :many)
             ctx (assoc ctx ::sort/sort-col sort-col
                            :hypercrud.browser/head-sentinel true ; hacks - this is coordination with the context, how to fix?
                            ::layout :hyperfiddle.ui.layout/table)]
-        [:<>
+        ; [:<>
          [:table (select-keys props [:class :style])
-          [:thead (into [:tr] (headers ctx))]
+          [:thead (into [:tr] (map (fn [k] [:th (str k)]) (headers ctx)))]
                                         ; filter? Group-by? You can't. This is data driven. Shape your data in the peer.
-          [colgroup]
-          (let [rows (rows ctx props
+          ; [colgroup]
+          (let [rows (rows ctx props (columns ctx)
                            (->> (hypercrud.browser.context/spread-rows
                                   ctx
                                   #(sort/sort-fn % sort-col)
@@ -420,17 +490,17 @@ User renderers should not be exposed to the reaction."
                 [:td {:colSpan (count cols)
                       :class   "info-box_notice"}
                  "No match found"]]]
-              (into [:tbody] rows)))]
-         (let [n (count @(:hypercrud.browser/result ctx))]
-           (cond
-             (> n page-size)
-             [contrib.hfrecom/anchor-tabs
-              :model page
-              :tabs (for [i (range (/ n page-size))]
-                      {:id i :href "#" :label (str (inc i))})
-              :on-change (r/partial reset! page)]
-             (< n page-size) nil
-             (= n 0) [:div "no results"]))]))))
+              (into [:tbody] rows)))]))))
+         ; (let [n (count @(:hypercrud.browser/result ctx))]
+         ;   (cond
+         ;     (> n page-size)
+         ;     [contrib.hfrecom/anchor-tabs
+         ;      :model page
+         ;      :tabs (for [i (range (/ n page-size))]
+         ;              {:id i :href "#" :label (str (inc i))})
+         ;      :on-change (r/partial reset! page)]
+         ;     (< n page-size) nil
+         ;     (= n 0) [:div "no results"]))]))))
 
 (defn- path-fn [v form]
   (cond
@@ -491,13 +561,6 @@ User renderers should not be exposed to the reaction."
       [:<> {:key (str (context/row-key ctx val context/entity-viewkey))}]
       (columns ctx))))
 
-(defn columns [ctx & [props]]
-  {:pre [(s/assert :hypercrud/context ctx)]}
-  #_(cons (field relpath ctx nil props))
-  (doall
-    (for [[k _] (hypercrud.browser.context/spread-attributes ctx)]
-      [field [k] ctx nil props])))
-
 (defn pull "handles any datomic result that isn't a relation, recursively"
   [val ctx & [props]]
   {:pre [(s/assert :hypercrud/context ctx)]}
@@ -557,11 +620,14 @@ User renderers should not be exposed to the reaction."
 nil. call site must wrap with a Reagent component"          ; is this just hyper-control ?
   [val ctx & [props]]
   {:pre [(not= val clojure.core/val)]}                      ; check for busted call while we migrate away from this param
-  [:<>
-   (when (and (some? (:hypercrud.browser/route-defaults-hydrated ctx))
-              (some? (spec/args ctx)))
-     [args ctx props])
-   [result' ctx props]])
+  (let [reactive-stream-result (df/input @(:hypercrud.browser/result ctx))
+        ctx (assoc ctx :hypercrud.browser/result reactive-stream-result)]
+    [:<>
+     ; (when (and (some? (:hypercrud.browser/route-defaults-hydrated ctx))
+     ;            (some? (spec/args ctx)))
+     ;   [args ctx props])
+
+     [hyperfiddle.ui-new/ui0-adapter (assoc ctx :hypercrud.browser/result reactive-stream-result)]]))
 
 (def render-args args)                                      ; compat
 (def result sexpr)                                          ; compat
