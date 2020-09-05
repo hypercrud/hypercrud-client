@@ -73,14 +73,12 @@
     (label-with-docs label (semantic-docstring ctx) props)))
 
 (defn ref-label [_ ctx & [props]]
-  (let [[_ a _] (context/eav ctx)
-        label (name a)]
-    ; top-level ref should get it though?
-    [:<>
-     (label-with-docs label (semantic-docstring ctx) props)
-     #_(if (= 1 (context/pull-depth ctx))
-         ; :community/neighborhood gets new-neighborhood? NO
-         (hf-new _ ctx))]))
+  ; top-level ref should get it though?
+  [:<>
+   (label-with-docs (hf/label ctx) (semantic-docstring ctx) props)
+   #_(if (= 1 (context/pull-depth ctx))
+       ; :community/neighborhood gets new-neighborhood? NO
+       (hf-new _ ctx))])
 
 (defn id-prompt [ctx val]
   ; pr-str here to disambiguate `"tempid"` from `17592186046396` and `:gender/male`

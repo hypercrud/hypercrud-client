@@ -196,6 +196,9 @@
     ;(contrib.datomic/parser-type (context/qfind ctx))       ; :hf/find-rel :hf/find-scalar
     ;:hf/blank
 
+(defmulti label (fn [ctx] (a ctx)))                         ; quickly added for rosie, todo cleanup for non-A places
+(defmethod label :default [ctx] (name (a ctx)))             ; handle more cases by default
+
 ;; TODO always dispatch on a keyword
 (defmulti render-fiddle (fn [_val ctx _props] (fiddle ctx)))
 
