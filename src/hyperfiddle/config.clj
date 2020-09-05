@@ -50,17 +50,26 @@
 
 (defn get-domain [config & [_ spec-selection]]
   ; should this validate the spec before returning it or is that the call-site job?
-  (let [m (:domain config)
-        domain (-> m
-                 (update :basis #(or % (System/currentTimeMillis)))
-                 (update :environment #(or % {}))
-                 (update :home-route #(or % `(hyperfiddle.api/index)))
-                 (update :fiddle-dbname #(or % "$hyperfiddle")) ; but only if hyperfiddle is listed as a database, TODO
-                 (cond-> (:client-config m) (assoc :?datomic-client (hyperfiddle.io.datomic.core/dyna-client (:client-config m))))
-                 (dissoc :client-config)
-                 (assoc :memoize-cache (atom nil))
-                 (assoc :config config)
-                 map->EdnishDomain)]
+  (let [{:keys [databases client-config fiddle-dbname]
+         :as   domain} (:domain config)
+        domain (-> domain
+                   (update :basis #(or % (System/currentTimeMillis)))
+                   (update :environment #(or % {}))
+                   (update :home-route #(or % `(hyperfiddle.api/index)))
+                   (update :fiddle-dbname #(or % "$hyperfiddle")) ; but only if hyperfiddle is listed as a database, TODO
+                   (cond-> client-config (assoc :?datomic-client (hyperfiddle.io.datomic.core/dyna-client client-config)))
+                   (dissoc :client-config)
+                   (assoc :memoize-cache (atom nil))
+                   (assoc :config config)
+                   (assoc :hyperfiddle.ide.domain/user-dbname->ide
+                          (->> databases
+                               (map (fn [[dbname _db]]
+                                      [dbname
+                                       (if (= fiddle-dbname dbname)
+                                         "$"
+                                         (str "$user." dbname))]))
+                               (into {})))
+                   map->EdnishDomain)]
     (s/assert (or spec-selection hyperfiddle.domain/spec-ednish-domain) domain)
     domain))
 

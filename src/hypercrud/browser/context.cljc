@@ -1100,14 +1100,9 @@ a speculative db/id."
    :post [(s/assert either? %)]}
   (mlet [f (let [link @(:hypercrud.browser/link ctx)]
              (if-let [fiddle (:link/fiddle link)]
-                       (right (:fiddle/ident fiddle))
-                       (left {:message ":link/fiddle required" :data {:link link}})))]
-         ; Why must we reverse into tempids? For the URL, of course.
-        (-> (filter identity args)
-            (->> (map (partial tag-v-with-color ctx)))
-            ;; this ctx is refocused to some eav
-            (conj f)
-            (return))))
+               (right (:fiddle/ident fiddle))
+               (left {:message ":link/fiddle required" :data {:link link}})))]
+        (return (cons f (remove nil? args)))))
 
 (defn refocus-to-link+ "focus a link ctx"
   [ctx link-ref]

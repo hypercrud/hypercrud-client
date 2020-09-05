@@ -196,7 +196,7 @@
     ;(contrib.datomic/parser-type (context/qfind ctx))       ; :hf/find-rel :hf/find-scalar
     ;:hf/blank
 
-
+;; TODO always dispatch on a keyword
 (defmulti render-fiddle (fn [_val ctx _props] (fiddle ctx)))
 
 (defmulti formula (fn [_ctx link _value] (:link/formula link)))
