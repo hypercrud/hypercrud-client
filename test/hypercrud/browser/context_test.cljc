@@ -1443,10 +1443,10 @@
 (s/def ::gender (s/keys :req [:db/ident]))
 (s/def ::person (s/keys :req [::email ::gender]))           ; intermediate named spec vs composite spec
 (s/def ::index (s/coll-of (s/keys :req [::person])))
-(hf/def-validation-message ::gender "gender")
-(hf/def-validation-message ::email "email")
-(hf/def-validation-message ::email-blank "email blank")
-(hf/def-validation-message ::email-malformed "email malformed")
+(defmethod hf/invalid-msg ::gender [spec problem] "gender")
+(defmethod hf/invalid-msg ::email [spec problem] "email")
+(defmethod hf/invalid-msg ::email-blank [spec problem] "email blank")
+(defmethod hf/invalid-msg ::email-malformed [spec problem] "email malformed")
 
 (def test-validation-result
   [{:db/id 11 ::person {::gender {:db/ident ::male}}}      ; missing email
