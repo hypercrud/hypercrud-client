@@ -68,6 +68,7 @@
 
       [:div {:style {:margin-right "0.75rem"}} [:a {:href "/"} "Home"]]
       [ViewModeSelector {:mode (:hyperfiddle.ui/display-mode ctx)}]
+      #_[iframe/route-editor-topnav ctx]
       [:div {:style {:flex 1}}]
       (if (hf/subject ctx)
         [:a {:href  (hf/url-encode (hf/domain (:runtime ctx)) `(hyperfiddle.foundation/account))

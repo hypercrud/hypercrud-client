@@ -82,35 +82,49 @@
 (defn set-route [rt pid route]
   (hf/set-route rt pid route))
 
+(defn validate-route [])
+
+(defn parse-route [s]
+  (let [route (seq (reader/read-edn-string! s))
+        cat (some-> route first s/get-spec :args)]
+    (try
+      (s/assert :hyperfiddle/route route)
+      (when (some? cat) (s/assert cat (rest route)))
+      route
+      (catch :default err
+        (js/console.error "Invalid route" (s/explain-data cat (rest route)))
+        (throw err)))))
+
+(defn route-editor-topnav [{rt :runtime pid :partition-id :as ctx}]
+  (let [on-change (r/partial set-route rt pid)]
+    [contrib.ui/debounced
+     ; This ctx is loading, base has not hydrated yet, thus we only have the request-route. No symbolic defautled route.
+     {:value             (get-route rt pid false) #_(:hypercrud.browser/route-defaults-symbolic ctx)
+      :debounce/interval 500
+      :on-change         (fn [o n] (when-not (= o n) (on-change n)))
+      :mode              "clojure"
+      :lineNumbers       false
+      :scrollbarStyle    "null"}
+     contrib.ui/validated-cmp
+     (comp seq reader/read-edn-string!)
+     pr-str #_pprint-str
+     contrib.ui/code]))
+
 (defn route-editor
-  ([{rt  :runtime
-     pid :partition-id
-     :as ctx}]
+  ([{rt  :runtime pid :partition-id :as ctx}]
    [route-editor (get-route rt pid false) (get-route rt pid true) (r/partial set-route rt pid)])
   ([route default on-change]
-   (let [parse-string (fn [s]
-                        (let [route (seq (reader/read-edn-string! s))
-                              cat   (some-> route first s/get-spec :args)]
-                          (try
-                            (s/assert :hyperfiddle/route route)
-                            (when (some? cat)
-                              (s/assert cat (rest route)))
-                            (catch :default err
-                              (js/console.error "Invalid route" (s/explain-data cat (rest route)))
-                              (throw err)))
-                          route))
-         to-string    pprint-str]
-     [:<>
-      #_[contrib.ui/debounced
+   [:<>
+    #_[contrib.ui/debounced
        {:value             route
         :debounce/interval 500
         :on-change         (fn [o n] (when-not (= o n) (on-change n)))
         :mode              "clojure"
         :lineNumbers       false}
-       contrib.ui/validated-cmp parse-string to-string contrib.ui/code]
-      [contrib.ui/async-code {:value     default
-                              :read-only true
-                              :class     "foo"}]])))
+       contrib.ui/validated-cmp parse-route pprint-str contrib.ui/code]
+    [contrib.ui/async-code {:value     default
+                            :read-only true
+                            :class     "foo"}]]))
 
 (defn stale-browse [ctx error success & args]
   [stale/loading
