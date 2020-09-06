@@ -292,4 +292,6 @@
     [radio (-> props
                (dissoc :tooltip :label)
                (update :style merge {:width "auto"}))]
-    (or (:label props) (str (:value props)))]])
+    (or (:label props)
+      ; value can be hiccup
+      #_(str) (:value props))]])

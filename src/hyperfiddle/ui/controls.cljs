@@ -75,7 +75,7 @@
 (defn ref-label [_ ctx & [props]]
   ; top-level ref should get it though?
   [:<>
-   (label-with-docs (hf/label ctx) (semantic-docstring ctx) props)
+   (label-with-docs (hf/label ctx props) (semantic-docstring ctx) props)
    #_(if (= 1 (context/pull-depth ctx))
        ; :community/neighborhood gets new-neighborhood? NO
        (hf-new _ ctx))])
@@ -367,7 +367,8 @@
                                (js/console.log `boolean v)
                                (((::hf/view-change! ctx) ctx) (not v) v)))]
       [contrib.ui/easy-checkbox
-       (select-keys props [:class :style ::hf/is-invalid :checked :on-change :disabled])])] ; readonly?
+       (select-keys props [:class :style ::hf/is-invalid :checked :on-change :disabled]) ; readonly?
+       (::hf/label props)])]
    (render-related-links val ctx)])
 
 (let [adapter (fn [^js e]

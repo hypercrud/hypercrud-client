@@ -196,10 +196,12 @@
     ;(contrib.datomic/parser-type (context/qfind ctx))       ; :hf/find-rel :hf/find-scalar
     ;:hf/blank
 
+; To pass props or not to pass props?
 (defmulti label (fn [ctx] (a ctx)))                         ; quickly added for rosie, todo cleanup for non-A places
 (defmethod label :default [ctx] (name (a ctx)))             ; handle more cases by default
+(defmulti props (fn [ctx] (a ctx)))                         ; todo cleanup for non-A
+(defmethod props :default [ctx] {})
 
-;; TODO always dispatch on a keyword
 (defmulti render-fiddle (fn [_val ctx _props] (fiddle ctx)))
 
 (defmulti formula (fn [_ctx link _value] (:link/formula link)))
