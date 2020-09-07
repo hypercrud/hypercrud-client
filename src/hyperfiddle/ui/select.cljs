@@ -62,7 +62,8 @@
                     (try
                       (hf/swap-route! ctx utils/assoc-in-route [needle-key] n)
                       (catch js/Error e
-                        (runtime/set-error runtime partition-id e))))}
+                        ; if uncaught ends up in console from a debounce async frame
+                        (runtime/set-error (:runtime ctx) (:partition-id ctx) e))))}
       props)
      text]))
 
@@ -77,7 +78,8 @@
                    (try
                      (hf/swap-route! ctx utils/assoc-in-route [by] n)
                      (catch js/Error e
-                       (runtime/set-error runtime partition-id e))))}
+                       ; if uncaught ends up in console from a debounce async frame
+                       (runtime/set-error (:runtime ctx) (:partition-id ctx) e))))}
      (fn []
        (into
         [:select {}]

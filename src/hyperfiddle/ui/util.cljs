@@ -72,11 +72,13 @@
 
 (defn position-in [key [f & args]]
   (when-let [spec (s/get-spec f)]
-    (let [index-of  #(.indexOf %2 %1)
-          spec-args (-> spec (spec/parse) (spec/args-spec))
-          names     (spec/names spec-args)]
-      (assert (= ::spec/cat (:type spec-args)) (str "Please provide an s/cat args spec for this fiddle. " f))
-      (->> (index-of key (vec names))))))
+    (let [spec-args (-> spec (spec/parse) (spec/args-spec))
+          _ (assert (= ::spec/cat (:type spec-args)) (str "Please provide an s/cat args spec for this fiddle. " f))
+          index-of  #(.indexOf %2 %1)
+          names     (spec/names spec-args)
+          i (index-of key (vec names))]
+      (assert (> i 0) "index not found")                    ; https://github.com/hyperfiddle/hyperfiddle/issues/1121
+      i)))
 
 (defn- expand-route-to [args-count route]
   (-> (repeat (inc args-count) nil)
