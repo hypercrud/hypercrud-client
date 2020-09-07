@@ -29,7 +29,7 @@
   (let [link-ref (from-result (data/select+ ctx fiddle-ident))
         link-ctx (from-result (context/refocus-to-link+ ctx link-ref))
         [occluded-ctx initial-route] (from-result (context/build-route-and-occlude+ link-ctx link-ref)) ; ":link/fiddle required"
-        options-pid (context/build-pid-from-link ctx link-ctx initial-route)
+        options-pid (context/build-pid-from-link ctx occluded-ctx initial-route)
         ctx (from-result (base/browse-partition+ (context/set-partition occluded-ctx options-pid)))]
     ctx))
 
