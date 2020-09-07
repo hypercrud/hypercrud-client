@@ -14,31 +14,31 @@
 
 (deftest router-basic
   []
-  (is (= (encode route-args2)  "/hyperfiddle.blog!post?0=Wzp1c2VyL3N1YiAiZ29vZ2xlLW9hdXRoMnwxMTY2MzU0MjI0ODUwNDI1MDMyNzAiXQ,,&1=I3sibmV3cyIgImV2ZW50cyJ9"))
+  (is (= (encode route-args2) "/hyperfiddle.blog!post/(:user!sub,'google-oauth2%7C116635422485042503270')/~%7B'news','events'%7D"))
   (is (= ((comp decode encode) route-args2) route-args2))
   (is (= ((comp decode encode) route-args1-seq) route-args1-seq))
   #?(:clj (is (not (nil? (java.net.URI. (encode route-args2))))))
   (is (= (encode `(hyperfiddle.blog/post))
-         "/hyperfiddle.blog!post"))
+         "/hyperfiddle.blog!post/"))
 
   (is (= (encode `(hyperblog/post 17592186045826))
-         "/hyperblog!post?0=MTc1OTIxODYwNDU4MjY,"))
+         "/hyperblog!post/17592186045826"))
 
-  (is (= (decode "/hyperfiddle.blog!post?0=Omh5cGVyZmlkZGxlLmJsb2cvaG9tZXBhZ2U,")
+  (is (= (decode "/hyperfiddle.blog!post/:hyperfiddle.blog!homepage")
          `(hyperfiddle.blog/post :hyperfiddle.blog/homepage)))
 
-  (is (= "/hyperfiddle.blog!post?0=Omh5cGVyZmlkZGxlLmJsb2cvaG9tZXBhZ2U,"
+  (is (= "/hyperfiddle.blog!post/:hyperfiddle.blog!homepage"
          (encode `(hyperfiddle.blog/post :hyperfiddle.blog/homepage)))))
+;; => #'hyperfiddle.route-test/router-basic
 ;; => #'hyperfiddle.route-test/router-basic
 
 (deftest query-params []
-  (is (= (decode "/bar?0=InF3ZXJ6eGN2Ig,,") '(bar "qwerzxcv")))
-  (is (= (decode "/bar/?0=InF3ZXJ6eGN2Ig,,") '(bar "qwerzxcv")))
+  (is (= (decode "/bar/'qwerzxcv'") '(bar "qwerzxcv")))
   ;
   ; (is (= (decode "/:bar?:hyperfiddle.route!where=W1s_ZSA6Zm9vID9hXV0,&utm=asdfdsaf") {::route/fiddle :bar
   ;                                                                                     ::route/where '[[?e :foo ?a]]
   ;                                                                                     'utm #?(:clj 'j�_vƟ :cljs "jÇ_vÆ")}))
-  (is (= (decode "/bar?0=W1s_ZSA6Zm9vID9hXV0,&1=InF3ZXJ6eGN2Ig,,#blah")
+  (is (= (decode "/bar/((%3Fe,:foo,%3Fa))/'qwerzxcv'#blah")
          '(bar [[?e :foo ?a]] "qwerzxcv"))))
 
 

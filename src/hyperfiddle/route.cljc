@@ -1,24 +1,18 @@
 (ns hyperfiddle.route
   (:require
-    [cats.core :refer [>>=]]
     [cats.monad.either :as either]
     [clojure.spec.alpha :as s]
     [clojure.string :as string]
     [clojure.walk :as walk]
     [contrib.base-64-url-safe :as base-64-url-safe]
     [contrib.data]
-    [contrib.ednish :as ednish :refer [decode-ednish encode-ednish]]
+    [contrib.ednish :as ednish]
     [contrib.pprint :refer [pprint-str]]
     [contrib.reader :as reader]
-    [contrib.rfc3986 :refer [decode-rfc3986-pchar encode-rfc3986-pchar]]
-    [contrib.string :refer [empty->nil]]
     [contrib.try$ :refer [try-either]]
-    [cuerdas.core :as str]
     [hyperfiddle.api :as hf]
     [hyperfiddle.fiddle]                                    ; for ::fiddle spec
-    [taoensso.timbre :as timbre]
-    [hyperfiddle.api :as hf]))
-
+    [taoensso.timbre :as timbre]))
 
 (s/def ::fiddle (s/or
                   :ident :fiddle/ident
@@ -48,7 +42,8 @@
 (defn default-query-encoder
   [key]
   [(ednish/encode-uri key)
-   (comp base-64-url-safe/encode pr-str)
+   ednish/encode-uri
+   ;; (comp base-64-url-safe/encode pr-str)
    (comp reader/read-edn-string! base-64-url-safe/decode)])
 
 (def uri-query-decoders
@@ -61,7 +56,7 @@
   [key]
   [(ednish/decode-uri key)
    (comp base-64-url-safe/encode pr-str)
-   (comp reader/read-edn-string! base-64-url-safe/decode)])
+   ednish/decode-uri])
 
 (defn url-encode [route home-route]
   {:pre [(s/valid? :hyperfiddle/route route) (s/valid? :hyperfiddle/route home-route)]}
@@ -70,19 +65,14 @@
       "/"
       (str "/"
            (ednish/encode-uri f)
+           "/"
            (some->> args
                     (map-indexed (fn [i arg]
                                    (let [[_sk encoder _decoder] (or (get uri-query-encoders i) (default-query-encoder i))]
-                                     (str i "=" (encoder arg)))))
-                    (string/join "&")
-                    (str "?"))))))
+                                     (encoder arg))))
+                    (string/join "/"))))))
 
-
-(def url-regex #"^/([^/?#]*)/?(?:\?([^#]*))?(?:#(.*))?$")
-;                 /|_______|/     ?|_____|     #|__|
-;                      |              |           |
-;       url        path[0]          query      fragment
-;       hf-route   fiddle           varies     fragment
+(def url-regex #"^/([^/?#]+/?)*(\?[^#]*)?(#.*)?$")
 
 (defn positional
   "Transform a map into a list. Expect keys to be 0,1,2,3… and contiguous.
@@ -100,25 +90,25 @@
   {:pre  [(string? s) #_(s/valid? :hyperfiddle/route home-route)]
    :post [#_(s/valid? :hyperfiddle/route %)]}
   (-> (try-either
-       (if-let [[_ s-fiddle s-query s-fragment] (re-find url-regex s)]
+       (if-let [[match _ query hash] (re-find url-regex s)]
           ; is-home "/" true
           ; is-home "/?..." true
           ; is-home "/#..." true
           ; is-home "//" false
           ; is-home "//..." false
-         (let [is-home (empty? s-fiddle)
-               f       (ednish/decode-uri s-fiddle)
-               args    (->> (some-> s-query (string/split #"&|;"))
-                            (map (fn [s] (string/split s #"=" 2)))
-                            (reduce (fn [acc [sk sv]]
-                                      (let [[k _encoder decoder] (or (get uri-query-decoders sk) (default-query-decoder sk))]
-                                        (assoc acc k (decoder (or sv "")))))
-                                    {})
-                            (positional))]
-           (cond-> args
-             is-home       (concat home-route) ;; pass potential extra args
-             (not is-home) (->> (cons f))
-             s-fragment    (with-meta {::fragment s-fragment})))
+         (if (= "/" match)
+           home-route
+           (->> (cond-> match
+                  (seq hash)  (-> (string/split #"#") first)
+                  (seq query) (-> (string/split #"\?") first)
+                  true        (string/split #"/"))
+                (rest)
+                (map-indexed vector)
+                (reduce (fn [acc [k v]]
+                          (let [[_ _encoder decoder] (or (get uri-query-decoders v) (default-query-decoder v))]
+                            (assoc acc k (decoder (or v "")))))
+                        {})
+                (positional)))
          (decoding-error (ex-info "Invalid url" {}) s)))
       (either/branch
        (fn [e] (decoding-error e s))
