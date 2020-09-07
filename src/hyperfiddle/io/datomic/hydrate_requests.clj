@@ -146,10 +146,11 @@
                (apply max))
       0))
 
-(defmethod hf/defaults :default [[f & args]]
-  (cons f (data/zipseq args (repeat (max-arity (find-var f)) nil))))
+(defmethod hf/defaults :default [& args]
+  (let [f (first hf/*route*)]
+    (data/zipseq args (repeat (max-arity (find-var f)) nil))))
 
-(defmethod hf/view-defaults :default [route] route)
+(defmethod hf/view-defaults :default [& args] args)
 
 (defn eval-as-fexpr!
   "Like `clojure.core/eval`, but don't evaluate operands.
@@ -172,10 +173,14 @@
                   ; get-db will realize the database, possibly throwing on a bad stage
                   ; which should not break the page here. See test
                   #_#_hf/*$* (silence! (do-result (get-db' "$")))
-                  hf/*$* (get-db' "$")]
+                  hf/*$*     (get-db' "$")
+                  hf/*route* route]
           (with-bindings (hf/bindings domain)
-            (let [defaults (hf/defaults route)]
-              [defaults (hf/view-defaults defaults) (eval-as-fexpr! defaults)])))))
+            (let [[f & args]     route
+                  defaults (apply hf/defaults args)]
+              [(cons f defaults)
+               (cons f (apply hf/view-defaults defaults))
+               (eval-as-fexpr! (cons f defaults))])))))
     (fn [e] (either/left (error-cleaner e F)))))
 
 ;; F is [ƒ, pid].

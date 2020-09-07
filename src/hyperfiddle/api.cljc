@@ -213,9 +213,9 @@
   @(:hypercrud.browser/route-defaults-hydrated ctx))
 
 ;; multiple params can depend on each other so set defaults centrally per fiddle
-(defmulti defaults first)
+(defmulti defaults (fn [& args] (first *route*)))
 
-(defmulti view-defaults first)
+(defmulti view-defaults (fn [& args] (first *route*)))
 
 (defmethod tx :default [ctx eav props]
   nil)
