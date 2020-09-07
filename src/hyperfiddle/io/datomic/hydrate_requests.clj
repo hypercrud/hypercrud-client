@@ -123,9 +123,7 @@
       (ex-info (str :hyperfiddle.error/unrecognized)
                {:ident :hyperfiddle.error/unrecognized
                 :error-msg error-str
-                :human-hint
-                (str "Please comment this error at [hyperfiddle#170](https://github.com/hyperfiddle/hyperfiddle/issues/170) so we can match it."
-                     "\n\n```\n" (pr-str req) "\n```")}))))
+                :human-hint (pr-str req)}))))
 
 (defn- extract-tempid-lookup+ [internal-secure-db+]
   ; todo function should fall out with error-cleaning
