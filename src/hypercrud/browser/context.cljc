@@ -580,14 +580,17 @@ a speculative db/id."
   ; Trace the :in through the :val
   ; if the thing has an identity, use that instead
   ; accumulate the new path
-  (reduce (fn [in k]
-            (let [value (get-in value (conj in k))
-                  k (if (int? k)
-                      (or (row-keyfn value) k)
-                      k)]
-              (conj in k)))
-    []
-    in))
+  (let [value (if (seq? value) ;; can’t use get-in on that
+                (vec value) ;; make it position-indexed
+                value)]
+    (reduce (fn [in k]
+              (let [value (get-in value (conj in k))
+                    k     (if (int? k)
+                            (or (row-keyfn value) k)
+                            k)]
+                (conj in k)))
+            []
+            in)))
 
 (defn result-explained-for-view
   "Efficient views need a stable keyfn to descend into rows. Canonicalize the spec problem :in's
@@ -605,19 +608,23 @@ a speculative db/id."
 
   Todo: Perhaps we should return the problem itself so the user can match on it to decide the invalid message?
   Todo: what to do in diamond case - tax return is invalid, you need etiher a ssn or a visa, which field has the problem?"
-  [{:keys [in val pred via path reason] :as problem}]
-  (let [pred (s/abbrev pred)]                               ; also flattens the 'contains? pred
+  [spec {:keys [in val pred via path reason] :as problem}]
+  (let [pred (s/abbrev pred)
+        type (first (s/describe spec))]                               ; also flattens the 'contains? pred
     (#?(:clj match :cljs match*)
-     [in pred]
+     [type in pred]
 
      ;; Spec reports missing keys at the parent :in, path it at the child instead
-     [_ (['contains? '% k] :seq)]                           ; Detect specific case of missing a key
+     [_ _ (['contains? '% k] :seq)]                           ; Detect specific case of missing a key
      [(conj in k) (hf/invalid-msg k problem)]               ; use the child path to lookup the invalid (missing) message
 
-     [[] _] ;; in is empty
+     [_ [] _] ;; in is empty
      [path (hf/invalid-msg (first path) problem)]
 
-     [_ _]
+     ['cat _ _]
+     [path (hf/invalid-msg (last path) problem)]
+
+     [_ _ _]
      [in (hf/invalid-msg (last via) problem)])))
 
 (defn form-validation-hints
@@ -625,15 +632,16 @@ a speculative db/id."
   types of problems need to be re-pathed from entity to attribute.
 
       ([[2 :foo/bar] :contrib.validation/missing])"
-  [problems]                                                ; destructure ::s/problems at call site
+  [spec problems]                                                ; destructure ::s/problems at call site
   ; Don't collect here, they get filtered down later
-  (map form-cell-problem problems))
+  (map (partial form-cell-problem spec) problems))
 
 (defn validate-result [?spec value keyfn]
   {:pre [keyfn]}
   (when ?spec                                               ; just make this easy, specs are always sparse
-    (when-let [explain (s/explain-data ?spec value)]
-      (form-validation-hints (::s/problems (result-explained-for-view keyfn explain))))))
+    (when-let [explain (->> (s/explain-data ?spec value)
+                            (result-explained-for-view keyfn))]
+      (form-validation-hints (::s/spec explain) (::s/problems explain)))))
 
 (defn validation-hints-enclosure! [ctx]
   (validate-result

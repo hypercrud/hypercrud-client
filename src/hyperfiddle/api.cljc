@@ -89,7 +89,8 @@
 (defmulti def-validation-message (fn [pred & [s]] :default)) ; describe-invalid-reason
 
 (defmulti invalid-msg (fn [spec problem] spec))                     ; name the spec at the granularity of the error message you want
-(defmethod invalid-msg :default [spec problem] (:reason problem))
+(defmethod invalid-msg :default [spec problem] (or (:reason problem)
+                                                   (s/abbrev (:pred problem))))
 
 ;#?(:cljs)
 (defmulti tx (fn [ctx eav props]                            ; you can get the eav from the ctx, but they always need it
