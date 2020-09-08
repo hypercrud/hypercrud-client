@@ -82,12 +82,6 @@
   [{:keys [:hypercrud.browser/route runtime partition-id]} f & args]
   (set-route runtime partition-id (apply f @route args)))
 
-;(def def-validation-message hypercrud.browser.context/def-validation-message)
-; Circular dependencies and :require order problems. This is a static operation, no ctx dependency.
-; But hyperfiddle.api can only have protocols, no concrete impls for the require order to work.
-; Protocols and methods need a dispatch parameter, and static fns don't have one.
-(defmulti def-validation-message (fn [pred & [s]] :default)) ; describe-invalid-reason
-
 (defmulti invalid-msg (fn [spec problem] spec))                     ; name the spec at the granularity of the error message you want
 (defmethod invalid-msg :default [spec problem] (or (:reason problem)
                                                    (s/abbrev (:pred problem))))

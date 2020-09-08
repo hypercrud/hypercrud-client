@@ -574,8 +574,6 @@ a speculative db/id."
     @(:hypercrud.browser/qfind ctx)
     @(:hypercrud.browser/result ctx)))
 
-(declare def-validation-message)
-
 (defn spec-semantic-in [row-keyfn value in]  ; ({:id 1234 :some :value}  {:id 4321 :some :value})
   ; Trace the :in through the :val
   ; if the thing has an identity, use that instead
