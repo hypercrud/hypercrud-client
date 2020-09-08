@@ -1289,7 +1289,7 @@
 (deftest fiddle-validation                                  ; todo move to hyperfiddle.ide
   (s/def :hyperfiddle/ide (s/keys))
   (s/def :hyperfiddle.ide/new-fiddle (s/keys :req [:fiddle/ident]))
-  (s/def :hyperfiddle.ide/new-link (s/keys :req [:link/path]))
+  (s/fdef hyperfiddle.ide/new-link :ret (s/keys :req [:link/path]))
 
   (testing "new fiddle popover validation"
     (let [ctx-tank1 (mock-fiddle! fixtures.tank/schemas fixtures.tank/fiddles :fixtures.tank/new-link1)
@@ -1423,10 +1423,11 @@
            [{:foo/bar 1 :db/id 123}
             {:foo/baz 42 :db/id 124}]
            contrib.datomic/smart-lookup-ref-no-tempids)
-        '([[124 :foo/bar] nil])))
+         '([[124 :foo/bar] (contains? % :foo/bar)])))
   )
 
 (comment
+  (swap! @#'s/registry-ref dissoc :foo/bar)
   (s/def :asdf/qwer (s/coll-of (s/keys :req [:community/name])))
   (describe :asdf/qwer {:reason "Field is required"})
   (s/def :community/name

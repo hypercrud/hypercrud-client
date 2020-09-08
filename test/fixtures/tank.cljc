@@ -280,7 +280,7 @@
      :fiddle/shape '[:find (pull $ ?e [:link/path :db/id]) . :in $ :where [?e]],
      :fiddle/markdown
      "#### new-link\n\n!field(:link/path){placeholder=\":district/region\"}",
-     :fiddle/ident :hyperfiddle.ide/new-link}
+     :fiddle/ident 'hyperfiddle.ide/new-link}
     {:db/id "hyperfiddle.tempid--2017569654"}]
 
    ::new-link2
