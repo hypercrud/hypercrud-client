@@ -77,7 +77,7 @@
           index-of  #(.indexOf %2 %1)
           names     (spec/names spec-args)
           i (index-of key (vec names))]
-      (assert (> i 0) "index not found")                    ; https://github.com/hyperfiddle/hyperfiddle/issues/1121
+      (assert (>= i 0) "index not found")                   ; https://github.com/hyperfiddle/hyperfiddle/issues/1121
       i)))
 
 (defn- expand-route-to [args-count route]
