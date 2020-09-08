@@ -1,7 +1,8 @@
 (ns hyperfiddle.spec.datomic
   (:require [clojure.set :as set]
             [clojure.spec.alpha :as s]
-            [contrib.data :refer [map-values update-existing]]))
+            [contrib.data :refer [map-values update-existing]]
+            [taoensso.timbre :as timbre]))
 
 (def dbid {:db/ident       :db/id
            :db/cardinality :db.cardinality/one
@@ -93,16 +94,19 @@
 
 (defn from-spec [attr]
   (when attr
-    (let [{:keys [name type predicate children]} attr]
-      {:db/ident       name
-       :db/valueType   (case type
-                         :hyperfiddle.spec/keys      :db.type/ref
-                         :hyperfiddle.spec/predicate (type-of predicate)
-                         (:hyperfiddle.spec/coll
-                          :hyperfiddle.spec/?
-                          :hyperfiddle.spec/nilable) (:db/valueType (from-spec (first children)))
-                         :hyperfiddle.spec/and       (type-of (most-meaningful children)))
-       :db/cardinality (if (= :hyperfiddle.spec/coll type) :db.cardinality/many :db.cardinality/one)})))
+    (let [{:keys [name type predicate children]} attr
+          valueType                              (case type
+                                                   :hyperfiddle.spec/keys      :db.type/ref
+                                                   :hyperfiddle.spec/predicate (type-of predicate)
+                                                   (:hyperfiddle.spec/coll
+                                                    :hyperfiddle.spec/?
+                                                    :hyperfiddle.spec/nilable) (:db/valueType (from-spec (first children)))
+                                                   :hyperfiddle.spec/and       (type-of (most-meaningful children)))]
+      (if-not valueType
+        (timbre/warn  "Unable to infer an attr valueType from " {:name name :predicate predicate})
+        {:db/ident       name
+         :db/valueType   valueType
+         :db/cardinality (if (= :hyperfiddle.spec/coll type) :db.cardinality/many :db.cardinality/one)}))))
 
 (defn spec->schema [spec]
   (map-values from-spec spec))
