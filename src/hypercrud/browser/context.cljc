@@ -7,7 +7,7 @@
     [contrib.do :refer [do-result from-result]]
     [contrib.ct :refer [unwrap]]
     [contrib.data :refer [ancestry-common ancestry-divergence unqualify keywordize map-values]]
-    [contrib.datomic]
+    [contrib.datomic :as d]
     [contrib.eval :as eval]
     [contrib.reactive :as r]
     [contrib.string :refer [blank->nil]]
@@ -295,7 +295,7 @@ a speculative db/id."
    (assert (not (:hypercrud.browser/head-sentinel ctx)) "this whole flag is trouble, not sure if this assert is strictly necessary")
    (assert (boolean (hf/attr ctx a)) (str "attribute " a " not in :hypercrud.browser/schema"))
    (let [{:keys [:hypercrud.browser/schema :hypercrud.browser/fiddle]} ctx]
-     (case (contrib.datomic/cardinality @schema a (:fiddle/ident @fiddle))
+     (case (contrib.datomic/cardinality @schema a)
 
        ; For absense of schema provider, we can inspect result here
        :db.cardinality/one
@@ -414,15 +414,13 @@ a speculative db/id."
   ([ctx]
    (attr ctx (a ctx)))
   ([ctx a]                                                  ; explicit arity useful for inspecting children
-   (let [f (:fiddle/ident @(:hypercrud.browser/fiddle ctx))]
-     (some-> (:hypercrud.browser/schema ctx) deref (contrib.datomic/attr a f)))))
+   (some-> (:hypercrud.browser/schema ctx) deref (contrib.datomic/attr a))))
 
 (defn attr?
   ([ctx corcs]
    (attr? ctx (a ctx) corcs))
   ([ctx a corcs]
-   (let [f (:fiddle/ident @(:hypercrud.browser/fiddle ctx))]
-     (some-> (:hypercrud.browser/schema ctx) deref (contrib.datomic/attr? a f corcs)))))
+   (some-> (:hypercrud.browser/schema ctx) deref (contrib.datomic/attr? a corcs))))
 
 (defn element [ctx]
   (some-> ctx -infer-implicit-element :hypercrud.browser/element deref))
@@ -710,7 +708,9 @@ a speculative db/id."
         ; stable-element-schema! can throw on schema lookup
         ; this may need to be caught depending on when how/when this function is used
         ; or with reactions; we may need to unlazily throw ASAP
-               :hypercrud.browser/schema (r/fmap->> r-element (stable-element-schema! (:runtime ctx) (:partition-id ctx)))))))
+               :hypercrud.browser/schema (r/fmap->> r-element
+                                                    (stable-element-schema! (:runtime ctx) (:partition-id ctx))
+                                                    (d/attach-spec ctx))))))
 
 (defn browse-element [ctx i]                                ; [nil :seattle/neighborhoods 1234345]
   {:pre []
@@ -794,7 +794,7 @@ a speculative db/id."
           (index-result ctx a')))
       ; V is for formulas, E is for security and on-change. V becomes E. E is nil if we don't know identity.
       (assoc ctx :hypercrud.browser/eav                     ; insufficent stability on r-?v? fixme
-             (case (contrib.datomic/cardinality @(:hypercrud.browser/schema ctx) a' (:fiddle/ident @(:hypercrud.browser/fiddle ctx))) ; have result data to infer cardinality in absense of schema
+             (case (contrib.datomic/cardinality @(:hypercrud.browser/schema ctx) a') ; have result data to infer cardinality in absense of schema
                    :db.cardinality/many (r/fmap-> (:hypercrud.browser/eav ctx) (stable-eav-a a')) ; dont have v yet
                    :db.cardinality/one (r/fmap-> (:hypercrud.browser/eav ctx) (stable-eav-av a' (v! ctx)))
                    ; Gracefully fail but still render.

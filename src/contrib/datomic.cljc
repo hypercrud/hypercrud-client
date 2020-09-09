@@ -48,7 +48,7 @@
 (defprotocol SchemaIndexedNormalized
   ; Implement this interface in both peer and Hypercrud client
   (-repr-portable-hack [this])
-  (attr [this a] [this a f]))
+  (attr [this a]))
 
 (def ^:private xf-attr-in-set
   "A specific operation user in `attr?`, designed for performance."
@@ -58,17 +58,15 @@
 
 (defn attr?
   ([this a corcs]
-   (attr? this a nil corcs))
-  ([this a f corcs]
-   (let [haystack (into #{} xf-attr-in-set (attr this a f)) ; component
+   (let [haystack (into #{} xf-attr-in-set (attr this a)) ; component
          needles  (contrib.data/xorxs corcs #{})]
      ;; haystack must have all the needles
      (clojure.set/superset? haystack needles))))
 
-(defn cardinality [this a & [f]]
+(defn cardinality [this a]
   ; TODO needs to respect qfind types
   ; If datomic schema is added out of band, don't need specs here
-  (get (attr this a f) :db/cardinality)
+  (get (attr this a) :db/cardinality)
   #_(or (get (attr this a) :db/cardinality)
       (let [spec (s/form a)]
         (if (seq? spec)
@@ -140,12 +138,10 @@
               (contrib.data/update-existing :db/unique smart-lookup-ref-no-tempids))
           (attr-spec a f))))))
 
-(deftype Schema [schema-by-attr hash]
+(deftype Schema [schema-by-attr hash f]
   SchemaIndexedNormalized
   (-repr-portable-hack [this] (str "#schema " (pr-str (.-schema-by-attr this))))
   (attr [this a]
-    (attr* this a nil))
-  (attr [this a f]
     (attr* this a f))
 
   #?@(:clj
@@ -175,8 +171,17 @@
 #?(:cljs (ns-unmap 'contrib.datomic '->Schema))
 (defn ->Schema
   "@suppress {duplicate}"
-  [schema-by-attr]
-  (Schema. schema-by-attr (hash schema-by-attr)))
+  ([schema-by-attr]
+   (->Schema schema-by-attr nil))
+  ([schema-by-attr f]
+   (Schema. schema-by-attr (hash schema-by-attr) f)))
+
+(defn attach-spec [ctx schema]
+  (when schema
+    (let [f (:fiddle/ident @(:hypercrud.browser/fiddle ctx))]
+      (assert f "No fiddle ident at that point")
+      #?(:clj (Schema. (.-schema-by-attr schema) (.-hash schema) f)
+         :cljs (Schema. (.-schema-by-attr ^js schema) (.-hash ^js schema) f)))))
 
 (comment
   (def s (Schema. {:user/a {:db/ident :user/a :db/valueType :db.type/string}}))
@@ -194,8 +199,7 @@
   nil
   (-repr-portable-hack [this] (str "#schema " (pr-str nil)))
   (attr
-    ([this a] nil)
-    ([this a f] nil)))
+    ([this a] nil)))
 
 #?(:clj (defmethod print-method Schema [o ^java.io.Writer w] (.write w (-repr-portable-hack o))))
 #?(:clj (defmethod print-dup Schema [o w] (print-method o w)))
