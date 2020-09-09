@@ -174,7 +174,8 @@
                   ; which should not break the page here. See test
                   #_#_hf/*$* (silence! (do-result (get-db' "$")))
                   hf/*$*     (get-db' "$")
-                  hf/*route* route]
+                  hf/*route* route
+                  hf/*domain* domain]
           (with-bindings (hf/bindings domain)
             (let [[f & args]     route
                   defaults (apply hf/defaults args)]
