@@ -146,10 +146,7 @@
                (apply max))
       0))
 
-(defmethod hf/defaults :default [& args]
-  (let [f (first hf/*route*)]
-    (data/zipseq args (repeat (max-arity (find-var f)) nil))))
-
+(defmethod hf/defaults :default [& args] args)
 (defmethod hf/view-defaults :default [& args] args)
 
 (defn eval-as-fexpr!
@@ -178,7 +175,7 @@
                   hf/*domain* domain]
           (with-bindings (hf/bindings domain)
             (let [[f & args]     route
-                  defaults (apply hf/defaults args)]
+                  defaults (apply hf/defaults (data/zipseq args (repeat (max-arity (find-var f)) nil)))]
               [(cons f defaults)
                (cons f (apply hf/view-defaults defaults))
                (eval-as-fexpr! (cons f defaults))])))))
