@@ -86,6 +86,9 @@
 (defmethod invalid-msg :default [spec problem] (or (:reason problem)
                                                    (s/abbrev (:pred problem))))
 
+(defmulti doc identity)
+(defmethod doc :default [_] nil)
+
 ;#?(:cljs)
 (defmulti tx (fn [ctx eav props]                            ; you can get the eav from the ctx, but they always need it
                (let [dispatch-v (link-tx ctx)]
