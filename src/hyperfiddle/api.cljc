@@ -272,8 +272,8 @@
 
 (defn needle-match [v needle]
   (str/includes?
-   (.toLowerCase (or v ""))
-   (.toLowerCase (or needle ""))))
+   (.toLowerCase (or (str v) ""))
+   (.toLowerCase (or (str needle) ""))))
 
 (defmacro serve!
   "For demo purposes, avoid complex :require in demo nss so people can focus on
