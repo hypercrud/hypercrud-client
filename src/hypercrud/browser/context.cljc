@@ -581,7 +581,7 @@ a speculative db/id."
                 value)]
     (reduce (fn [in k]
               (let [value (get-in value (conj in k))
-                    k     (if (int? k)
+                    k     (if (and (int? k) (map? value))
                             (or (row-keyfn value) k)
                             k)]
                 (conj in k)))

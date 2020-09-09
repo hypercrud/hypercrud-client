@@ -19,7 +19,6 @@
                   :dbid number?
                   ;:lookup ...
                   :uuid :fiddle/uuid))
-(s/def ::datomic-args vector?)
 (s/def ::where vector?)                                     ; todo (s/+ :contrib.datomic.client.query/clause)
 (s/def ::fragment string?)
 
