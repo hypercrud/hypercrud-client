@@ -206,6 +206,7 @@
 (defmulti render-fiddle (fn [_val ctx _props] (fiddle ctx)))
 
 (defmulti formula (fn [_ctx link _value] (:link/formula link)))
+(defmethod formula ::nil [_ _ _] )
 
 (defn route
   "Get route, with default values. Rember default route values get overwritten by
