@@ -601,8 +601,6 @@ a speculative db/id."
 (defn form-cell-problem
   "Re-path the problems so the UI (table or form) renders invalid where the problem is.
   Also looks up the invalid message using certain business rules to match the missing case.
-
-  Todo: Perhaps we should return the problem itself so the user can match on it to decide the invalid message?
   Todo: what to do in diamond case - tax return is invalid, you need etiher a ssn or a visa, which field has the problem?"
   [spec {:keys [in val pred via path reason] :as problem}]
   (let [pred (s/abbrev pred)

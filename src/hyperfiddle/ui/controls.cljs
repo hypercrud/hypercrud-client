@@ -323,7 +323,7 @@
   (into
    [:ul.validation-content props]                          ; missing .hyperfiddle- css prefix
    (->> (map second values)
-        (map (fn [ve] [:li (pr-str ve)])))))
+        (map (fn [ve] [:li (str ve)])))))
 
 (defn invalid-message-popup [{:keys [::hf/invalid-messages]} content]
   (if (some-> invalid-messages deref seq)
