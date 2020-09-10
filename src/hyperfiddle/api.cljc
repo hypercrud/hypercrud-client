@@ -216,11 +216,9 @@
 
 ;; multiple params can depend on each other so set defaults centrally per fiddle
 (defmulti defaults (fn [& args] (first *route*)))
-
+(defmethod defaults :default [& args] args)
 (defmulti view-defaults (fn [& args] (first *route*)))
-
-(defmethod tx :default [ctx eav props]
-  nil)
+(defmethod view-defaults :default [& args] args)
 
 (defmethod tx :default [ctx eav props]
   nil)

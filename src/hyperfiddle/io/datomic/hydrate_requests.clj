@@ -146,9 +146,6 @@
                (apply max))
       0))
 
-(defmethod hf/defaults :default [& args] args)
-(defmethod hf/view-defaults :default [& args] args)
-
 (defn eval-as-fexpr!
   "Like `clojure.core/eval`, but don't evaluate operands.
   https://en.wikipedia.org/wiki/Fexpr ."
