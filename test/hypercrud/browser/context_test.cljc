@@ -966,10 +966,10 @@
          (is (= (mlet [[ctx r+route] (context/refocus-build-route-and-occlude+ ctx-blog2 link1)]
                       (context/eav ctx))
                 ; should it be [nil nil "479925454"] from the txfn perspective?
-                [nil nil "hyperfiddle.tempid--853640389"]))
+                [nil nil "hyperfiddle.tempid--853640389@$"]))
          (is (= (mlet [[ctx +route] (context/refocus-build-route-and-occlude+ ctx-blog2 link1)]
                       (return +route))
-                (right `(dustingetz.tutorial.blog/new-post ~#entity["$" "hyperfiddle.tempid--853640389"]))))))
+                (right `(dustingetz.tutorial.blog/new-post "hyperfiddle.tempid--853640389@$"))))))
 
      (testing "iframe at double nested attr"
        (is (= (context/eav ctx-seattle1) [[:district/name "Ballard"] :district/region :region/nw]))
@@ -1006,12 +1006,12 @@
        (def link (hyperfiddle.data/select ctx-blog3 :hf/new))
        (is (= (mlet [[ctx _route] (context/refocus-build-route-and-occlude+ ctx-blog3 link)]
                     (context/eav ctx))
-              [nil nil "hyperfiddle.tempid--853640389"]))
+              [nil nil "hyperfiddle.tempid--853640389@$"]))
        (is (= (mlet [[ctx route] (context/refocus-build-route-and-occlude+ ctx-blog3 link)]
                     (return route))
               ; This works because refocus hardcodes element 0, which it turns out is almost always
               ; what the custom renderer wants.
-              (right `(dustingetz.tutorial.blog/new-post ~#entity["$" "hyperfiddle.tempid--853640389"])))))))
+              (right `(dustingetz.tutorial.blog/new-post "hyperfiddle.tempid--853640389@$")))))))
 
 (def ctx-schema (mock-fiddle! :dustingetz.test/schema-ident-findcoll))
 
@@ -1289,7 +1289,7 @@
 (deftest fiddle-validation                                  ; todo move to hyperfiddle.ide
   (s/def :hyperfiddle/ide (s/keys))
   (s/def :hyperfiddle.ide/new-fiddle (s/keys :req [:fiddle/ident]))
-  (s/def :hyperfiddle.ide/new-link (s/keys :req [:link/path]))
+  (s/fdef hyperfiddle.ide/new-link :ret (s/keys :req [:link/path]))
 
   (testing "new fiddle popover validation"
     (let [ctx-tank1 (mock-fiddle! fixtures.tank/schemas fixtures.tank/fiddles :fixtures.tank/new-link1)
@@ -1423,10 +1423,11 @@
            [{:foo/bar 1 :db/id 123}
             {:foo/baz 42 :db/id 124}]
            contrib.datomic/smart-lookup-ref-no-tempids)
-        '([[124 :foo/bar] nil])))
+         '([[124 :foo/bar] (contains? % :foo/bar)])))
   )
 
 (comment
+  (swap! @#'s/registry-ref dissoc :foo/bar)
   (s/def :asdf/qwer (s/coll-of (s/keys :req [:community/name])))
   (describe :asdf/qwer {:reason "Field is required"})
   (s/def :community/name
@@ -1443,10 +1444,10 @@
 (s/def ::gender (s/keys :req [:db/ident]))
 (s/def ::person (s/keys :req [::email ::gender]))           ; intermediate named spec vs composite spec
 (s/def ::index (s/coll-of (s/keys :req [::person])))
-(hf/def-validation-message ::gender "gender")
-(hf/def-validation-message ::email "email")
-(hf/def-validation-message ::email-blank "email blank")
-(hf/def-validation-message ::email-malformed "email malformed")
+(defmethod hf/invalid-msg ::gender [spec problem] "gender")
+(defmethod hf/invalid-msg ::email [spec problem] "email")
+(defmethod hf/invalid-msg ::email-blank [spec problem] "email blank")
+(defmethod hf/invalid-msg ::email-malformed [spec problem] "email malformed")
 
 (def test-validation-result
   [{:db/id 11 ::person {::gender {:db/ident ::male}}}      ; missing email

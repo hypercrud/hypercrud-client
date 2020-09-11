@@ -32,9 +32,7 @@
                               {:key :hypercrud.browser.browser-ui/user, :text "view"}]
                   :value     mode
                   :on-change (r/partial set-view-mode!)
-                  :props     {:style {:display        :inline-grid
-                                      :grid-auto-flow :column
-                                      :grid-gap       "0.75rem"}}}]))
+                  :props     {:class "hyperfiddle-view-mode-selector"}}]))
 
 (defn auth-configured? [ctx]
   ; todo duplicated logic
@@ -63,18 +61,25 @@
    (defn TopNav [{:keys [ctx]}]
      [:nav {:role  :navigation
             :style {:display     :flex
-                    :align-items :center
                     :padding     "0.5rem 1rem"}}
 
-      [:div {:style {:margin-right "0.75rem"}} [:a {:href "/"} "Home"]]
-      [ViewModeSelector {:mode (:hyperfiddle.ui/display-mode ctx)}]
-      [:div {:style {:flex 1}}]
-      (if (hf/subject ctx)
-        [:a {:href  (hf/url-encode (hf/domain (:runtime ctx)) `(hyperfiddle.foundation/account))
-             :style {:text-transform :capitalize}}
-         (str "👤Account")]
-        (if (auth-configured? ctx)
-          [:a {:href (stateless-login-url ctx)} "👤 Sign in"]))]))
+      [:a {:href "/" :style {:margin-right "0.75rem"
+                             :display :flex
+                             :align-items :center}} "Home"]
+      [:div {:style {:display :flex
+                     :align-items :center}}
+       [ViewModeSelector {:mode (:hyperfiddle.ui/display-mode ctx)}]]
+      [:div {:style {:flex 1
+                     :margin "0 0.75rem"}}
+       [iframe/route-editor-topnav ctx]]
+      [:div {:style {:display :flex
+                     :align-items :center}}
+       (if (hf/subject ctx)
+         [:a {:href  (hf/url-encode (hf/domain (:runtime ctx)) `(hyperfiddle.foundation/account))
+              :style {:text-transform :capitalize}}
+          (str "👤Account")]
+         (if (auth-configured? ctx)
+           [:a {:href (stateless-login-url ctx)} "👤 Sign in"]))]]))
 
 #?(:cljs
    (defn frame-on-click [rt route ^js event]

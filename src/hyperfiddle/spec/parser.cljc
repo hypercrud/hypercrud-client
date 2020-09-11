@@ -86,5 +86,10 @@
 ; spec with {:args ()} defaults to predicate
 
 (defmethod parse-spec :default [form]
-  {:type      :hyperfiddle.spec/predicate
-   :predicate (first form)})
+  (let [pred (first form)]
+    (assert (or (fn? pred) (qualified-symbol? pred) (keyword? pred))
+            (str "Unable to resolve this predicate or spec. A spec predicate must be a function or reference a function or spec."
+                 {:received pred
+                  :type     (type pred)}))
+    {:type      :hyperfiddle.spec/predicate
+     :predicate pred}))

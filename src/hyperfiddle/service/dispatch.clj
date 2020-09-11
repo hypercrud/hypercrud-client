@@ -133,9 +133,10 @@
     (hf-http/response context
       (try
         (let [{:keys [domain route-params body-params user-id]} (:request context)
+              query-string (get-in context [:request :query-string])
               io (R/via context R/IO)
-              route (hf/url-decode domain
-                      (str (get-in context [:request :path-info]) "?" (get-in context [:request :query-string])))
+              route (hf/url-decode domain (cond-> (get-in context [:request :path-info])
+                                            (seq query-string) (str "?" query-string)))
               {:keys [http-status-code component]}
               (from-async (render/render (-> (R/from context) :config) domain io route user-id))]
           {:status  http-status-code

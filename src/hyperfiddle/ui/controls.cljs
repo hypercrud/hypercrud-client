@@ -37,7 +37,9 @@
         help-hiccup [:<>
                      ; Use path over a because it could have flattened the nesting and attr is ambiguous
                      (if typedoc [:code (str (:db/ident attr)) " " typedoc])
-                     [:div (or doc-override (-> attr :db/doc blank->nil))]]]
+                     [:div (or doc-override (-> attr :db/doc blank->nil))]
+                     (when-let [doc (hf/doc (:db/ident attr))]
+                       [:div nil doc])]]
     help-hiccup))
 
 (defn label-with-docs [label help-md props]
@@ -73,14 +75,12 @@
     (label-with-docs label (semantic-docstring ctx) props)))
 
 (defn ref-label [_ ctx & [props]]
-  (let [[_ a _] (context/eav ctx)
-        label (name a)]
-    ; top-level ref should get it though?
-    [:<>
-     (label-with-docs label (semantic-docstring ctx) props)
-     #_(if (= 1 (context/pull-depth ctx))
-         ; :community/neighborhood gets new-neighborhood? NO
-         (hf-new _ ctx))]))
+  ; top-level ref should get it though?
+  [:<>
+   (label-with-docs (hf/label ctx props) (semantic-docstring ctx) props)
+   #_(if (= 1 (context/pull-depth ctx))
+       ; :community/neighborhood gets new-neighborhood? NO
+       (hf-new _ ctx))])
 
 (defn id-prompt [ctx val]
   ; pr-str here to disambiguate `"tempid"` from `17592186046396` and `:gender/male`
@@ -321,8 +321,9 @@
 
 (defn validation-error [props values]
   (into
-    [:ul.validation-content props]                          ; missing .hyperfiddle- css prefix
-    (map (fn [ve] [:li ve]) (map second values))))
+   [:ul.validation-content props]                          ; missing .hyperfiddle- css prefix
+   (->> (map second values)
+        (map (fn [ve] [:li (str ve)])))))
 
 (defn invalid-message-popup [{:keys [::hf/invalid-messages]} content]
   (if (some-> invalid-messages deref seq)
@@ -366,7 +367,8 @@
                                (js/console.log `boolean v)
                                (((::hf/view-change! ctx) ctx) (not v) v)))]
       [contrib.ui/easy-checkbox
-       (select-keys props [:class :style ::hf/is-invalid :checked :on-change :disabled])])] ; readonly?
+       (select-keys props [:class :style ::hf/is-invalid :checked :on-change :disabled]) ; readonly?
+       (::hf/label props)])]
    (render-related-links val ctx)])
 
 (let [adapter (fn [^js e]

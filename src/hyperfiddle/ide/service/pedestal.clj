@@ -57,7 +57,8 @@
                      is-auth-configured                        ; if there is an auth0 config, require logins
                      is-no-subject
                      prevent-infinite-redirect))
-              (let [redirect (hf/url-decode domain (str path "?" query-string))
+              (let [redirect (hf/url-decode domain (cond-> path
+                                                     (seq query-string) (str "?" query-string)))
                     url (hf/url-encode domain `(hyperfiddle.foundation/please-login ~redirect))]
                 (-> context
                     (assoc-in [:response :status] 302)

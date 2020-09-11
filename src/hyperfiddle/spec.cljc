@@ -34,6 +34,9 @@
   [ctx]
   (:fiddle/spec @(:hypercrud.browser/fiddle ctx)))
 
+(defn spec' [ctx]
+  (some-> ctx :hypercrud.browser/fiddle deref :fiddle/ident s/get-spec))
+
 (defn fdef? [?spec]
   (and #?(:clj  (instance? clojure.lang.ILookup ?spec)
           :cljs (satisfies? cljs.core.ILookup ?spec))

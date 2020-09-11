@@ -123,9 +123,7 @@
       (ex-info (str :hyperfiddle.error/unrecognized)
                {:ident :hyperfiddle.error/unrecognized
                 :error-msg error-str
-                :human-hint
-                (str "Please comment this error at [hyperfiddle#170](https://github.com/hyperfiddle/hyperfiddle/issues/170) so we can match it."
-                     "\n\n```\n" (pr-str req) "\n```")}))))
+                :human-hint (pr-str req)}))))
 
 (defn- extract-tempid-lookup+ [internal-secure-db+]
   ; todo function should fall out with error-cleaning
@@ -148,11 +146,6 @@
                (apply max))
       0))
 
-(defmethod hf/defaults :default [[f & args]]
-  (cons f (data/zipseq args (repeat (max-arity (find-var f)) nil))))
-
-(defmethod hf/view-defaults :default [route] route)
-
 (defn eval-as-fexpr!
   "Like `clojure.core/eval`, but don't evaluate operands.
   https://en.wikipedia.org/wiki/Fexpr ."
@@ -174,10 +167,15 @@
                   ; get-db will realize the database, possibly throwing on a bad stage
                   ; which should not break the page here. See test
                   #_#_hf/*$* (silence! (do-result (get-db' "$")))
-                  hf/*$* (get-db' "$")]
+                  hf/*$*     (get-db' "$")
+                  hf/*route* route
+                  hf/*domain* domain]
           (with-bindings (hf/bindings domain)
-            (let [defaults (hf/defaults route)]
-              [defaults (hf/view-defaults defaults) (eval-as-fexpr! defaults)])))))
+            (let [[f & args]     route
+                  defaults (apply hf/defaults (data/zipseq args (repeat (max-arity (find-var f)) nil)))]
+              [(cons f defaults)
+               (cons f (apply hf/view-defaults defaults))
+               (eval-as-fexpr! (cons f defaults))])))))
     (fn [e] (either/left (error-cleaner e F)))))
 
 ;; F is [ƒ, pid].

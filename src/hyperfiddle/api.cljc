@@ -7,8 +7,8 @@
 
     [clojure.spec.alpha :as s]
     [clojure.string :as str]
-    [taoensso.timbre :as timbre]
-    [hypercrud.types.ThinEntity :refer [thinentity?]]))     ; Exceptional hf require, the deftype should lift up to here or be removed
+    [clojure.edn :as edn]
+    [taoensso.timbre :as timbre]))
 
 
 (defprotocol ConnectionFacade
@@ -82,11 +82,12 @@
   [{:keys [:hypercrud.browser/route runtime partition-id]} f & args]
   (set-route runtime partition-id (apply f @route args)))
 
-;(def def-validation-message hypercrud.browser.context/def-validation-message)
-; Circular dependencies and :require order problems. This is a static operation, no ctx dependency.
-; But hyperfiddle.api can only have protocols, no concrete impls for the require order to work.
-; Protocols and methods need a dispatch parameter, and static fns don't have one.
-(defmulti def-validation-message (fn [pred & [s]] :default)) ; describe-invalid-reason
+(defmulti invalid-msg (fn [spec problem] spec))                     ; name the spec at the granularity of the error message you want
+(defmethod invalid-msg :default [spec problem] (or (:reason problem)
+                                                   (s/abbrev (:pred problem))))
+
+(defmulti doc identity)
+(defmethod doc :default [_] nil)
 
 ;#?(:cljs)
 (defmulti tx (fn [ctx eav props]                            ; you can get the eav from the ctx, but they always need it
@@ -203,10 +204,16 @@
     ;(contrib.datomic/parser-type (context/qfind ctx))       ; :hf/find-rel :hf/find-scalar
     ;:hf/blank
 
+; To pass props or not to pass props?
+(defmulti label (fn [ctx] (a ctx)))                         ; quickly added for rosie, todo cleanup for non-A places
+(defmethod label :default [ctx] (name (a ctx)))             ; handle more cases by default
+(defmulti props (fn [ctx] (a ctx)))                         ; todo cleanup for non-A
+(defmethod props :default [ctx] {})
 
 (defmulti render-fiddle (fn [_val ctx _props] (fiddle ctx)))
 
 (defmulti formula (fn [_ctx link _value] (:link/formula link)))
+(defmethod formula ::nil [_ _ _] )
 
 (defn route
   "Get route, with default values. Rember default route values get overwritten by
@@ -215,12 +222,10 @@
   @(:hypercrud.browser/route-defaults-hydrated ctx))
 
 ;; multiple params can depend on each other so set defaults centrally per fiddle
-(defmulti defaults first)
-
-(defmulti view-defaults first)
-
-(defmethod tx :default [ctx eav props]
-  nil)
+(defmulti defaults (fn [& args] (first *route*)))
+(defmethod defaults :default [& args] args)
+(defmulti view-defaults (fn [& args] (first *route*)))
+(defmethod view-defaults :default [& args] args)
 
 (defmethod tx :default [ctx eav props]
   nil)
@@ -254,22 +259,6 @@
 (s/def :hf/where any?)
 (s/def :hf/where-spec any?)
 
-(defn arg* [e]
-  (cond
-    (thinentity? e) (.-id e)
-    (number? e) e                                        ; dbid
-    (string? e) e                                        ; tempid
-    (some? e) (throw (ex-info "unrecognized route param type" {:e e}))
-    () nil ; don't crash if missing entirely
-    ))
-
-(defn arg "Silly extractor for a HF deftype with poor ergonomics. Todo cleanup.
-  Used by Rosie"
-  ;([] (hf-arg hf/*route*))
-  ([hf-route] (arg hf-route 0))
-  ([hf-route ix]
-   (arg* (get (:hyperfiddle.route/datomic-args hf-route) ix))))
-
 (defn ^:temporary ->either-domain                           ; todo remove
   "Wrap a domain `x` as `Right x`. Useful to make existing (either-branched) code
   compatible with unested, reshaped domain values."
@@ -288,8 +277,8 @@
 
 (defn needle-match [v needle]
   (str/includes?
-   (.toLowerCase (or v ""))
-   (.toLowerCase (or needle ""))))
+   (.toLowerCase (or (str v) ""))
+   (.toLowerCase (or (str needle) ""))))
 
 (defmacro serve!
   "For demo purposes, avoid complex :require in demo nss so people can focus on
@@ -298,3 +287,28 @@
   `(hyperfiddle.def/serve-ns! ~*ns*))
 
 (defn ^::fiddle index [])
+
+
+;;; New ThinEntity impl
+
+(def ^:private colored-tempid
+  "Matches \"hyperfiddle.tempid--123456789@dbname\""
+  #"^hyperfiddle\.tempid\-(\-?\d+)@(.+)$")
+
+(defn colored-tempid? [s]
+  (and (string? s)
+       (re-matches colored-tempid s)))
+
+(defn ->colored-tempid [dbname id]
+  (when (and (string? dbname)
+             (not-empty dbname)
+             (number? id))
+    (str "hyperfiddle.tempid-" (str id) "@" dbname)))
+
+(defn parse
+  "Parse a given `id` to `[id db]`. See `colored-tempid`."
+  [id]
+  (if (colored-tempid? id)
+    (rest (re-find colored-tempid id))
+    [id nil]))
+

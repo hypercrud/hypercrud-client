@@ -7,13 +7,12 @@
     [contrib.do :refer [do-result from-result]]
     [contrib.ct :refer [unwrap]]
     [contrib.data :refer [ancestry-common ancestry-divergence unqualify keywordize map-values]]
-    [contrib.datomic]
+    [contrib.datomic :as d]
     [contrib.eval :as eval]
     [contrib.reactive :as r]
     [contrib.string :refer [blank->nil]]
     [contrib.try$ :refer [try-either]]
     [datascript.parser #?@(:cljs [:refer [FindRel FindColl FindTuple FindScalar Variable Aggregate Pull]])]
-    [hypercrud.types.ThinEntity :refer [->ThinEntity #?(:cljs ThinEntity)]]
     [hyperfiddle.api :as hf]
     [hyperfiddle.fiddle :as fiddle]
     [hyperfiddle.route :as route]
@@ -23,8 +22,7 @@
     [taoensso.timbre :as timbre])
   #?(:clj
      (:import
-       (datascript.parser FindRel FindColl FindTuple FindScalar Variable Aggregate Pull)
-       (hypercrud.types.ThinEntity ThinEntity))))
+       (datascript.parser FindRel FindColl FindTuple FindScalar Variable Aggregate Pull))))
 
 
 ; This file is coded in reactive style, which means no closures because they cause unstable references.
@@ -297,7 +295,7 @@ a speculative db/id."
    (assert (not (:hypercrud.browser/head-sentinel ctx)) "this whole flag is trouble, not sure if this assert is strictly necessary")
    (assert (boolean (hf/attr ctx a)) (str "attribute " a " not in :hypercrud.browser/schema"))
    (let [{:keys [:hypercrud.browser/schema :hypercrud.browser/fiddle]} ctx]
-     (case (contrib.datomic/cardinality @schema a (:fiddle/ident @fiddle))
+     (case (contrib.datomic/cardinality @schema a)
 
        ; For absense of schema provider, we can inspect result here
        :db.cardinality/one
@@ -416,15 +414,13 @@ a speculative db/id."
   ([ctx]
    (attr ctx (a ctx)))
   ([ctx a]                                                  ; explicit arity useful for inspecting children
-   (let [f (:fiddle/ident @(:hypercrud.browser/fiddle ctx))]
-     (some-> (:hypercrud.browser/schema ctx) deref (contrib.datomic/attr a f)))))
+   (some-> (:hypercrud.browser/schema ctx) deref (contrib.datomic/attr a))))
 
 (defn attr?
   ([ctx corcs]
    (attr? ctx (a ctx) corcs))
   ([ctx a corcs]
-   (let [f (:fiddle/ident @(:hypercrud.browser/fiddle ctx))]
-     (some-> (:hypercrud.browser/schema ctx) deref (contrib.datomic/attr? a f corcs)))))
+   (some-> (:hypercrud.browser/schema ctx) deref (contrib.datomic/attr? a corcs))))
 
 (defn element [ctx]
   (some-> ctx -infer-implicit-element :hypercrud.browser/element deref))
@@ -576,20 +572,21 @@ a speculative db/id."
     @(:hypercrud.browser/qfind ctx)
     @(:hypercrud.browser/result ctx)))
 
-(declare def-validation-message)
-
 (defn spec-semantic-in [row-keyfn value in]  ; ({:id 1234 :some :value}  {:id 4321 :some :value})
   ; Trace the :in through the :val
   ; if the thing has an identity, use that instead
   ; accumulate the new path
-  (reduce (fn [in k]
-            (let [value (get-in value (conj in k))
-                  k (if (int? k)
-                      (or (row-keyfn value) k)
-                      k)]
-              (conj in k)))
-    []
-    in))
+  (let [value (if (seq? value) ;; can’t use get-in on that
+                (vec value) ;; make it position-indexed
+                value)]
+    (reduce (fn [in k]
+              (let [value (get-in value (conj in k))
+                    k     (if (and (int? k) (map? value))
+                            (or (row-keyfn value) k)
+                            k)]
+                (conj in k)))
+            []
+            in)))
 
 (defn result-explained-for-view
   "Efficient views need a stable keyfn to descend into rows. Canonicalize the spec problem :in's
@@ -604,70 +601,55 @@ a speculative db/id."
 (defn form-cell-problem
   "Re-path the problems so the UI (table or form) renders invalid where the problem is.
   Also looks up the invalid message using certain business rules to match the missing case.
-
-  Todo: Perhaps we should return the problem itself so the user can match on it to decide the invalid message?
   Todo: what to do in diamond case - tax return is invalid, you need etiher a ssn or a visa, which field has the problem?"
-  [{:keys [in val pred via path reason] :as problem}]
-  (let [pred (s/abbrev pred)]                               ; also flattens the 'contains? pred
+  [spec {:keys [in val pred via path reason] :as problem}]
+  (let [pred (s/abbrev pred)
+        type (first (s/describe spec))]                               ; also flattens the 'contains? pred
     (#?(:clj match :cljs match*)
-     [in pred]
+     [type in pred]
 
      ;; Spec reports missing keys at the parent :in, path it at the child instead
-     [_ (['contains? '% k] :seq)]                           ; Detect specific case of missing a key
-     [(conj in k) (@validation-messages k)]                ; use the child path to lookup the invalid (missing) message
+     [_ _ (['contains? '% k] :seq)]                           ; Detect specific case of missing a key
+     [(conj in k) (hf/invalid-msg k problem)]               ; use the child path to lookup the invalid (missing) message
 
-     [[] _] ;; in is empty
-     [path (or (@validation-messages (first path))
-               reason)]
+     [_ [] _] ;; in is empty
+     [path (hf/invalid-msg (first path) problem)]
 
-     [_ _]
-     [in (@validation-messages (last via))])))
+     ['cat _ _]
+     [path (hf/invalid-msg (last path) problem)]
 
-(defonce ^:private validation-messages (atom {}))           ; Should probably be a value in view props, not a registry
-
-(defn get-validation-message [k]
-  ;; readonly
-  (get @validation-messages k))
-
-(defmethod hf/def-validation-message :default [pred s]
-  {:pre [(keyword pred)                                     ; name the spec at the granularity of the error message you want
-         (not (clojure.string/blank? s))]}
-  (swap! validation-messages assoc pred s)
-  nil)
+     [_ _ _]
+     [in (hf/invalid-msg (last via) problem)])))
 
 (defn form-validation-hints
   "UI for forms need to validate at the cell granularity, not the record, so certain
   types of problems need to be re-pathed from entity to attribute.
 
       ([[2 :foo/bar] :contrib.validation/missing])"
-  [problems]                                                ; destructure ::s/problems at call site
+  [spec problems]                                                ; destructure ::s/problems at call site
   ; Don't collect here, they get filtered down later
-  (map form-cell-problem problems))
+  (map (partial form-cell-problem spec) problems))
 
 (defn validate-result [?spec value keyfn]
   {:pre [keyfn]}
-  (let [?spec (if (spec/fdef? ?spec) (:ret ?spec) ?spec)]
-    (when ?spec ; just make this easy, specs are always sparse
-      (when-let [explain (s/explain-data ?spec value) ]
-        (let [problems (::s/problems (result-explained-for-view keyfn explain))]
-          (form-validation-hints problems))))))
+  (when ?spec                                               ; just make this easy, specs are always sparse
+    (when-let [explain (->> (s/explain-data ?spec value)
+                            (result-explained-for-view keyfn))]
+      (form-validation-hints (::s/spec explain) (::s/problems explain)))))
 
-(defn validation-hints-enclosure!
-  ([ctx]
-   (validation-hints-enclosure! nil ctx))
-  ([spec ctx] ;; allow spec override, esp. for :args
-   (let [spec (or spec (s/get-spec @(r/fmap-> (:hypercrud.browser/fiddle ctx) :fiddle/ident)))]
-     (validate-result
-      spec
-      @(:hypercrud.browser/result ctx)
-      ;; i dont think fallback v
-      (partial row-key ctx)))))
+(defn validation-hints-enclosure! [ctx]
+  (validate-result
+    (::spec ctx)
+    @(:hypercrud.browser/result ctx)
+    ;; i dont think fallback v
+    (partial row-key ctx)))
 
 (defn result [ctx r-result]                                 ; r-result must not be loading
   {:pre [r-result
          (:hypercrud.browser/fiddle ctx)]}
   (as-> ctx ctx
     (assoc ctx :hypercrud.browser/result r-result)          ; can be nil if no qfind
+    (assoc ctx ::spec (some-> (spec/spec' ctx) :ret))
     (assoc ctx                                              ; uses result
       ; result-enclosure! can throw on schema lookup, but it doesn't need handled in theory,
       ; because how would you have data without a working schema?
@@ -693,7 +675,7 @@ a speculative db/id."
 (defn derive-for-args-rendering
   "Build a new context with route defaults as result so they can be rendered as a form."
   [{:hypercrud.browser/keys [route route-defaults-hydrated route-defaults-symbolic] :as ctx}]
-  (let [args-spec (some-> ctx :hypercrud.browser/fiddle deref :fiddle/ident s/get-spec :args)]
+  (let []
     (-> ctx
         (dissoc :hypercrud.browser/route-defaults-hydrated) ; avoid potential recursion
         (assoc
@@ -703,7 +685,8 @@ a speculative db/id."
           :hypercrud.browser/result (r/fmap rest route-defaults-symbolic)) ; drop ƒ
         (as-> ctx
             ;; validate against default route
-          (assoc ctx :hypercrud.browser/validation-hints (r/track (partial validation-hints-enclosure! args-spec) ctx))
+          (assoc ctx ::spec (some-> (spec/spec' ctx) :args))
+          (assoc ctx :hypercrud.browser/validation-hints (r/track validation-hints-enclosure! ctx))
           ;; set result back as a map of {field name => field value}
           (assoc ctx :hypercrud.browser/result (r/fmap to-map route-defaults-hydrated))
           (assoc ctx :hypercrud.browser/result-enclosure (r/track result-enclosure! ctx)))
@@ -723,7 +706,9 @@ a speculative db/id."
         ; stable-element-schema! can throw on schema lookup
         ; this may need to be caught depending on when how/when this function is used
         ; or with reactions; we may need to unlazily throw ASAP
-               :hypercrud.browser/schema (r/fmap->> r-element (stable-element-schema! (:runtime ctx) (:partition-id ctx)))))))
+               :hypercrud.browser/schema (r/fmap->> r-element
+                                                    (stable-element-schema! (:runtime ctx) (:partition-id ctx))
+                                                    (d/attach-spec ctx))))))
 
 (defn browse-element [ctx i]                                ; [nil :seattle/neighborhoods 1234345]
   {:pre []
@@ -807,7 +792,7 @@ a speculative db/id."
           (index-result ctx a')))
       ; V is for formulas, E is for security and on-change. V becomes E. E is nil if we don't know identity.
       (assoc ctx :hypercrud.browser/eav                     ; insufficent stability on r-?v? fixme
-             (case (contrib.datomic/cardinality @(:hypercrud.browser/schema ctx) a' (:fiddle/ident @(:hypercrud.browser/fiddle ctx))) ; have result data to infer cardinality in absense of schema
+             (case (contrib.datomic/cardinality @(:hypercrud.browser/schema ctx) a') ; have result data to infer cardinality in absense of schema
                    :db.cardinality/many (r/fmap-> (:hypercrud.browser/eav ctx) (stable-eav-a a')) ; dont have v yet
                    :db.cardinality/one (r/fmap-> (:hypercrud.browser/eav ctx) (stable-eav-av a' (v! ctx)))
                    ; Gracefully fail but still render.
@@ -1044,9 +1029,9 @@ a speculative db/id."
     (refocus-in-element+ (browse-element ctx 0) a')))
 
 (defn tag-v-with-color' [ctx v]
-  (if v
-    (->ThinEntity (or (dbname ctx) "$")                     ; busted element level
-                  v)))
+  (if (string? v)
+    (hf/->colored-tempid (or (dbname ctx) "$") v)
+    v))
 
 (defn tag-element-v-with-color [{:keys [:hypercrud.browser/element] :as ctx} v]
   {:pre [element]}
@@ -1059,8 +1044,7 @@ a speculative db/id."
   (let [[e a _] (eav ctx)
         is-element-level (= (pull-depth ctx) 0)]
     (cond
-      (instance? ThinEntity v) v                            ; legacy compat with IDE legacy #entity formulas
-
+      (hf/colored-tempid? v) v
       is-element-level                                      ; includes hf/new
       (do
         ; Includes FindColl and FindScalar inferred above
@@ -1105,14 +1089,9 @@ a speculative db/id."
    :post [(s/assert either? %)]}
   (mlet [f (let [link @(:hypercrud.browser/link ctx)]
              (if-let [fiddle (:link/fiddle link)]
-                       (right (:fiddle/ident fiddle))
-                       (left {:message ":link/fiddle required" :data {:link link}})))]
-         ; Why must we reverse into tempids? For the URL, of course.
-        (-> (filter identity args)
-            (->> (map (partial tag-v-with-color ctx)))
-            ;; this ctx is refocused to some eav
-            (conj f)
-            (return))))
+               (right (:fiddle/ident fiddle))
+               (left {:message ":link/fiddle required" :data {:link link}})))]
+        (return (cons f (remove nil? args)))))
 
 (defn refocus-to-link+ "focus a link ctx"
   [ctx link-ref]
@@ -1189,7 +1168,7 @@ a speculative db/id."
                         (recur parent-pid tx)
                         tx)))
                   hash-portable
-                  (str "hyperfiddle.tempid-")))]
+                  (hf/->colored-tempid dbname)))]
   (defn tempid! "Generate a stable unique tempid that will never collide and also can be deterministicly
   reproduced in any tab or the server"
     ([ctx]

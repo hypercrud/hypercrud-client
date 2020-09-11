@@ -73,7 +73,7 @@
                      .
                      :where [?e]]}
     {:db/id 17592186045517,
-     :domain/home-route "[:hyperfiddle/topnav [#entity[\"$\" \"tempid\"]]]",
+     :domain/home-route "[:hyperfiddle/topnav \"$@tempid\"]]]",
      :domain/databases
      [{:db/id 17592186046511,
        :domain.database/name "$domains",
@@ -124,7 +124,7 @@
        {:db/ident :domain/disable-javascript, :db/valueType {:db/ident :db.type/boolean}, :db/cardinality {:db/ident :db.cardinality/one}, :db/doc "Don't serve hyperfiddle javascript on aliased domains. Today, this is good for static sites, but in the future may make things slower becasuse it limits our ability to use `Cache-Control: Immutable`. Todo: expose more I/O configuration choices here."}
        {:db/ident :domain/environment, :db/valueType {:db/ident :db.type/string}, :db/cardinality {:db/ident :db.cardinality/one}, :db/doc "EDN map of constants available to your fiddles, for example API keys."}
        {:db/ident :domain/fiddle-database, :db/valueType {:db/ident :db.type/ref}, :db/cardinality {:db/ident :db.cardinality/one}, :db/doc "Database to store your fiddles. It is probably also assigned a name above, so your fiddles can query it, for example to generate site maps."}
-       {:db/ident :domain/home-route, :db/valueType {:db/ident :db.type/string}, :db/cardinality {:db/ident :db.cardinality/one}, :db/doc "Index hyperfiddle route like `[:demo/shirt-sizes [#entity[\"$\" :gender/male]]]`, copy it from data mode"}
+       {:db/ident :domain/home-route, :db/valueType {:db/ident :db.type/string}, :db/cardinality {:db/ident :db.cardinality/one}, :db/doc "Index hyperfiddle route like `[:demo/shirt-sizes \"$@:gender/male\"]]]`, copy it from data mode"}
        {:db/ident :domain/ident, :db/valueType {:db/ident :db.type/string}, :db/cardinality {:db/ident :db.cardinality/one}, :db/unique {:db/ident :db.unique/identity}, :db/doc "Hyperfiddle Cloud subdomain."}
        {:db/ident :domain/router, :db/valueType {:db/ident :db.type/string}, :db/cardinality {:db/ident :db.cardinality/one}, :db/doc "Experimental and undocumented userland router definition"}
        {:db/ident :domain.database/name, :db/valueType {:db/ident :db.type/string}, :db/cardinality {:db/ident :db.cardinality/one}, :db/doc "Name of this database in Datomic query :in clause"}

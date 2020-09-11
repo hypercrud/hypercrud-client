@@ -29,7 +29,7 @@
   (let [link-ref (from-result (data/select+ ctx fiddle-ident))
         link-ctx (from-result (context/refocus-to-link+ ctx link-ref))
         [occluded-ctx initial-route] (from-result (context/build-route-and-occlude+ link-ctx link-ref)) ; ":link/fiddle required"
-        options-pid (context/build-pid-from-link ctx link-ctx initial-route)
+        options-pid (context/build-pid-from-link ctx occluded-ctx initial-route)
         ctx (from-result (base/browse-partition+ (context/set-partition occluded-ctx options-pid)))]
     ctx))
 
@@ -62,7 +62,8 @@
                     (try
                       (hf/swap-route! ctx utils/assoc-in-route [needle-key] n)
                       (catch js/Error e
-                        (runtime/set-error runtime partition-id e))))}
+                        ; if uncaught ends up in console from a debounce async frame
+                        (runtime/set-error (:runtime ctx) (:partition-id ctx) e))))}
       props)
      text]))
 
@@ -77,7 +78,8 @@
                    (try
                      (hf/swap-route! ctx utils/assoc-in-route [by] n)
                      (catch js/Error e
-                       (runtime/set-error runtime partition-id e))))}
+                       ; if uncaught ends up in console from a debounce async frame
+                       (runtime/set-error (:runtime ctx) (:partition-id ctx) e))))}
      (fn []
        (into
         [:select {}]
@@ -129,7 +131,10 @@
   [ctx {:keys [::hf/options ::components] :as props}]
   [input-group nil ctx props
    (when (or (:options components) (:option components))
-     [->options ctx (merge {:options options} props) (:options components (fn [_ & args] (into [:div] args))) (:option components (fn [_ & args] (into [:div] args)))])
+     [->options ctx
+      (merge {:options options} props)
+      (:options components (fn [_ & args] (into [:div] args)))
+      (:option components (fn [_ & args] (into [:div] args)))])
    (when (or (:selections components) (:selection components))
      [->selections ctx props (:selections components :div) (:selection components :div)])])
 
@@ -148,14 +153,14 @@
                           value]])})]
 
     :db.cardinality/one
-    [select ctx (assoc props ::components
-                       {:option
-                        (fn [ctx props']
-                          (let [[e a] @(:hypercrud.browser/eav ctx)]
-                            [:div [contrib.ui/radio-with-label
-                                   (assoc props'
-                                          :checked (:selected props')
-                                          :disabled (:disabled props))]]))})]))
+    [select ctx
+     (assoc props
+       ::components {:option
+                     (fn [ctx props']
+                       [:div [contrib.ui/radio-with-label
+                              (assoc props'
+                                :checked (:selected props')
+                                :disabled (:disabled props))]])})]))
 
 (defn- typeahead-error [{rt :runtime pid :partition-id :as ctx} e props]
   ; even if browsing fails, the user needs a chance to alter their search, so just add an ugly error message

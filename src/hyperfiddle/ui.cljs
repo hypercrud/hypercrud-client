@@ -83,7 +83,7 @@
         [controls/ref-many (context/data ctx) ctx props]
         (let [[a] children                                  ; pick one, best if there is only one
               ctx (context/focus ctx [a])]
-          (hf/render ctx props)))
+          (hf/render ctx (merge props (hf/props ctx)))))
 
       (seq children)
       (let [ctx (dissoc ctx ::layout)]
@@ -144,7 +144,7 @@
 (defn ^:export hyper-control
   [ctx & [props]]
   {:post [%]}
-  (hf/render ctx props))
+  (hf/render ctx (merge props (hf/props ctx))))
 
 (defn ^:export hyper-label [ctx & [props]]                ; props has sort :on-click
   (let [?element (:hypercrud.browser/element ctx)
@@ -233,7 +233,7 @@ User renderers should not be exposed to the reaction."
   (let [ctx (context/focus ctx relative-path)
         props (-> (update props :class css (semantic-css ctx))
                   (value-props ctx))]
-    [(or ?f hyper-control) ctx props]))
+    [(or ?f hf/render) ctx (merge props (hf/props ctx))]))
 
 (defn ^:export anchor [ctx props & children]
   (let [route (route/legacy-route-adapter (:route props))   ; todo migrate fiddles and remove
@@ -370,11 +370,12 @@ User renderers should not be exposed to the reaction."
   [relative-path ctx & [?f props]]
   {:pre [ctx]}
   (let [ctx (context/focus ctx relative-path)               ; Handle element and attr
-        Body (or ?f hyper-control)
+        Body (or ?f hf/render)
         Head (or (:label-fn props) hyper-label)
-        props (dissoc props :label-fn)
-        props (update props :class css (semantic-css ctx))]
-
+        props (-> props
+                (dissoc :label-fn)
+                (update :class css (semantic-css ctx))
+                (merge (hf/props ctx)))]
 
     ; Make this go away. Since field isn't an abstraction, these don't need to share code anymore?
     ; What about multimethod field overload?

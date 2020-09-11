@@ -5,8 +5,7 @@
     [contrib.datomic]
     [contrib.uri]
     #?(:cljs [contrib.uuid])
-    #?(:cljs [goog.math])
-    [hypercrud.types.ThinEntity])
+    #?(:cljs [goog.math]))
   #?(:clj
      (:import
        [java.lang Long])))
@@ -38,7 +37,6 @@
    'uuid #?(:cljs contrib.uuid/read-uuid :clj clojure.tools.reader.default-data-readers/default-uuid-reader)
    ;'queue #?(:cljs cljs.reader/read-queue) ; queue not supported on JVM: https://dev.clojure.org/jira/browse/CLJ-976
    ;'js #?(:cljs cljs.tagged-literals/read-js) ; compiler, not reader ?
-   'entity hypercrud.types.ThinEntity/entity-edn-reader
    'schema hyperfiddle.readers/schema-edn-reader
    'uri contrib.uri/uri-edn-reader
    'env contrib.config/env-edn-reader

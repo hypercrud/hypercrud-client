@@ -3,14 +3,14 @@
      (:require-macros [backtick :refer [template]]))
   (:require
     #?(:clj [backtick :refer [template]])
-            [clojure.test :refer [deftest is]]
+            [clojure.test :refer [deftest is testing are]]
             [contrib.datomic]
             [contrib.eval :as eval :refer [eval-expr-str!]]
             [contrib.reader :as reader :refer [read-edn-string!]]
             #?(:cljs [goog.math])
+            [hyperfiddle.api :as hf]
             [hyperfiddle.readers]
             [hypercrud.transit :as transit]
-            [hypercrud.types.ThinEntity :refer [->ThinEntity]]
             [contrib.uri :refer [->URI]])
   (:import #?(:clj java.util.Date)))
 
@@ -48,13 +48,28 @@
 #?(:clj
    (do
      (deftest entity []
-       (test-all-forms (->ThinEntity "foo" "bar")
-                       #entity["foo" "bar"]
-                       "#entity[\"foo\" \"bar\"]"
-                       "{\"~#entity\":[\"foo\",\"bar\"]}"))
+       (testing "colored tempids"
+         (testing "should be left unaltered if invalid"
+           (is (= ["foo" nil] (hf/parse "foo"))))
+         (testing "might be positive or negative."
+           (is (= ["-123456789" "dbname"] (hf/parse "hyperfiddle.tempid--123456789@dbname")))
+           (is (= ["123456789"  "dbname"] (hf/parse "hyperfiddle.tempid-123456789@dbname"))))
+         (testing "constructor must produce valid colored tempids"
+           (are [x y] (= x (hf/parse (apply hf/->colored-tempid y)))
+             [nil nil]  [nil nil]
+             ;; bad id
+             [nil nil]  [nil "invalid"]
+             [nil nil]  ["$" "invalid"]
+             ;; bad db
+             [nil nil]  [nil 1]
+             [nil nil]  ["" 1]
+             ;; good
+             ["0" "$"]  ["$" -0]
+             ["1" "$"]  ["$" 1]
+             ["-1" "$"] ["$" -1]))))
 
      (comment
-      (test-edn-read {:form 'foo} (pr-str {:form 'foo}))
+       (test-edn-read {:form 'foo} (pr-str {:form 'foo}))
 
       (read-edn-string! "{:form ~(inc 1)}")
       (eval-expr-str! "`{:form ~(inc 1)}")
