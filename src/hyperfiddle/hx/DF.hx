@@ -24,6 +24,12 @@ using hyperfiddle.hx.Meta.X;
     return output;
   }
 
+  static function pure<A>(a : A) {
+    var output = new Output(get(), new Push([], Constant(a)));
+    output.init();
+    return output;
+  }
+
   static function apply(ns : Array<View<Dynamic>>, f : Dynamic) {
     return new View(get(), new Push([for(x in ns) x.node],
       switch(ns.length) {
@@ -66,6 +72,7 @@ using hyperfiddle.hx.Meta.X;
 
 @:expose("NodeDef")
 enum NodeDef<T> {
+  Constant<A>(a : A) : NodeDef<A>;
   From<A>(s : {on : () -> Void, off : () -> Void}) : NodeDef<A>;
   Into<A>(f : A -> Void);
   Reduce<A,B>(f : (A, A) -> B) : NodeDef<B>;
@@ -168,13 +175,18 @@ typedef Rank = Int;
   }
 
   function clear(n : Push<Dynamic>) {
-    if(!n.queued) return;
-    n.queued = false;
+    switch(n.def) {
+      case Constant(_):
 
-    if(!n.to.opt().exists(x -> x.joins()))
-      n.val = null;
+      default:
+        if(!n.queued) return;
+        n.queued = false;
 
-    for(x in n.on.opt()) clear(x);
+        if(!n.to.opt().exists(x -> x.joins()))
+          n.val = null;
+
+        for(x in n.on.opt()) clear(x);
+    }
   }
 
   function update(a : Push<Dynamic>) {
@@ -236,6 +248,13 @@ typedef Rank = Int;
 
   function new(?ns : Array<Push<Dynamic>>, d) {
     def = d;
+    switch (def) {
+      case Constant(x):
+        queued = true;
+        val = x;
+        last = x;
+      default:
+    }
     if(ns != null) on = ns.copy();
   }
 
@@ -252,7 +271,7 @@ typedef Rank = Int;
     if(!active()) return;
 
     try switch(def) {
-      case From(_):  {}
+      case From(_), Constant(_):  {}
       case Into(_), Apply(_), Apply2(_), Apply3(_), Reduce(_), Filter(_):
         if(on.ok() && on.foreach(n -> n.ok()))
           switch(def) {

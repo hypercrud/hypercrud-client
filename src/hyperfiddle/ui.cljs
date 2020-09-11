@@ -35,9 +35,7 @@
     [hyperfiddle.ui.stale :as stale]
     [hyperfiddle.ui.util :as ui-utils]
     [reagent.core :as reagent]
-    [spec-coerce.alpha])
-  (:require-macros
-   [hyperfiddle.ui :refer [|>]]))
+    [spec-coerce.alpha]))
 
 
 (declare result)
@@ -198,7 +196,7 @@
 (defn- redirect-to-route?
   "State if changes to the currently focused attr should go to the route"
   [ctx]
-  (let [spec (spec/spec ctx)
+  (let [spec (spec/ctx->spec ctx)
         attr (hf/a ctx)]
     (spec/arg? spec attr)))
 

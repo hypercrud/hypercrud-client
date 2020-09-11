@@ -88,7 +88,7 @@
 (defn parse [avar]
   (let [ident                     (fiddle-name avar)
         {:keys [shape links doc]} (fiddle-args avar)
-        spec                      (some-> (s/get-spec ident) (hf-spec/parse))]
+        spec                      (some-> (s/get-spec ident) hf-spec/parse)]
     (-> {:fiddle/ident ident
          :fiddle/shape shape
          :fiddle/links links}

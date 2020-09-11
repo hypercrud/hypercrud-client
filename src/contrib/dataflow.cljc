@@ -76,8 +76,14 @@
 (defprotocol IValued
   (-value [this]))
 
+(defn queue
+  [impl]
+  (set! (.. #?(:clj impl :cljs ^js impl) -node -queued) true)
+  (let [flow #?(:clj (Origin/get) :cljs ((.-get Origin)))]
+    (.run #?(:clj flow :cljs ^js flow))))
+
 (deftype Output
-  [impl value]
+  [impl]
   IEndable
   (-end
     [_]
@@ -85,58 +91,58 @@
   IValued
   (-value
     [_]
-    @value)
+    (.. #?(:clj impl :cljs ^js impl) -node -last))
 
   #?@(:clj
       [clojure.lang.IRef
        (deref [this]
               (-value this))
        (getWatches
-        [this]
-        (.getWatches value))
+        [this])
+        ; (.getWatches value))
        (addWatch
-        [this key f]
-        (.addWatch value key f))
+        [this key f])
+        ; (.addWatch value key f))
        (removeWatch
-        [this key]
-        (.addWatch value key))]
+        [this key])]
+        ; (.addWatch value key))]
       :cljs
       [IDeref
        (-deref [this]
-               (-value this))])
+               (-value this))]))
 
-  #?@(:cljs
-      [IWatchable
-       (-notify-watches
-        [this oldval newval]
-        (-notify-watches value oldval newval))
-       (-add-watch
-        [this key f]
-        (-add-watch value key f))
-       (-remove-watch
-        [this key]
-        (-remove-watch value key))]))
+  ; #?@(:cljs
+  ;     [IWatchable
+  ;      (-notify-watches
+  ;       [this oldval newval]
+  ;       (-notify-watches value oldval newval))
+  ;      (-add-watch
+  ;       [this key f]
+  ;       (-add-watch value key f))
+  ;      (-remove-watch
+  ;       [this key]
+  ;       (-remove-watch value key))]))
 
 (declare ->dataflow
          map)
 
 (deftype Dataflow
-  [impl value]
+  [impl]
   IDataflow
   (-put
     [_ value]
     (.put impl value))
   (-filter
-    [_ f]
-    (->dataflow (#?(:clj Origin/filter :cljs (.-filter Origin)) impl (clj->hx f)) @value))
+    [this f]
+    (->dataflow (#?(:clj Origin/filter :cljs (.-filter Origin)) impl (clj->hx f)) (-value this)))
   (-reduce
-    [_ f init]
-    (->dataflow (#?(:clj Origin/reduce :cljs (.-reduce Origin)) impl init (clj->hx f)) @value))
+    [this f init]
+    (->dataflow (#?(:clj Origin/reduce :cljs (.-reduce Origin)) impl init (clj->hx f)) (-value this)))
   (-on
-    [_ f]
-    (when-not (nil? @value)
-      (f @value))
-    (->Output (#?(:clj Origin/on :cljs (.-on Origin)) impl (clj->hx f)) value))
+    [this f]
+    (when-not (nil? (-value this))
+      (f (-value this)))
+    (->Output (#?(:clj Origin/on :cljs (.-on Origin)) impl (clj->hx f))))
   IEndable
   (-end
     [_]
@@ -144,7 +150,7 @@
   IValued
   (-value
     [_]
-    @value)
+    (.. #?(:clj impl :cljs ^js impl) -node -last))
 
   ; contrib.reactive/IFunctor
   ; (-fmap [this f args]
@@ -155,39 +161,37 @@
        (deref [this]
               (-value this))
        (getWatches
-        [this]
-        (.getWatches value))
+        [this])
+        ; (.getWatches value))
        (addWatch
-        [this key f]
-        (.addWatch value key f))
+        [this key f])
+        ; (.addWatch value key f))
        (removeWatch
-        [this key]
-        (.addWatch value key))]
+        [this key])]
+        ; (.addWatch value key))]
       :cljs
       [IDeref
        (-deref [this]
-               (-value this))])
+               (-value this))]))
 
-  #?@(:cljs
-      [IWatchable
-       (-notify-watches
-        [this oldval newval]
-        (-notify-watches value oldval newval))
-       (-add-watch
-        [this key f]
-        (-add-watch value key f))
-       (-remove-watch
-        [this key]
-        (-remove-watch value key))]))
+  ; #?@(:cljs
+  ;     [IWatchable
+  ;      (-notify-watches
+  ;       [this oldval newval]
+  ;       (-notify-watches value oldval newval))
+  ;      (-add-watch
+  ;       [this key f]
+  ;       (-add-watch value key f))
+  ;      (-remove-watch
+  ;       [this key]
+  ;       (-remove-watch value key))]))
 
 (defn ->dataflow
   [impl & [value]]
   (assert impl)
-  (let [value (atom value)
-        df (Dataflow. impl value)]
-    (-on df
-         (fn [new-value]
-           (reset! value new-value)))
+  (let [df (Dataflow. impl)]
+    (set! (.. #?(:clj impl :cljs ^js impl) -node -val) value)
+    (set! (.. #?(:clj impl :cljs ^js impl) -node -last) value)
     df))
 
 (defn dataflow?
@@ -201,6 +205,10 @@
     (when value
       (-put df value))
     df))
+
+(defn pure
+  [v]
+  (->dataflow #?(:clj (Origin/pure v) :cljs ((.-pure Origin) v)) v))
 
 (defn put
   [input v]
@@ -221,7 +229,11 @@
    (#?(:clj Origin/apply :cljs (.-apply Origin))
     (haxe-array (clojure/map #(.-impl #?(:cljs ^js % :clj %)) df))
     (clj->hx f))
-   (clojure/apply f (clojure/map #(-value %) df))))
+   (try
+
+     (clojure/apply f (clojure/map -value df))
+     (catch #?(:clj Exception :cljs js/Error) e
+       (println (f (-value (first df))))))))
 
 (defn mmap
   [f df]
@@ -304,6 +316,27 @@
            xs)))
      df)))
 
+
+; --- Frame 0
+; <[1   2   3   4]>
+;   \   \   \   \
+;  <<1> <2> <3> <4>>
+;   \   \   \   \
+;   *   *   *   *
+
+; (df/put stream [1 2 3])
+; --- Frame 1
+; <[1   2   3]>
+;   \   \   \   \
+;  <<1> <2> <3> <4>>
+;   \   \   \   \
+;   *   *   *   *
+
+
+
+; [input]        -> [map map map map] ->           [output]
+;                            | |
+                       ; -> [map map]
 (defn sequence
   [df]
   (let [streams (atom [])]

@@ -14,14 +14,14 @@
   [spec]
   (when spec
     (if (s/spec? spec)
-      (parse-spec (list `s/def (spec-name spec) (s/form spec)))
+      (parse-spec (list `hyperfiddle.spec/def (spec-name spec) (s/form spec)))
       (if-let [spec (s/get-spec spec)]
         (parse spec)
         (if (seq? spec)
           (parse-spec spec)
           (parse-spec (list spec)))))))
 
-(defmethod parse-spec `s/def [[_ name value]]
+(defmethod parse-spec `hyperfiddle.spec/def [[_ name value]]
   (merge {:name name}
          (parse value)))
 
@@ -76,6 +76,10 @@
 
 (defmethod parse-spec `s/nilable [[_ child]]
   {:type :hyperfiddle.spec/nilable
+   :children [(parse child)]})
+
+(defmethod parse-spec 'hyperfiddle.spec/identifier [[_ child]]
+  {:type :hyperfiddle.spec/identifier
    :children [(parse child)]})
 
 ; no spec defaults to predicate
