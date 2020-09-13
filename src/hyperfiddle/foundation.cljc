@@ -167,7 +167,7 @@
      (let [user (hf/data ctx)]
        [:div.container-fluid props
         [:div.p
-         [ui/img (:user/picture user) ctx {:class "avatar"}]]
+         [ui/img (:user/picture user) ctx {:class "hyperfiddle-account-avatar"}]]
 
         [:h3 "Hello, " (:user/name user) "!"]
 
