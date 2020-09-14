@@ -56,7 +56,7 @@
   [_ n type]
   (into [] (remove nil? (generate*|list n type))))
 
-(defmethod generate* :*!
+(defmethod generate* :*!                                    ; pick distinct
   [_ n type]
   (into [] (distinct (generate*|list n type))))
 
@@ -100,6 +100,8 @@
    (/ (generate* :float Double/MIN_VALUE Double/MAX_VALUE)
       (generate* :float Double/MIN_VALUE Double/MAX_VALUE))))
 
+; accumulate idents generated for later lookups
+; :ref directive will lookup by ident and get a random one.
 (def ^:dynamic identities)
 
 (defmethod generate* :ident
