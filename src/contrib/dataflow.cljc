@@ -1,5 +1,6 @@
 (ns contrib.dataflow
   (:require
+    [cats.protocols :as p]
     [clojure.core :as clojure]
     [clojure.set :as set]
     [contrib.data :refer [contains-in?]]
@@ -64,34 +65,43 @@
          (.push haxe-array s))
        haxe-array)))
 
-(defprotocol IDataflow
-  (-put [_ value])
+
+(declare ->dataflow
+         map)
+
+(defprotocol IInput
+  (-put [this val]))
+
+(defprotocol IView
   (-filter [_ f])
   (-reduce [_ f init])
   (-on [_ f]))
 
-(defprotocol IEndable
-  (-end [this]))
-
-(defprotocol IValued
+(defprotocol IDataflow
+  (-end [this])
   (-value [this]))
 
-(defn queue
-  [impl]
-  (set! (.. #?(:clj impl :cljs ^js impl) -node -queued) true)
-  (let [flow #?(:clj (Origin/get) :cljs ((.-get Origin)))]
-    (.run #?(:clj flow :cljs ^js flow))))
+(declare context)
 
 (deftype Output
-  [impl]
-  IEndable
+  [impl ^:volatile-mutable meta]
+  IDataflow
   (-end
     [_]
     (.end #?(:clj impl :cljs ^js impl)))
-  IValued
   (-value
     [_]
     (.. #?(:clj impl :cljs ^js impl) -node -last))
+
+  #?@(:clj  [clojure.lang.IObj
+             (withMeta   [this m] (set! meta m) this)]
+      :cljs [IObj
+             (-with-meta [this m] (set! meta m) this)])
+
+  #?@(:clj  [clojure.lang.IMeta
+             (meta  [_] meta)]
+      :cljs [IMeta
+             (-meta [_] meta)])
 
   #?@(:clj
       [clojure.lang.IRef
@@ -111,27 +121,9 @@
        (-deref [this]
                (-value this))]))
 
-  ; #?@(:cljs
-  ;     [IWatchable
-  ;      (-notify-watches
-  ;       [this oldval newval]
-  ;       (-notify-watches value oldval newval))
-  ;      (-add-watch
-  ;       [this key f]
-  ;       (-add-watch value key f))
-  ;      (-remove-watch
-  ;       [this key]
-  ;       (-remove-watch value key))]))
-
-(declare ->dataflow
-         map)
-
-(deftype Dataflow
-  [impl]
-  IDataflow
-  (-put
-    [_ value]
-    (.put impl value))
+(deftype View
+  [impl ^:volatile-mutable meta]
+  IView
   (-filter
     [this f]
     (->dataflow (#?(:clj Origin/filter :cljs (.-filter Origin)) impl (clj->hx f)) (-value this)))
@@ -142,19 +134,25 @@
     [this f]
     (when-not (nil? (-value this))
       (f (-value this)))
-    (->Output (#?(:clj Origin/on :cljs (.-on Origin)) impl (clj->hx f))))
-  IEndable
+    (->Output (#?(:clj Origin/on :cljs (.-on Origin)) impl (clj->hx f)) nil))
+
+  IDataflow
   (-end
     [_]
     (.end impl))
-  IValued
   (-value
     [_]
     (.. #?(:clj impl :cljs ^js impl) -node -last))
 
-  ; contrib.reactive/IFunctor
-  ; (-fmap [this f args]
-  ;   (map #(clojure/apply f % args) this))
+  #?@(:clj  [clojure.lang.IObj
+             (withMeta   [this m] (set! meta m) this)]
+      :cljs [IObj
+             (-with-meta [this m] (set! meta m) this)])
+
+  #?@(:clj  [clojure.lang.IMeta
+             (meta  [_] meta)]
+      :cljs [IMeta
+             (-meta [_] meta)])
 
   #?@(:clj
       [clojure.lang.IRef
@@ -174,34 +172,83 @@
        (-deref [this]
                (-value this))]))
 
-  ; #?@(:cljs
-  ;     [IWatchable
-  ;      (-notify-watches
-  ;       [this oldval newval]
-  ;       (-notify-watches value oldval newval))
-  ;      (-add-watch
-  ;       [this key f]
-  ;       (-add-watch value key f))
-  ;      (-remove-watch
-  ;       [this key]
-  ;       (-remove-watch value key))]))
+(deftype Input
+  [impl ^:volatile-mutable meta]
+  IInput
+  (-put [this val] (.put impl val))
+  IView
+  (-filter
+    [this f]
+    (->dataflow (#?(:clj Origin/filter :cljs (.-filter Origin)) impl (clj->hx f)) (-value this)))
+  (-reduce
+    [this f init]
+    (->dataflow (#?(:clj Origin/reduce :cljs (.-reduce Origin)) impl init (clj->hx f)) (-value this)))
+  (-on
+    [this f]
+    (when-not (nil? (-value this))
+      (f (-value this)))
+    (->Output (#?(:clj Origin/on :cljs (.-on Origin)) impl (clj->hx f)) nil))
+
+  IDataflow
+  (-end
+    [_]
+    (.end impl))
+  (-value
+    [_]
+    (.. #?(:clj impl :cljs ^js impl) -node -last))
+
+  #?@(:clj  [clojure.lang.IFn
+             (invoke [this v] (-put this v))]
+      :cljs [IFn
+             (-invoke [this v] (-put this v))])
+
+  #?@(:clj  [clojure.lang.IObj
+             (withMeta   [this m] (set! meta m) this)]
+      :cljs [IObj
+             (-with-meta [this m] (set! meta m) this)])
+
+  #?@(:clj  [clojure.lang.IMeta
+             (meta  [_] meta)]
+      :cljs [IMeta
+             (-meta [_] meta)])
+
+  #?@(:clj
+      [clojure.lang.IRef
+       (deref [this]
+              (-value this))
+       (getWatches
+        [this])
+        ; (.getWatches value))
+       (addWatch
+        [this key f])
+        ; (.addWatch value key f))
+       (removeWatch
+        [this key])]
+        ; (.addWatch value key))]
+      :cljs
+      [IDeref
+       (-deref [this]
+               (-value this))]))
+
 
 (defn ->dataflow
   [impl & [value]]
   (assert impl)
-  (let [df (Dataflow. impl)]
+  (let [df (View. impl nil)]
     (set! (.. #?(:clj impl :cljs ^js impl) -node -val) value)
     (set! (.. #?(:clj impl :cljs ^js impl) -node -last) value)
     df))
 
 (defn dataflow?
   [any]
-  (instance? Dataflow any))
+  (or (instance? View any)
+      (instance? Output any)
+      (instance? Input any)))
 
 (defn input
   [& [value f]]
   (let [input #?(:clj (Origin/input f) :cljs ((.-input Origin) f))
-        df (->dataflow input)]
+        df (Input. input nil)]
     (when value
       (-put df value))
     df))
@@ -354,6 +401,74 @@
          (range)
          xs))
      df)))
+
+(def ^{:no-doc true}
+  context
+  (reify
+    p/Context
+    ; p/Semigroup
+    ; (-mappend [ctx mv mv']
+    ;   (cond
+    ;     (nothing? mv) mv'
+    ;     (nothing? mv') mv
+    ;     :else (just (let [mv (p/-extract mv)
+    ;                       mv' (p/-extract mv')]
+    ;                   (p/-mappend (p/-get-context mv) mv mv')))))
+    ;
+    ; p/Monoid
+    ; (-mempty [_]
+    ;   (df/input))
+
+    p/Functor
+    (-fmap [_ f mv]
+      (map f mv))
+
+    p/Applicative
+    (-pure [_ v]
+      (pure v))
+    (-fapply [m af av]
+      (map (fn [f v] (clojure/apply f v)) af av))
+    ;
+    p/Monad
+    (-mreturn [_ v])
+    (-mbind [_ mv f]
+      (consume f mv))
+    ;
+    ; p/MonadZero
+    ; (-mzero [_]
+    ;   (nothing))
+    ;
+    ; p/MonadPlus
+    ; (-mplus [_ mv mv']
+    ;   (if (just? mv)
+    ;     mv
+    ;     mv'))
+    ;
+    ; p/Foldable
+    ; (-foldl [_ f z mv]
+    ;   (if (just? mv)
+    ;     (f z (p/-extract mv))
+    ;     z))
+    ;
+    ; (-foldr [_ f z mv]
+    ;   (if (just? mv)
+    ;     (f (p/-extract mv) z)
+    ;     z))
+    ;
+    ; p/Traversable
+    ; (-traverse [_ f mv]
+    ;   (if (just? mv)
+    ;     (let [a (f (p/-extract mv))]
+    ;       (p/-fmap (p/-get-context a) just a))
+    ;     (p/-pure (ctx/infer) mv)))
+
+    p/Printable
+    (-repr [_]
+      "<Dataflow>")))
+
+
+; client -> server -> fmap0 -> fmap1 -> ... -> fmapn -> !bind pedestal
+
 
 (defn example
   []

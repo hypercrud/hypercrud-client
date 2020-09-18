@@ -1,6 +1,7 @@
 (ns hyperfiddle.context
   (:require
    [contrib.data :refer [empty->nil]]
+   [contrib.polymorphism :as p]
    [datascript.parser :as datascript]
    [hyperfiddle.spec :as s]))
 
@@ -38,9 +39,30 @@
    (= :db/ident attribute)
    (-> spec :type (= ::s/identifier))))
 
-(defmulti focus
+(defmulti on-focus
   (fn [ctx]
     (:type (::spec ctx))))
+
+(defmethod on-focus :default
+  [ctx]
+  ctx)
+
+(def focus (p/XMultiFn. 'focus
+                        (fn [ctx props]
+                          (:type (::spec ctx)))
+                        nil
+                        nil
+                        (fn [f & args] (on-focus (apply f args)))
+                        :default
+                        (get-global-hierarchy)
+                        (atom {})
+                        (atom {})
+                        (atom {})
+                        (atom {})))
+
+; (defmulti focus
+;   (fn [ctx]
+;     (:type (::spec ctx))))
 
 (defmethod focus ::s/fn
   [ctx element]
@@ -56,24 +78,31 @@
     ::parent ctx}
    (when index
      {::value (-> ctx ::value (nth index))
-      ::entity (->> ctx ::spec :children (filter #(= ::s/identifier (:type %))) first)
       ::focus index})))
 
 (defmethod focus ::s/keys
   [ctx attribute]
+  ; (println 'focus 'keys!)
   (let [spec (->> ctx ::spec :children (filter (fn [spec] (= attribute (:name spec)))) first)
         value (-> ctx ::value (get attribute))]
     {::value value
      ::attribute attribute
      ::spec spec
-     ::entity value
      ::focus attribute
      ::parent ctx}))
+
+(defmethod on-focus ::s/keys
+  [ctx]
+  (let [ctx (update ctx ::value (fn [v] (if (vector? v) (first v) v))) ; hack for a hack
+        id-name (->> ctx ::spec :children (filter #(= ::s/identifier (:type %))) first :name)]
+    (merge
+     ctx
+     {::entity (-> ctx ::value (get id-name))})))
 
 (defmethod focus ::s/identifier
   [ctx]
   {::value (-> ctx ::value)
-   ::attribute (-> ctx ::atribute)
+   ::attribute (-> ctx ::attribute)
    ::spec (-> ctx ::spec :children first)
    ::entity (-> ctx ::value)
    ::parent ctx})

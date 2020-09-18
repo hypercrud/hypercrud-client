@@ -101,6 +101,7 @@
 
      :Match.val
       (fn [[_ pattern target continuation]]
+        (println pattern target)
         (! :Return.join
           (! :Return (= pattern target))
           (apply -matches? continuation)))}))
@@ -137,7 +138,7 @@
   (walk/postwalk
      (fn [x]
        (if (and (seq? x)
-                (= '(quote clojure.core/unquote) (first (seq x))))
+                (= '(quote clojure.core/unquote) (first x)))
          (second (second x))
          (if (symbol? x)
            (list 'quote x)

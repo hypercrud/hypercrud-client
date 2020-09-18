@@ -26,7 +26,7 @@
     [hyperfiddle.route :as route]
     [hyperfiddle.runtime :as runtime]
     [hyperfiddle.spec :as spec]
-    [hyperfiddle.ui-new]
+    [hyperfiddle.ui-new0]
     [hyperfiddle.ui.controls :as controls :refer [identity-label ref-label element-label]]
     [hyperfiddle.ui.error :as ui-error]
     [hyperfiddle.ui.iframe :as iframe]
@@ -624,7 +624,7 @@ nil. call site must wrap with a Reagent component"          ; is this just hyper
    ;            (some? (spec/args ctx)))
    ;   [args ctx props])
 
-   [hyperfiddle.ui-new/ui0-adapter ctx]])
+   [hyperfiddle.ui-new0/ui0-adapter ctx]])
 
 (def render-args args)                                      ; compat
 (def result sexpr)                                          ; compat

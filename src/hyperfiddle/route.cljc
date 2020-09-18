@@ -58,7 +58,7 @@
    ednish/decode-uri])
 
 (defn url-encode [route home-route]
-  {:pre [(s/valid? :hyperfiddle/route route) (s/valid? :hyperfiddle/route home-route)]}
+  ; {:pre [(s/valid? :hyperfiddle/route route) (s/valid? :hyperfiddle/route home-route)]}
   (let [[f & args] route]
     (if (= route home-route)
       "/"

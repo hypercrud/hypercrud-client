@@ -12,23 +12,23 @@
         (cond
           (contains? dispatch (first form))
           (let [f (get dispatch (first form))
-                arg (nth form 1)]
+                args (rest form)]
             (if (or (map? f) (vector? f))
               (reduce
                (fn [arg [k v]]
                  (cond
                    (class? k)
                    (if (instance? k arg)
-                     (apply v [arg])
+                     (apply v arg)
                      arg)
                    (fn? k)
-                   (if (k arg)
-                     (apply v [arg])
+                   (if (apply k arg)
+                     (apply v arg)
                      arg)
                    :else (throw (ex-info (str "Invalid target for modification " k " -- " (type k)) {:target k :form form}))))
-               arg
+               args
                f)
-              (apply (if (symbol? f) (resolve f) f) [arg])))
+              (apply (if (symbol? f) (resolve f) f) args)))
           :else
           (map
            (fn [form']
@@ -48,6 +48,19 @@
 
         listish? (some-fn list? cons?)
 
+        unquote-map
+        (fn [form]
+          (let [fmap `hash-map
+                form (mapcat identity form)
+                reactors (mapv (fn [arg] `(if (df/dataflow? ~arg) ~arg (df/pure ~arg))) form)]
+            `(apply df/map ~fmap ~reactors)))
+
+        unquote-vector
+        (fn [form]
+          (let [fmap `vector
+                reactors (mapv (fn [arg] `(if (df/dataflow? ~arg) ~arg (df/pure ~arg))) form)]
+            `(apply df/map ~fmap ~reactors)))
+
         unquote
         (fn [form]
           (let [fmap (first form)
@@ -63,12 +76,14 @@
     `(quixote
       {clojure.core/unquote
        {~listish? ~unquote
-        ~vector? ~(comp unquote (partial cons `vector))}
+        ~vector?  ~(comp unquote-vector)
+        ~map?     ~(comp unquote-map)}
 
        clojure.core/unquote-splicing
         {~listish? ~(comp (partial list `deref) react unquote)
-         ~symbol? ~(comp (partial list `deref) react)
-         ~vector? ~(comp (partial list `deref) react unquote (partial cons `vector))}
+         ~symbol?  ~(comp (partial list `deref) react)
+         ~vector?  ~(comp (partial list `deref) react unquote-vector)
+         ~map?     ~(comp (partial list `deref) react unquote-map)}
 
        ~'react
        ~react}
@@ -127,6 +142,190 @@
              (fn [_#]
                (doseq [output# @~outputs-sym]
                  (df/end output#)))})))))
+
+; ~(g ~(f ~x ~y))
+
+(defn ehutupapa*
+  [form]
+  (let [forms (volatile! {})
+        form (clojure.walk/postwalk
+              (fn [form]
+                (if (and (seq? form) (= (first form) 'clojure.core/unquote))
+                  (let [form (second form)]
+                    (or (get @forms form)
+                        (let [sym (gensym #_(str (first (remove seqable? (iterate first form))) "_"))]
+                          (vswap! forms assoc sym form)
+                          `(unquote ~sym))))
+                  form))
+              form)]
+    [form @forms]))
+
+(defn ehutupapa
+  [form]
+  (let [[form forms] (ehutupapa* form)
+        resolved-sym? (fn [resolved sym]
+                        (if (and (seq? sym) (= `unquote (first sym)))
+                          (and (get resolved (second sym)) (second sym))
+                          sym))
+        sym? (fn [sym] (and (seq? sym) (= `unquote (first sym)) (second sym)))
+        unresolved (into {} (remove (fn [[_ form]] (symbol? form)) forms))
+        resolved (into {} (filter (fn [[_ form]] (symbol? form)) forms))]
+    (loop [forms unresolved
+           acc [resolved]
+           resolved-syms (set (keys resolved))]
+      (if (empty? forms)
+        [form (vec (remove empty? acc))]
+        (let [resolved (into {}
+                             (remove
+                              (comp nil? second)
+                              (map
+                               (fn [[sym form]]
+                                 [sym
+                                  (when (every? (partial resolved-sym? resolved-syms) form)
+                                    [(map sym? (filter sym? form))
+                                     (map (partial resolved-sym? resolved-syms) form)])])
+                               forms)))
+              remain (into {}
+                           (remove
+                            (fn [[_ form]]
+                              (every? (partial resolved-sym? resolved-syms) form))
+                            forms))]
+          (when (= remain forms)
+            (throw (Exception. "Unsolvable")))
+          (recur remain (conj acc resolved) (into resolved-syms (keys resolved))))))))
+
+(defn bucatini*
+  [fmap fapply f [form & forms]]
+  (if (empty? forms)
+    (vals form)
+    (cond
+      (empty? form)
+      (bucatini* fmap fapply f forms)
+      (= (count form) 1)
+      `((~fmap
+          ~(reduce
+            (fn [acc v]
+              `(fn [~v] ~@acc))
+            [:fuck]
+            (keys form))
+          ~@(bucatini* fmap fapply f forms)))
+      :else
+      `((~fapply
+         ~(reduce
+           (fn [acc v]
+             `(fn [~v] ~acc))
+           (first (bucatini* fmap fapply f forms))
+           (reverse (keys form)))
+         ~@(vals form))))))
+
+(defn bucatini*
+  [fmap fapply f [form & forms]]
+  (if (empty? forms)
+    (if (> (count form) 1)
+      (map (fn [x] (if (symbol? x) x (second x))) (vals form))
+      (let [form (first (vals form))]
+        (if (symbol? form)
+          form
+          (second form))))
+    (if (empty? form)
+      (bucatini* fmap fapply f forms)
+      (let [[_ [syms form]] (first form)]
+        (if (= (count syms) 1)
+          `(~fmap
+             (fn [~@syms]
+               ~form)
+             ~(bucatini* fmap fapply f forms))
+          `(~fapply
+             ~(reduce
+               (fn [acc v]
+                 `(fn [~v] ~acc))
+               form
+               syms)
+             ~@(bucatini* fmap fapply f forms)))))))
+
+
+(defn bucatini
+  [fmap fapply [form forms]]
+  `~(bucatini* fmap fapply form (reverse forms)))
+
+(defn jabberwocky
+  [fmap fapply body]
+  (clojure.walk/prewalk
+   (fn [form]
+     (if (and (seq? form) (= (first form) 'clojure.core/unquote))
+       (bucatini fmap fapply (ehutupapa form))
+       form))
+   body))
+
+(defmacro defjester
+  [name fmap fapply]
+  `(defmacro ~name
+     [& body#]
+     (let [forms# (jabberwocky ~fmap ~fapply body#)]
+       (if (> (count forms#) 1)
+         (cons `do forms#)
+         (first forms#)))))
+
+(cats
+ (let [x ~(just 1)
+       y ~(inc ~x)]
+   (+ x y)))
+
+(cats (let [x ~(just 1) y ~(inc ~x)] (fapply x y)))
+
+~(f ~x)
+
+
+
+(cats
+ (let [x ~(just 1)
+       y ~(inc x)]
+   (+ x y)))
+
+; (do
+;  (hyperfiddle.ui/fmap
+;   (clojure.core/fn
+;    [G__19242]
+;    (hyperfiddle.ui/fmap
+;     (clojure.core/fn [G__19243] :end)
+;     (inc G__19242)))
+;   (just 1)))
+;
+; (do
+;  (hyperfiddle.ui/fmap
+;   (clojure.core/fn
+;    [G__19242]
+;    (inc G__19242))
+;   (hyperfiddle.ui/fmap
+;    (clojure.core/fn [G__19243] :end)
+;    (just 1))))
+
+(require '[cats.core :as cats])
+(require '[cats.monad.maybe :refer [just nothing]])
+
+(defjester cats cats/fmap (fn [f & av] (apply cats/fapply (just f) av)))
+
+; (cats ~(inc ~(just 1))) ;=> #<Just 2>
+; (cats ~(~(just +) ~(just 1) ~(just 2))) ;=> #<Just 3>
+; (cats ~(+ ~(just 1) ~(nothing))) ;=> #<Nothing>
+
+; (pprint
+;  (ehutupapa
+;    '(let [x ~(just 1)
+;           y ~(inc ~x)
+;           z ~(+ ~x ~y)]
+;       z)))
+
+
+(require '[promesa.core :as p])
+
+(defjester via-promise
+  p/map
+  (fn [f & ps]
+    (let [ps (pmap deref ps)]
+      (p/promise
+       (reduce apply f (map vector ps))))))
+
 
 ; i <- [1 2 3 4]
 ; sequence

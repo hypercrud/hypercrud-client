@@ -36,6 +36,8 @@ using hyperfiddle.hx.Meta.X;
         case 1: Apply(f);
         case 2: Apply2(f);
         case 3: Apply3(f);
+        case 4: Apply4(f);
+        case 5: Apply5(f);
         default: throw new Error('can\'t apply $ns');
       })
     );
@@ -80,6 +82,8 @@ enum NodeDef<T> {
   Apply<A, B>(f : A -> B) : NodeDef<B>;
   Apply2<A, B, C>(f : (A, B) -> C) : NodeDef<C>;
   Apply3<A, B, C, D>(f : (A, B, C) -> D) : NodeDef<D>;
+  Apply4<A, B, C, D, E>(f : (A, B, C, D) -> E) : NodeDef<C>;
+  Apply5<A, B, C, D, E, F>(f : (A, B, C, D, E) -> F) : NodeDef<D>;
 }
 
 @:expose("Action")
@@ -272,7 +276,8 @@ typedef Rank = Int;
 
     try switch(def) {
       case From(_), Constant(_):  {}
-      case Into(_), Apply(_), Apply2(_), Apply3(_), Reduce(_), Filter(_):
+      case Into(_), Apply(_), Apply2(_), Apply3(_), Apply4(_), Apply5(_),
+           Reduce(_), Filter(_):
         if(on.ok() && on.foreach(n -> n.ok()))
           switch(def) {
             case Into(f):   F.into(this, cast f, cast on[0].val);
@@ -286,6 +291,8 @@ typedef Rank = Int;
             // }
             case Apply2(f): put(Val((cast f)(on[0].val, on[1].val)));
             case Apply3(f): put(Val((cast f)(on[0].val, on[1].val, on[2].val)));
+            case Apply4(f): put(Val((cast f)(on[0].val, on[1].val, on[2].val, on[3].val)));
+            case Apply5(f): put(Val((cast f)(on[0].val, on[1].val, on[2].val, on[3].val, on[4].val)));
             default:        {}
           }
         else if(on.opt().exists(n -> n.ended))

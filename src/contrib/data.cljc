@@ -4,6 +4,10 @@
    [clojure.string :as str])
   #?(:cljs (:require-macros [contrib.data])))
 
+(defn map-by
+  [f coll]
+  (into {} (map (fn [v] [(f v) v]) coll)))
+
 (defn for-kv "f :: m k v -> m"
   [kvs init f]
   (reduce-kv f init kvs))

@@ -29,7 +29,9 @@
 
 (defn- find-and-cache-best-method
   [name match-fn compare-fn dispatch-val hierarchy method-table prefer-table method-cache cached-hierarchy default-dispatch-val]
-  (let [best-entry (reduce (fn [be [k _ :as e]]
+  (let [match-fn (or match-fn isa?)
+        compare-fn (or compare-fn (fn [x y] (dominates y x prefer-table hierarchy)))
+        best-entry (reduce (fn [be [k _ :as e]]
                              (if (match-fn k dispatch-val)
                                (let [be2 (if (or (nil? be) (not (compare-fn k (first be))))
                                            e
@@ -56,7 +58,7 @@
             method-cache cached-hierarchy default-dispatch-val))))))
 
 
-(deftype XMultiFn [name dispatch-fn match-fn compare-fn default-dispatch-val hierarchy
+(deftype XMultiFn [name dispatch-fn match-fn compare-fn invoke-fn default-dispatch-val hierarchy
                    method-table prefer-table method-cache cached-hierarchy]
   IFn
   (-invoke [mf]
@@ -64,133 +66,133 @@
           target-fn (-get-method mf dispatch-val)]
       (when-not target-fn
         (throw-no-method-error name dispatch-val))
-      (target-fn)))
+      (invoke-fn target-fn)))
   (-invoke [mf a]
     (let [dispatch-val (dispatch-fn a)
           target-fn (-get-method mf dispatch-val)]
       (when-not target-fn
         (throw-no-method-error name dispatch-val))
-      (target-fn a)))
+      (invoke-fn target-fn a)))
   (-invoke [mf a b]
     (let [dispatch-val (dispatch-fn a b)
           target-fn (-get-method mf dispatch-val)]
       (when-not target-fn
         (throw-no-method-error name dispatch-val))
-      (target-fn a b)))
+      (invoke-fn target-fn a b)))
   (-invoke [mf a b c]
     (let [dispatch-val (dispatch-fn a b c)
           target-fn (-get-method mf dispatch-val)]
       (when-not target-fn
         (throw-no-method-error name dispatch-val))
-      (target-fn a b c)))
+      (invoke-fn target-fn a b c)))
   (-invoke [mf a b c d]
     (let [dispatch-val (dispatch-fn a b c d)
           target-fn (-get-method mf dispatch-val)]
       (when-not target-fn
         (throw-no-method-error name dispatch-val))
-      (target-fn a b c d)))
+      (invoke-fn target-fn a b c d)))
   (-invoke [mf a b c d e]
     (let [dispatch-val (dispatch-fn a b c d e)
           target-fn (-get-method mf dispatch-val)]
       (when-not target-fn
         (throw-no-method-error name dispatch-val))
-      (target-fn a b c d e)))
+      (invoke-fn target-fn a b c d e)))
   (-invoke [mf a b c d e f]
     (let [dispatch-val (dispatch-fn a b c d e f)
           target-fn (-get-method mf dispatch-val)]
       (when-not target-fn
         (throw-no-method-error name dispatch-val))
-      (target-fn a b c d e f)))
+      (invoke-fn target-fn a b c d e f)))
   (-invoke [mf a b c d e f g]
     (let [dispatch-val (dispatch-fn a b c d e f g)
           target-fn (-get-method mf dispatch-val)]
       (when-not target-fn
         (throw-no-method-error name dispatch-val))
-      (target-fn a b c d e f g)))
+      (invoke-fn target-fn a b c d e f g)))
   (-invoke [mf a b c d e f g h]
     (let [dispatch-val (dispatch-fn a b c d e f g h)
           target-fn (-get-method mf dispatch-val)]
       (when-not target-fn
         (throw-no-method-error name dispatch-val))
-      (target-fn a b c d e f g h)))
+      (invoke-fn target-fn a b c d e f g h)))
   (-invoke [mf a b c d e f g h i]
     (let [dispatch-val (dispatch-fn a b c d e f g h i)
           target-fn (-get-method mf dispatch-val)]
       (when-not target-fn
         (throw-no-method-error name dispatch-val))
-      (target-fn a b c d e f g h i)))
+      (invoke-fn target-fn a b c d e f g h i)))
   (-invoke [mf a b c d e f g h i j]
     (let [dispatch-val (dispatch-fn a b c d e f g h i j)
           target-fn (-get-method mf dispatch-val)]
       (when-not target-fn
         (throw-no-method-error name dispatch-val))
-      (target-fn a b c d e f g h i j)))
+      (invoke-fn target-fn a b c d e f g h i j)))
   (-invoke [mf a b c d e f g h i j k]
     (let [dispatch-val (dispatch-fn a b c d e f g h i j k)
           target-fn (-get-method mf dispatch-val)]
       (when-not target-fn
         (throw-no-method-error name dispatch-val))
-      (target-fn a b c d e f g h i j k)))
+      (invoke-fn target-fn a b c d e f g h i j k)))
   (-invoke [mf a b c d e f g h i j k l]
     (let [dispatch-val (dispatch-fn a b c d e f g h i j k l)
           target-fn (-get-method mf dispatch-val)]
       (when-not target-fn
         (throw-no-method-error name dispatch-val))
-      (target-fn a b c d e f g h i j k l)))
+      (invoke-fn target-fn a b c d e f g h i j k l)))
   (-invoke [mf a b c d e f g h i j k l m]
     (let [dispatch-val (dispatch-fn a b c d e f g h i j k l m)
           target-fn (-get-method mf dispatch-val)]
       (when-not target-fn
         (throw-no-method-error name dispatch-val))
-      (target-fn a b c d e f g h i j k l m)))
+      (invoke-fn target-fn a b c d e f g h i j k l m)))
   (-invoke [mf a b c d e f g h i j k l m n]
     (let [dispatch-val (dispatch-fn a b c d e f g h i j k l m n)
           target-fn (-get-method mf dispatch-val)]
       (when-not target-fn
         (throw-no-method-error name dispatch-val))
-      (target-fn a b c d e f g h i j k l m n)))
+      (invoke-fn target-fn a b c d e f g h i j k l m n)))
   (-invoke [mf a b c d e f g h i j k l m n o]
     (let [dispatch-val (dispatch-fn a b c d e f g h i j k l m n o)
           target-fn (-get-method mf dispatch-val)]
       (when-not target-fn
         (throw-no-method-error name dispatch-val))
-      (target-fn a b c d e f g h i j k l m n o)))
+      (invoke-fn target-fn a b c d e f g h i j k l m n o)))
   (-invoke [mf a b c d e f g h i j k l m n o p]
     (let [dispatch-val (dispatch-fn a b c d e f g h i j k l m n o p)
           target-fn (-get-method mf dispatch-val)]
       (when-not target-fn
         (throw-no-method-error name dispatch-val))
-      (target-fn a b c d e f g h i j k l m n o p)))
+      (invoke-fn target-fn a b c d e f g h i j k l m n o p)))
   (-invoke [mf a b c d e f g h i j k l m n o p q]
     (let [dispatch-val (dispatch-fn a b c d e f g h i j k l m n o p q)
           target-fn (-get-method mf dispatch-val)]
       (when-not target-fn
         (throw-no-method-error name dispatch-val))
-      (target-fn a b c d e f g h i j k l m n o p q)))
+      (invoke-fn target-fn a b c d e f g h i j k l m n o p q)))
   (-invoke [mf a b c d e f g h i j k l m n o p q r]
     (let [dispatch-val (dispatch-fn a b c d e f g h i j k l m n o p q r)
           target-fn (-get-method mf dispatch-val)]
       (when-not target-fn
         (throw-no-method-error name dispatch-val))
-      (target-fn a b c d e f g h i j k l m n o p q r)))
+      (invoke-fn target-fn a b c d e f g h i j k l m n o p q r)))
   (-invoke [mf a b c d e f g h i j k l m n o p q r s]
     (let [dispatch-val (dispatch-fn a b c d e f g h i j k l m n o p q r s)
           target-fn (-get-method mf dispatch-val)]
       (when-not target-fn
         (throw-no-method-error name dispatch-val))
-      (target-fn a b c d e f g h i j k l m n o p q r s)))
+      (invoke-fn target-fn a b c d e f g h i j k l m n o p q r s)))
   (-invoke [mf a b c d e f g h i j k l m n o p q r s t]
     (let [dispatch-val (dispatch-fn a b c d e f g h i j k l m n o p q r s t)
           target-fn (-get-method mf dispatch-val)]
       (when-not target-fn
         (throw-no-method-error name dispatch-val))
-      (target-fn a b c d e f g h i j k l m n o p q r s t)))
+      (invoke-fn target-fn a b c d e f g h i j k l m n o p q r s t)))
   (-invoke [mf a b c d e f g h i j k l m n o p q r s t rest]
     (let [dispatch-val (apply dispatch-fn a b c d e f g h i j k l m n o p q r s t rest)
           target-fn (-get-method mf dispatch-val)]
       (when-not target-fn
         (throw-no-method-error name dispatch-val))
-      (apply target-fn a b c d e f g h i j k l m n o p q r s t rest)))
+      (apply invoke-fn target-fn a b c d e f g h i j k l m n o p q r s t rest)))
 
   IMultiFn
   (-reset [mf]

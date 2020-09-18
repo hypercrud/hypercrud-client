@@ -1,4 +1,4 @@
-(ns hyperfiddle.ui-new
+(ns hyperfiddle.ui-new0
   (:require
    [clojure.walk :as walk]
    [contrib.data :refer [map-by]]
@@ -185,17 +185,18 @@
 (defmethod render [::s/identifier ::s/predicate]
   [<ctx> props]
   (component
-   (let [fiddle ~(context/youngest <ctx> ::context/fiddle)
-         link ~(get ~(map-by :link/path ~(:fiddle/links fiddle)) ~(::context/attribute <ctx>))
-         route ~(list ~(:fiddle/ident ~(:link/fiddle link)) ~(::context/entity <ctx>))]
-     (if ~@link
-       [:a {:href ~@(route/url-encode route nil)} ~@(::context/value <ctx>)]
-       [:input {:value ~@(::context/value <ctx>)}]))))
+   @(let [fiddle ~(context/youngest <ctx> ::context/fiddle)
+          link ~(get ~(map-by :link/path ~(:fiddle/links fiddle)) ~(::context/attribute <ctx>))
+          route ~(list ~(:fiddle/ident ~(:link/fiddle link)) ~(::context/entity <ctx>))]
+
+      (if @(react link)
+        ~[:a ~{:href ~(route/url-encode route nil)} ~(::context/value <ctx>)]
+        ~[:input ~{:value ~(::context/value <ctx>)}]))))
 
 (defmethod render ::s/predicate
   [<ctx> props]
   (component
-   [:input (merge props {:value ~@(::context/value <ctx>)})]))
+    ~@[:input ~{:value ~(::context/value <ctx>)}]))
 
 (defn ui0-adapter
   [{:keys [:hypercrud.browser/result] :as ctx}]
