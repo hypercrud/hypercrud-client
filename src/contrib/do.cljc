@@ -84,6 +84,24 @@
 
 ; ----------------------------
 
+(comment
+  ; Goal here is to implement async/await sugar like this:
+  (via* (->Maybe)
+    (for [a ~(pure 1)
+          b ~(+ a ~(pure 42))
+          c 1]
+      (pure (+ a b c))))
+  => #:Maybe{:just 45}
+
+  ; This has applications in using event-streams for UI programming in an ergonomic way
+  ; (no r/atoms, UI is an expression)
+
+  ; This approach is term rewriting
+  (do> (~f ~a b ...)) => (fapply f a (pure b))              ; applicative await
+  (do> (for [a ~(f ...) ...])) => (mlet [a (f ...)] ...)    ; monad await (flattened notation, later callbackified)
+  (do> (x ~(y ~z)) => ((comp x y) ~z) => (fmap (comp x y) z)) ; optimize based on laws (todo)
+  )
+
 ;(declare mlet pure fmap fapply bind)                       ; free symbols without ns or definition
 
 (defn unquote-in-form? [form]
