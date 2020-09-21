@@ -110,6 +110,9 @@
 (defmulti bindings (fn [domain] (:db/ident domain)))
 (defmethod bindings :default [domain] {})
 
+(defmulti config (fn [domain] (:db/ident domain)))
+(defmethod config :default [domain] {})
+
 (defmethod process-tx ::allow-anonymous-edits [$ domain dbname subject tx] tx)
 
 (defmulti tx-meta

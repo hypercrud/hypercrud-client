@@ -69,7 +69,8 @@
                                          "$"
                                          (str "$user." dbname))]))
                                (into {})))
-                   map->EdnishDomain)]
+                   map->EdnishDomain)
+        domain (merge domain (hf/config domain))]
     (s/assert (or spec-selection hyperfiddle.domain/spec-ednish-domain) domain)
     domain))
 

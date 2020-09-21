@@ -75,7 +75,8 @@
       [:div {:style {:display :flex
                      :align-items :center}}
        (if (hf/subject ctx)
-         [:a {:href  (hf/url-encode (hf/domain (:runtime ctx)) `(hyperfiddle.foundation/account))
+         [:a {:href  (hf/url-encode (hf/domain (:runtime ctx)) (:account-route (hf/domain (:runtime ctx))
+                                                                 `(hyperfiddle.foundation/account)))
               :style {:text-transform :capitalize}}
           (str "👤Account")]
          (if (auth-configured? ctx)
