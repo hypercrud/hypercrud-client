@@ -49,6 +49,7 @@
   {`boolean? :db.type/boolean
    `double?  :db.type/double
    `float?   :db.type/float
+   `decimal? :db.type/bigdec
    `inst?    :db.type/instant
    `keyword? :db.type/keyword
    `string?  :db.type/string
@@ -57,6 +58,7 @@
    `map?     :db.type/ref
    `ref?     :db.type/ref
    `symbol?  :db.type/symbol
+   `integer? :db.type/long
    `number?  :db.type/long
    `nat-int? :db.type/long
    `int?     :db.type/long})
@@ -107,6 +109,14 @@
         {:db/ident       name
          :db/valueType   valueType
          :db/cardinality (if (= :hyperfiddle.spec/coll type) :db.cardinality/many :db.cardinality/one)}))))
+
+(comment
+
+  (def attr {:name :swinged.rosie.sub-req/ttstart, :type :hyperfiddle.spec/predicate, :predicate `clojure.core/integer?})
+  (from-spec attr)
+  (type-of `integer?)
+
+  )
 
 (defn spec->schema [spec]
   (map-values from-spec spec))
