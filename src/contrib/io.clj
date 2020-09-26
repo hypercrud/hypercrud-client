@@ -5,7 +5,10 @@
     [contrib.dataflow :as df]
     [rksm.subprocess :as subprocess]
     [clojure.java.io :as io]
-    [taoensso.timbre :refer [warn]]))
+    [taoensso.timbre :refer [warn]])
+  (:import
+    (java.nio.file Path FileSystems Paths WatchEvent$Modifier StandardWatchEventKinds StandardWatchEventKinds$StdWatchEventKind)
+    (com.sun.nio.file SensitivityWatchEventModifier)))
 
 
 ; These are re-exported here to facilitate :refer :all
@@ -49,34 +52,44 @@
 
 (def watchers (atom {}))
 
-(defn watch-dir [dir f!]
-  (let [watch (.. java.nio.file.FileSystems getDefault newWatchService)]
+(defn watch-dir
+  ([^Path dir f!]
+   (let [watch (.. FileSystems getDefault newWatchService)]
 
-    (when-let [watcher (get @watchers dir)]
-      (.close watcher))
+     (when-let [watcher (get @watchers dir)]
+       (.close watcher))
 
-    (swap! watchers assoc dir watch)
+     (swap! watchers assoc dir watch)
 
-    (.register dir watch
-      (into-array java.nio.file.StandardWatchEventKinds$StdWatchEventKind
-        [java.nio.file.StandardWatchEventKinds/ENTRY_MODIFY])
-      (into-array java.nio.file.WatchEvent$Modifier
-        [com.sun.nio.file.SensitivityWatchEventModifier/HIGH]))
+     (.register dir watch
+       (into-array StandardWatchEventKinds$StdWatchEventKind [StandardWatchEventKinds/ENTRY_MODIFY])
+       (into-array WatchEvent$Modifier [SensitivityWatchEventModifier/HIGH])) ; 2 seconds is highest freq modeled
 
-    (.start
-      (Thread.
-        (fn []
-          (loop []
-            (when-let [key (.take watch)]
-              (f! key)
-              (.reset key)
-              (recur))))))))
+     (.start
+       (Thread.
+         (fn []
+           (loop []
+             (when-let [key (.take watch)]
+               (f! key)
+               (.reset key)
+               (recur))))))))
+  #_([^Path dir]
+   (let [origin (df/input dir)]
+     (watch-dir dir (fn [watch-key] (df/put origin watch-key)))
+     origin)))
+
+(comment
+  ; How do you even get a path
+  (Paths/get "/tmp/foo") => crash
+  (def >dir (watch-dir "./")) => not a Path
+  (df/consume println >dir)
+  )
 
 (defn watch-file
   ([path f!]
-   (let [file (clojure.java.io/file path)]
-     (watch-dir
-       (.getParent (java.nio.file.Paths/get (.toURI file))) #_(java.nio.file.Paths/get (.toURI file))
+   (let [file (clojure.java.io/file path)
+         dir (.getParent (Paths/get (.toURI file)))]        ; java.nio.file.Path
+     (watch-dir dir
        (fn [watch-key]
          (doseq [event (.pollEvents watch-key)]
            (when (= (.toPath file) (.context event))
