@@ -100,6 +100,12 @@
         (update m k update-in-existing f args)
         m))))
 
+(defn contains-in?
+  [m path]
+  (if (vector? path)
+    (contains? (get-in m (pop path)) (peek path))
+    (contains? (get-in m (drop-last path)) (last path))))
+
 (defn deep-merge
   [v0 v1]
   (if (and (map? v0) (map? v1))
