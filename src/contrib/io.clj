@@ -83,7 +83,7 @@
              (f! path)))))))
   ([path]
    (let [origin (df/input path)]
-     (watch-file path (fn [path] (df/put origin path)))
+     (watch-file path (fn [path] (df/put origin path)))     ; change callback gets path
      origin)))
 
 (comment

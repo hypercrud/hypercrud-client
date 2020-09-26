@@ -1,4 +1,4 @@
-(ns hyperfiddle.config
+(ns hyperfiddle.config                                      ; pushed down for unit tests
   (:require
     [clojure.spec.alpha :as s]
     [contrib.io :refer [get-edn get-resource]]
