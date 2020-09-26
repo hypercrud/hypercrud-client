@@ -1,5 +1,16 @@
 version: 2
 jobs:
+  build-haxe:
+    docker:
+      - image: hyperfiddle/hxjava
+    steps:
+      - checkout
+      - run: haxe build.hxml
+      - persist_to_workspace:
+          root: .
+          paths:
+            - out
+
   test-clj:
     docker:
       - image: clojure:tools-deps
@@ -8,6 +19,8 @@ jobs:
           BOOT_WATCHERS_DISABLE: "yes"
     steps:
       - checkout
+      - attach_workspace:
+          at: .
       - restore_cache:
           key: test-clj-{{checksum "deps.edn"}}
       - run: clojure -A:test-clj :output test-results/clojure/results.xml :output-format :junit :ns-regex "hyper.*|contrib.*"
@@ -99,8 +112,13 @@ workflows:
   version: 2
   test_and_deploy:
     jobs:
-      - test-clj
-      - test-cljs-yarn
+      - build-haxe
+      - test-clj:
+          requires:
+            - build-haxe
+      - test-cljs-yarn:
+          requires:
+            - build-haxe
       - test-cljs:
           requires:
             - test-cljs-yarn
