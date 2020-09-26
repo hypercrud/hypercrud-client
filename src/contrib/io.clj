@@ -2,6 +2,7 @@
   (:require
     [contrib.reader]
     [contrib.data :refer [tap]]
+    [contrib.dataflow :as df]
     [rksm.subprocess :as subprocess]
     [clojure.java.io :as io]
     [taoensso.timbre :refer [warn]]))
@@ -71,11 +72,22 @@
               (.reset key)
               (recur))))))))
 
-(defn watch-file [path f!]
-  (let [file (clojure.java.io/file path)]
-    (watch-dir
-      (.getParent (java.nio.file.Paths/get (.toURI file))) #_(java.nio.file.Paths/get (.toURI file))
-      (fn [watch-key]
-        (doseq [event (.pollEvents watch-key)]
-          (when (= (.toPath file) (.context event))
-            (f! path)))))))
+(defn watch-file
+  ([path f!]
+   (let [file (clojure.java.io/file path)]
+     (watch-dir
+       (.getParent (java.nio.file.Paths/get (.toURI file))) #_(java.nio.file.Paths/get (.toURI file))
+       (fn [watch-key]
+         (doseq [event (.pollEvents watch-key)]
+           (when (= (.toPath file) (.context event))
+             (f! path)))))))
+  ([path]
+   (let [origin (df/input path)]
+     (watch-file path (fn [path] (df/put origin path)))
+     origin)))
+
+(comment
+  (require '[contrib.config :refer [get-edn]])
+  (def >config (->> (watch-file "hyperfiddle.edn") (df/map get-edn)))
+  (df/consume println >config)
+  )
