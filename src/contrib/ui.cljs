@@ -133,7 +133,7 @@
     (let [props (-> (assoc props :type "text")
                     (update-existing :on-change r/comp target-value)
                     (select-keys [:type :value :default-value :on-change :style :read-only :disabled
-                                  :name :autocomplete
+                                  :name :autoComplete
                                   :html/placeholder :html/class
                                   :placeholder :class])
                     (for-kv {} (fn [m k v] (assoc m (unqualify k) v))))]
