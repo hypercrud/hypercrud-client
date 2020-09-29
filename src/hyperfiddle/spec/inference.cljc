@@ -1,7 +1,10 @@
 (ns hyperfiddle.spec.inference
   (:refer-clojure :exclude [derive])
   (:require [clojure.core.match :refer [match]]
-            [clojure.set :as set]))
+            [clojure.set :as set]
+            [clojure.spec.alpha :as s]))
+
+;;; Type Hierarchy
 
 (defn derive
   "Like `clojure.core/derive` but keep a parent → child relationship too. Two way
@@ -43,6 +46,9 @@
     :vector            :sequential
     :set               :seqable
     :map               :seqable
+    ;; Complex types
+    :inst              :any
+    :uuid              :any
     ;; Experiment zone
     :fn                :any
     ;; Feel free to add more, loops are forbidden.
@@ -55,6 +61,7 @@
 (def predicates
   {:any               any?
    :nil               nil?
+   nil                any? ; default value / not found
    ;; ----
    :boolean           boolean?
    :keyword           keyword?
@@ -76,12 +83,15 @@
    :vector            vector?
    :set               set?
    :map               map?
+   ;; Complex types
+   :inst              inst?
+   :uuid              uuid?
    ;; Experiment zone
    :fn                fn? ;; not `ifn?`!
    ;; Feel free to add more, but keep it injective.
    })
 
-;; if a value is of some type but we don’t have a predicate for it, tries with `instance?`
+;; TODO? if a value is of some type but we don’t have a predicate for it, tries with `instance?`
 
 (defn matching-types
   "Return all possible types of a given value `x` in O(logₙ) time.
@@ -113,101 +123,84 @@
        (conj acc type)
        (into acc (mapcat #(shrink h acc % types) children))))))
 
-(defn node
-  ([parent type]
-   (node parent type {}))
-  ([parent type defaults]
-   (with-meta (merge {::type type} defaults)
-     {:parent parent})))
-
-(defn new-or [n]
-  (let [type   (::type n)
-        parent (:parent (meta n))]
-    (node parent :or {:child {type n}})))
-
-(declare merge-types)
-
 (defn type-of [h preds v] (first (shrink h (matching-types h preds v))))
-
-(defn merge-keys [ta tb]
-  (let [{keys-a ::keys} ta
-        {keys-b ::keys} tb
-        keys            (set/union keys-a keys-b)
-        req             (set/intersection keys-a keys-b)]
-    ;; keep tb’s metas
-    (merge tb {::keys keys
-               :req   req
-               :opt   (set/difference keys req)})))
-
-(defn merge-types [parent a b]
-  (let [ta (::type a)
-        tb (::type b)]
-    (match [parent ta   tb]
-           [:or    :or-branches  _ ] (let [parent-b (:parent (meta b))]
-                                       (merge-types parent {::type :or, :child a} {::type parent-b, :child b}))
-           [_      nil nil]              nil
-           [_       _  nil]              a
-           [_      nil  _ ]              b
-           [_      :keys :keys]          (merge-keys a b)
-           [_      :or :or]           (assoc a :child (merge-with (partial merge-types parent) (:child a) (:child b)))
-           [_      :or  _ ]           (merge-types parent a (new-or b))
-           [_       _  :or]           (merge-types parent (new-or a) b)
-           [_       _   _ ]           (cond
-                                        (= a b)   a
-                                        (= ta tb) (update a :child (partial merge-types parent) (:child b))
-                                        :else     (merge-types parent (new-or a) (new-or b))))))
-
-;; Expected output
-;; {:type  :vector
-;;  :child {:type  :or
-;;          :child {:vector {:type :vector}
-;;                  :set    {:type :set}}}}
-
-;; Reductions
-;; Step:
-;; 1. {}
-;; 2. {:type :vector}
-;; 3. {:type :vector
-;;     :child {:type :vector}}
-;; 4  {:type :vector
-;;     :child {:type :vector
-;;             :child {:type :integer}}}
-;; 5. {:type :vector
-;;     :child {:type :or
-;;             :child {:vector {:type :vector
-;;                              :child {:type :integer}}
-;;                     :set    {:type :set}}}}
-;; 6  {:type :vector
-;;     :child {:type :or
-;;             :child {:vector {:type  :vector
-;;                              :child {:type :integer}}
-;;                     :set    {:type  :set
-;;                              :child {:type :integer}}}}}
-
-(defn merge-in
-  ([h] (fn [m path v] (merge-in h m path v)))
-  ([h m path v]
-   (let [parent (::type (get-in m (butlast path)))]
-     (update-in m path (partial merge-types parent) v))))
-
-(defn qualified? [x]
-  (some-> x namespace))
-
-(def simple? (complement qualified?))
 
 (def ident? (some-fn keyword? symbol?))
 
 (defn keys? [x]
   (and (map? x)
+       (seq (keys x))
        (every? ident? (keys x))))
-
-(defn down [path]
-  (conj path :child))
 
 (defn qualify [qualifierf x]
   (if qualifierf
     (or (qualifierf x) x)
     x))
+
+(defn qualified? [x]
+  (and (keyword? x)
+       (some? (namespace x))))
+
+(defn merge-keys [a b]
+  (let [{keys-a :keyset} a
+        {keys-b :keyset} b
+        keyset           (set/union keys-a keys-b)
+        req              (set/intersection keys-a keys-b)]
+    (merge b {:keyset keyset
+              :req    req
+              :opt    (set/difference keyset req)})))
+
+(defn merge-types [a b]
+  (let [ta (:type a)
+        tb (:type b)]
+    (match [ta tb]
+           [nil nil] nil
+           [_   nil] a
+           [nil   _] b
+           [:or :or] (update a :branches (partial merge-with merge-types) (:branches b))
+           [:or   _] (update a :branches (partial merge-with merge-types) {tb b})
+           [_   :or] (merge-types b a)
+           [:keys :keys] (merge-keys a b)
+           :else (cond
+                   (= a   b) a
+                   (= ta tb) (update a :child merge-types (:child b))
+                   :else     {:type     :or
+                              :branches {ta a
+                                         tb b}}))))
+
+(defn infer*
+  [h ps v reg opts]
+  (cond
+    (or
+     (set? v)
+     (sequential? v)) (let [seq-type    (type-of h ps v)
+                            [child reg] (reduce (fn [[a reg] x]
+                                                  (let [[b reg'] (infer* h ps x reg opts)]
+                                                    [(merge-types a b) (merge reg reg')]))
+                                                [nil reg]
+                                                v)]
+                        [(cond-> {:type seq-type}
+                           child (assoc :child child))
+                         reg])
+    (keys? v)         (let [qualify (partial qualify (:qualify opts))
+                            ks      (->> (keys v) (map qualify) (filter qualified?) (set))]
+                        [{:type   :keys
+                          :keyset ks}
+                         (reduce (fn [reg k]
+                                   (let [[t reg'] (infer* h ps (get v k) reg opts)]
+                                     (merge-with merge-types reg' {k t})))
+                                 reg
+                                 ks)])
+    (map? v)          (if (seq v)
+                        (let [[ks reg-a] (infer* h ps (keys v) reg opts)
+                              [vs reg-b] (infer* h ps (vals v) reg opts)]
+                          [{:type :map
+                            :keys (:child ks)
+                            :vals (:child vs)}
+                           (merge reg-a reg-b)])
+                        ;; empty map
+                        [{:type :map} reg])
+    :else             [{:type (type-of h ps v)} reg]))
 
 (defn infer
   ([v]
@@ -215,32 +208,38 @@
   ([v opts]
    (infer *hierarchy* predicates v opts))
   ([h ps v opts]
-   (infer h ps v [:child] {::type :root, :keys {}} nil (or opts {})))
-  ([h ps v path cache parent opts]
-   (cond
-     (or
-      (set? v)
-      (sequential? v)) (let [seq-type (type-of h ps v)]
-                         (if (empty? v)
-                           (merge-in h cache path (node parent seq-type))
-                           (reduce (fn [cache v]
-                                     (infer h ps v (down path) cache seq-type opts))
-                                   (merge-in h cache path (node parent seq-type))
-                                   v)))
-     (keys? v)         (let [qualify (partial qualify (:qualify opts))]
-                         (reduce (fn [cache [k v]]
-                                   (if (qualified? k)
-                                     (infer h ps v [:keys k] cache :keys opts)
-                                     (infer h ps v [:keys (qualify k)] cache :keys opts)))
-                                 (merge-in h cache path (node parent :keys {::keys (->> (keys v)
-                                                                                        (map qualify)
-                                                                                        (filter qualified?)
-                                                                                        (set))}))
-                                 v))
-     (map? v)          (as-> cache cache
-                         (merge-in h cache path (node parent :map))
-                         (infer h ps (keys v) (conj path :keys) cache :map opts)
-                         (infer h ps (vals v) (conj path :vals) cache :map opts)
-                         (update-in cache path #(-> % (update :keys :sequential) ;; unnest $KeySeq and $ValSeq
-                                                    (update :vals :sequential))))
-     :else             (merge-in h cache path (node parent (type-of h ps v))))))
+   (infer* h ps v {} (or opts {}))))
+
+
+(def render-type nil)
+(defmulti render-type (fn [_predicates node] (:type node)) :hierarchy #'*hierarchy*)
+
+(defmethod render-type :default [ps {:keys [type]}]
+  (get ps type))
+
+(defmethod render-type :map [ps {:keys [keys vals]}]
+  `(s/map-of ~(render-type ps keys) ~(render-type ps vals)))
+
+(defmethod render-type :coll [ps {:keys [child type]}]
+  `(s/coll-of ~(render-type ps child) :kind ~(get ps type)))
+
+(defmethod render-type :keys [ps {:keys [req opt]}]
+  `(s/keys ~@(cond-> []
+               (seq req) (conj :req (vec req))
+               (seq opt) (conj :opt (vec opt)))))
+
+(defmethod render-type :or [ps {:keys [branches]}]
+  (let [branches (->> branches
+                      (mapcat (fn [[k v]]
+                                [k (render-type ps v)])))]
+    `(s/or ~@branches)))
+
+(defn render [predicates [ast registry]]
+  (let [defs (reduce-kv (fn [acc name ast]
+                          (conj acc `(s/def ~name ~(render-type predicates ast))))
+                        () registry)
+        form (concat defs (list (render-type predicates ast)))]
+    (if (> (count form) 1)
+      `(do ~@form)
+      form)))
+
