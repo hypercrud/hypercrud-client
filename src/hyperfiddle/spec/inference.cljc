@@ -102,7 +102,7 @@
   ([h preds type x]
    (matching-types h preds type #{} x))
   ([h preds type acc x]
-   (let [pred? (get predicates type)]
+   (let [pred? (get preds type)]
      (if (and pred? (pred? x)) ;; if we’ve got a matching predicate for this type
        (into (conj acc type) ;; collect this type
              ;; recurse on children types
@@ -207,6 +207,8 @@
    (infer v {}))
   ([v opts]
    (infer *hierarchy* predicates v opts))
+  ([h ps v]
+   (infer h ps v {}))
   ([h ps v opts]
    (infer* h ps v {} (or opts {}))))
 
@@ -234,12 +236,16 @@
                                 [k (render-type ps v)])))]
     `(s/or ~@branches)))
 
-(defn render [predicates [ast registry]]
-  (let [defs (reduce-kv (fn [acc name ast]
-                          (conj acc `(s/def ~name ~(render-type predicates ast))))
-                        () registry)
-        form (concat defs (list (render-type predicates ast)))]
-    (if (> (count form) 1)
-      `(do ~@form)
-      form)))
+(defn render
+  ([[ast registry]]
+   (render *hierarchy* predicates [ast registry]))
+  ([h ps [ast registry]]
+   (binding [*hierarchy* h]
+     (let [defs (reduce-kv (fn [acc name ast]
+                             (conj acc `(s/def ~name ~(render-type ps ast))))
+                           () registry)
+           form (concat defs (list (render-type ps ast)))]
+       (if (> (count form) 1)
+         `(do ~@form)
+         (first form))))))
 

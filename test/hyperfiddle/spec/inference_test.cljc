@@ -1,13 +1,14 @@
 (ns hyperfiddle.spec.inference-test
-  (:require [hyperfiddle.spec.inference :as sut]
-            #?(:clj [clojure.test :as t :refer [deftest is testing are]]
-               :cljs [cljs.test :as t :include-macros true :refer [deftest is testing are]])))
+  (:require #?(:clj [clojure.test :as t :refer [deftest is testing are]]
+               :cljs [cljs.test :as t :include-macros true :refer [deftest is testing are]])
+            [clojure.string :as str]
+            [hyperfiddle.spec.inference :as sut]))
 
 (def now #inst "2020-09-29T07:34:18.924-00:00")
 (def zero-uuid #uuid "00000000-0000-0000-0000-000000000000")
 
 (deftest about-types
-  (testing "Infering a type from a value"
+  (testing "Infering a type from a email"
     (testing "must find correct types"
       (are [x y] (= y (sut/matching-types sut/*hierarchy* sut/predicates x))
         nil           #{:any :nil}
@@ -48,7 +49,7 @@
 (def ast-for (comp first sut/infer))
 
 (deftest about-ast
-  (testing "Infering a simple value type should produce a correct AST"
+  (testing "Infering a simple email type should produce a correct AST"
     (are [x y] (= y (ast-for x))
       nil           {:type :nil}
       ""            {:type :string}
@@ -64,7 +65,7 @@
       false         {:type :boolean}
       #()           {:type :fn}))
 
-  (testing "Infering a complex value type should produce a correct AST"
+  (testing "Infering a complex email type should produce a correct AST"
     (are [x y] (= y (ast-for x))
       [1 2 3]               {:type :vector, :child {:type :nat-int}}
       [-1 1 1.5]            {:type  :vector,
@@ -117,7 +118,7 @@
       nil                                          {}
       1                                            {}
       ""                                           {}
-      {"json" "value"}                             {} ; Strings aren’t names
+      {"json" "email"}                             {} ; Strings aren’t names
       {:ambiguous :key}                            {} ; :ambiguous can’t have global semantics
       ;; ---------------------
       {:user/name "John"}                          {:user/name {:type :string}}
@@ -168,3 +169,26 @@
                                                                                     :child {:type     :or
                                                                                             :branches {:nat-int {:type :nat-int}
                                                                                                        :string  {:type :string}}}}}}}})))
+
+(deftest about-extentions
+  (testing "We should be able to provide new types"
+    (let [h      (sut/derive sut/*hierarchy* :email :string)
+          email? #(str/includes? % "@") ; good enough
+          ps     (assoc sut/predicates :email email?)
+          email  "foo@example.com"]
+      (is (= #{:any :string :email} (sut/matching-types h ps email)))
+      (is (= {:type :email} (first (sut/infer h ps email {}))))
+      (is (= email? (sut/render h ps (sut/infer h ps email {})))))))
+
+(comment
+  (use 'criterium.core)
+  (require '[clojure.test.check.generators :as gen])
+  (require '[clojure.spec.alpha :as s])
+  (require '[clj-async-profiler.core :as prof])
+  (prof/serve-files 8081)
+  (let [dataset (take 10000 (repeatedly #(gen/generate (s/gen (s/coll-of string?)))))]
+    #_(with-progress-reporting
+      (quick-bench))
+    (sut/render sut/predicates (sut/infer dataset)))
+  )
+
