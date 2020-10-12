@@ -126,6 +126,8 @@
   ; flip params for fmap->
   [ctx {:keys [:db/id :db/ident] :as e-map}]                ; v can be a ThinEntity or a pull i guess
   (s/assert map? e-map)                                     ; used to be very loose, track down these cases now.
+  ; If ^ assert firing on a tempid, do you need to provide hf/view-defaults to pull it for the route view?
+  ;
   ; If we have a color, and a (last path), ensure it is a ref.
   ; If we have a color and [] path, it is definitely a ref.
   ; If we have no color, it is a scalar or aggregate.
@@ -293,7 +295,7 @@ a speculative db/id."
   ([ctx a]                                                  ; eav order of init issues, ::eav depends on this in :many
    {:pre [(> (pull-depth ctx) 0)]}
    (assert (not (:hypercrud.browser/head-sentinel ctx)) "this whole flag is trouble, not sure if this assert is strictly necessary")
-   (assert (boolean (hf/attr ctx a)) (str "attribute " a " not in :hypercrud.browser/schema"))
+   (assert (boolean (hf/attr ctx a)) (str "attribute " a " not in :hypercrud.browser/schema, please list in fiddle :ret spec to infer schema for it. fixme"))
    (let [{:keys [:hypercrud.browser/schema :hypercrud.browser/fiddle]} ctx]
      (case (contrib.datomic/cardinality @schema a)
 
