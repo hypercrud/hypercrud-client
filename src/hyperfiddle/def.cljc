@@ -110,7 +110,7 @@
    (defn serve-fiddle! [avar]
      (when (multi-arity? avar)
        (timbre/warnf "Fiddle %s has multiple arities, which would produce ambiguous UIs. Hyperfiddle will only consider the longuest one." avar))
-     (swap! *fiddles assoc (fiddle-name avar) (vary-meta (deref avar) merge {:hyperfiddle.api/fiddle (meta avar)}))))
+     (swap! *fiddles assoc (fiddle-name avar) (vary-meta (deref avar) merge (-> (meta avar) (update :ns str) (update :name str))))))
 
 #?(:clj
    (defn- watch! [fiddle]
