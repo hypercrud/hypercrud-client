@@ -2,7 +2,7 @@
   (:require
     [contrib.reader]
     [contrib.data :refer [tap]]
-    [contrib.dataflow :as df]
+    [contrib.dataflow2 :as df]
     [rksm.subprocess :as subprocess]
     [clojure.java.io :as io]
     [taoensso.timbre :refer [warn]])
@@ -82,7 +82,7 @@
   ; How do you even get a path
   (Paths/get "/tmp/foo") => crash
   (def >dir (watch-dir "./")) => not a Path
-  (df/consume println >dir)
+  (df/on >dir println )
   )
 
 (defn watch-file
@@ -95,12 +95,12 @@
            (when (= (.toPath file) (.context event))
              (f! path)))))))
   ([path]
-   (let [origin (df/input path)]
+   (let [origin (df/input)]
      (watch-file path (fn [path] (df/put origin path)))     ; change callback gets path
      origin)))
 
 (comment
   (require '[contrib.config :refer [get-edn]])
-  (def >config (->> (watch-file "hyperfiddle.edn") (df/map get-edn)))
-  (df/consume println >config)
+  (def >config (-> (watch-file "hyperfiddle.edn") (df/fmap get-edn)))
+  (df/on >config println)
   )

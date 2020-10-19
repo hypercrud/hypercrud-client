@@ -30,17 +30,17 @@
      (gen/generate generator 50 *seed*)
      (gen/generate generator))))
 
-(declare generate*)
+(declare generator)
 
 (defn generate
   [seed & args]
   (binding [*seed* seed]
     (if (bound? #'identities)
-      (gen! (apply generate* args))
+      (gen! (apply generator args))
       (binding [identities (atom {})]
-        (gen! (apply generate* args))))))
+        (gen! (apply generator args))))))
 
-(defmulti generate*
+(defmulti generator
   (fn [type & _]
     (cond
       (gen/generator? type)
@@ -61,67 +61,67 @@
       :else
       type)))
 
-(defmethod generate* ::gen [gen] gen) ; identity
+(defmethod generator ::gen [gen] gen) ; identity
 
-(defmethod generate* ::vector
+(defmethod generator ::vector
   [type & args]
   (let [[type & args] type]
-    (apply generate* type args)))
+    (apply generator type args)))
 
-(defmethod generate* :constant
+(defmethod generator :constant
   [_ k]
   (gen/return k))
 
-(defmethod generate* :'
+(defmethod generator :'
   [_ k]
   (gen/return k))
 
-(defmethod generate* :constant*
+(defmethod generator :constant*
   [_ & k]
   (gen/return [k]))
 
-;; (defmethod generate* :list
+;; (defmethod generator :list
 ;;   [_ & [v & vals]]
 ;;   (if (nil? v)
 ;;     (gen/return ())
-;;     (gen/fmap #(cons (generate* v) %)
-;;               (generate* :list vals))))
+;;     (gen/fmap #(cons (generator v) %)
+;;               (generator :list vals))))
 
-(defmethod generate* :?
+(defmethod generator :?
   [_ type]
   (gen/bind gen/boolean
             (fn [coin] ;; coin flip
               (if (true? coin)
-                (generate* type)
+                (generator type)
                 (gen/return nil)))))
 
-(defmethod generate* :*
+(defmethod generator :*
   [_ n type]
-  (gen/vector (generate* type) n))
+  (gen/vector (generator type) n))
 
-(defmethod generate* :*!                                    ; pick distinct
+(defmethod generator :*!                                    ; pick distinct
   [_ n type]
   (gen/fmap #(into [] (distinct) %)
-            (generate* [:* n type])))
+            (generator [:* n type])))
 
-(defmethod generate* :keyword
+(defmethod generator :keyword
   [_]
-  (gen/fmap keyword (generate* :word)))
+  (gen/fmap keyword (generator :word)))
 
-(defmethod generate* :symbol
+(defmethod generator :symbol
   [_]
-  (gen/fmap symbol (generate* :word)))
+  (gen/fmap symbol (generator :word)))
 
-(defmethod generate* :string
+(defmethod generator :string
   [_ & [n]]
   (gen/fmap #(str/join \space %)
-            (generate* :* (or n 10) :word)))
+            (generator :* (or n 10) :word)))
 
-(defmethod generate* :boolean
+(defmethod generator :boolean
   [_]
   gen/boolean)
 
-(defmethod generate* :long
+(defmethod generator :long
   [_ & [min max]]
   (if (or min max)
     (gen/large-integer* (cond-> {}
@@ -129,131 +129,137 @@
                           max (assoc :max max)))
     gen/large-integer))
 
-(defmethod generate* :bigint
+(defmethod generator :bigint
   [_]
   gen/size-bounded-bigint)
 
-(defmethod generate* :double
+(defmethod generator :double
   [_ & [min max]]
   (gen/double* (cond-> {:NaN?      false
                         :infinite? false}
                  min (assoc :min min)
                  max (assoc :max max))))
 
-(defmethod generate* :bigdec
+(defmethod generator :bigdec
   [_]
   (fapply #(java.math.BigDecimal. (/ %1 %2))
-          (generate* :double)
-          (generate* :double 1) ;; avoid divide by 0
+          (generator :double)
+          (generator :double 1) ;; avoid divide by 0
           ))
 
-(defmethod generate* :ident
+(defmethod generator :ident
   [_ class as type & args]
   (gen/fmap (fn [ident]
               (swap! identities update class (comp set conj) (if (= :db/id as) ident [as ident]))
               ident)
-            (apply generate* type args)))
+            (apply generator type args)))
 
-(defmethod generate* :ref
+(defmethod generator :ref
   [_ class]
-  (gen/elements (or (get @identities class) [nil])))
+  (gen/bind (gen/return nil)
+            (fn [_]
+              (gen/elements (or (get @identities class) [nil])))))
 
-(defmethod generate* :instant
+(defmethod generator :instant
   [_]
   ;; GG Not a good generator. It’s supposed to generate random date in the last
   ;; week. Good enough for now.
-  (let [now-time (long (or *seed* (.getTime (java.util.Date.)) ))
+  (let [now-time (let [now-time (.getTime (java.util.Date.))]
+                   (long
+                    (if (bound? #'*seed*)
+                      (or *seed* now-time) ; might be bound to nil
+                      now-time)))
         now      (tc/from-long now-time)]
     (s/gen (s/inst-in (-> now (t/minus (t/weeks 1)))
                       now))))
 
-(defmethod generate* :uuid
+(defmethod generator :uuid
   [_]
   gen/uuid)
 
-(defmethod generate* :uri
+(defmethod generator :uri
   [_]
   (s/gen uri?))
 
 (let [random-names (clojure.string/split-lines (load-resource "generators/names.txt"))]
-  (defmethod generate* :name
+  (defmethod generator :name
     [_]
     (gen/elements random-names)))
 
 (let [random-words (clojure.string/split-lines (load-resource "generators/words.txt"))]
-  (defmethod generate* :word
+  (defmethod generator :word
     [_]
     (gen/elements random-words)))
 
-(defmethod generate* :street
+(defmethod generator :street
   [_]
   (gen/bind (gen/elements #{"Rd." "Ave." "Blvd." "St."})
             (fn [prefix]
               (gen/fmap (fn [words]
                           (str prefix \space (str/join \space words)))
-                        (generate* :* 2 :word)))))
+                        (generator :* 2 :word)))))
 
 
 (let [random-words (clojure.string/split-lines (load-resource "generators/cities.txt"))]
-  (defmethod generate* :city
+  (defmethod generator :city
     [_]
     (gen/elements random-words)))
 
-(defmethod generate* :state
+(defmethod generator :state
   [_]
   (gen/elements #{"Alabama" "Alaska" "American Samoa" "Arizona" "Arkansas" "California" "Colorado" "Connecticut" "Delaware" "District of Columbia" "Florida" "Georgia" "Guam" "Hawaii" "Idaho" "Illinois" "Indiana" "Iowa" "Kansas" "Kentucky" "Louisiana" "Maine" "Maryland" "Massachusetts" "Michigan" "Minnesota" "Mississippi" "Missouri" "Montana" "Nebraska" "Nevada" "New Hampshire" "New Jersey" "New Mexico" "New York" "North Carolina" "North Dakota" "Northern Mariana Islands"}))
 
-(defmethod generate* :state-abbrev
+(defmethod generator :state-abbrev
   [_]
   (gen/elements #{"AK" "AL" "AR" "AZ" "CA" "CO" "CT" "DC" "DE" "FL" "GA" "HI" "IA" "ID" "IL" "IN" "KS" "KY" "LA" "MA" "MD" "ME" "MI" "MN" "MO" "MS" "MT" "NC" "ND" "NE" "NH" "NJ" "NM" "NV" "NY" "OH" "OK" "OR" "PA" "PR" "RI" "SC" "SD" "TN" "TX" "UT" "VA" "VT" "WA" "WI" "WV" "WY"}))
 
-(defmethod generate* :address
+(defmethod generator :address
   [_]
-  (gen/let [num    (generate* :long 0 999)
-            street (generate* :street)
-            city   (generate* :city)
-            state  (generate* :state)
-            code   (generate* :long 0 99999)]
+  (gen/let [num    (generator :long 0 999)
+            street (generator :street)
+            city   (generator :city)
+            state  (generator :state)
+            code   (generator :long 0 99999)]
     (str num \space street \space city \, \space state \space code)))
 
-(defmethod generate* :email
+(defmethod generator :email
   [_]
-  (gen/let [name   (generate* :word)
-            domain (generate* :word)
+  (gen/let [name   (generator :word)
+            domain (generator :word)
             tld    (gen/elements #{"com" "edu" "org" "net"})]
     (str name "@" domain \. tld)))
 
-(defmethod generate* :phone
+(defmethod generator :phone
   [_]
-  (gen/let [prefix (generate* :long 999)
-            a      (generate* :long 999)
-            b      (generate* :long 9999)]
+  (gen/let [prefix (generator :long 999)
+            a      (generator :long 999)
+            b      (generator :long 9999)]
     (str "(" prefix ")-" a "-" b)))
 
-(defmethod generate* :ordinal-number
+(defmethod generator :ordinal-number
   [_ & [left right]]
-  (gen/let [n (generate* :long left right)]
+  (gen/let [n (generator :long left right)]
     (str n (condp = (mod n 10)
              1 "st"
              2 "nd"
              3 "rd"
              "th"))))
 
-(defmethod generate* ::fn
+(defmethod generator ::fn
   [f]
   (gen/return (f)))
 
-(defmethod generate* ::map
+(defmethod generator ::map
   [type]
   (->> type
        (mapcat (fn [[k v]]
-                 (when-let [v (generate* v)]
+                 (when-let [v (generator v)]
                    (if (gen/generator? v)
                      [k v]
                      [k (gen/return v)]))))
        (apply gen/hash-map)
        (gen/fmap #(data/filter-vals some? %))))
 
-(defmethod generate* ::set
+(defmethod generator ::set
   [type]
   (gen/elements type))
