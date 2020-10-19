@@ -115,8 +115,8 @@
 
 (defn invert-datomic-arg [v invert-id]
   (if (hf/colored-tempid? v)
-    (let [[_ db] (hf/parse v)]
-      (invert-id db v))
+    (let [[_ db] (hf/parse-colored-tempid v)]
+      (invert-id db v))                                     ; returns string, not tuple
     v))
 
 (defn invert-datomic-args [invert-id datomic-args]

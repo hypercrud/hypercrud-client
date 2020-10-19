@@ -301,7 +301,7 @@
              (number? id))
     (str "hyperfiddle.tempid-" (str id) "@" dbname)))
 
-(defn parse
+(defn parse-colored-tempid
   "Parse a given `id` to `[id db]`. See `colored-tempid`."
   [id]
   (if (colored-tempid? id)

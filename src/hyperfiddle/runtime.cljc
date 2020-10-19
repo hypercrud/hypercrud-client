@@ -318,13 +318,13 @@
     (let [id->tempid (get-tempid-lookup! rt pid dbname)]
       (get id->tempid id id))))
 
-(defn tempid->id! [rt pid dbname tempid]
+(defn tempid->id! [rt pid dbname ref]
   ; todo what about if the tempid is on a higher branch in the uri?
-  (if (contrib.datomic/tempid? tempid)
+  (if (contrib.datomic/tempid? ref)
     (let [tempid->id (-> (get-tempid-lookup! rt pid dbname)
                          (set/map-invert))]
-      (get tempid->id tempid tempid))
-    tempid))
+      (get tempid->id ref ref))
+    ref))
 
 (defn- transact-impl [rt pid tx-groups & post-tx]
   {:pre [(branched? rt pid)]}

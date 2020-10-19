@@ -50,12 +50,12 @@
      (deftest entity []
        (testing "colored tempids"
          (testing "should be left unaltered if invalid"
-           (is (= ["foo" nil] (hf/parse "foo"))))
+           (is (= ["foo" nil] (hf/parse-colored-tempid "foo"))))
          (testing "might be positive or negative."
-           (is (= ["-123456789" "dbname"] (hf/parse "hyperfiddle.tempid--123456789@dbname")))
-           (is (= ["123456789"  "dbname"] (hf/parse "hyperfiddle.tempid-123456789@dbname"))))
+           (is (= ["-123456789" "dbname"] (hf/parse-colored-tempid "hyperfiddle.tempid--123456789@dbname")))
+           (is (= ["123456789"  "dbname"] (hf/parse-colored-tempid "hyperfiddle.tempid-123456789@dbname"))))
          (testing "constructor must produce valid colored tempids"
-           (are [x y] (= x (hf/parse (apply hf/->colored-tempid y)))
+           (are [x y] (= x (hf/parse-colored-tempid (apply hf/->colored-tempid y)))
              [nil nil]  [nil nil]
              ;; bad id
              [nil nil]  [nil "invalid"]
