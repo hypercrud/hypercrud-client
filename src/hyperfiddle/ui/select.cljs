@@ -92,8 +92,11 @@
           (map (fn [v] [selection-comp ctx {:value ((::hf/option-label props str) v)} v]) selected))))
 
 (defn ->options
-  [ctx {:keys [::hf/options] :as props} options-comp option-comp]
+  [ctx {:keys [::hf/options ::hf/ident-key] :as props} options-comp option-comp]
   (let [cardinality (:db/cardinality (context/attr ctx))
+        _ (js/console.log {:ident-key ident-key
+                           :cardinality cardinality
+                           :attr (context/attr ctx)})
         selected (condp = cardinality
                    :db.cardinality/many (set (context/data ctx))
                    :db.cardinality/one (context/data ctx))
@@ -101,7 +104,7 @@
                        options
                        (options-of ctx options props)))
         options (to-array
-                 (sort
+                 (sort-by (or ident-key identity)
                   (condp = cardinality
                     :db.cardinality/many (concat selected (set/difference options selected))
                     :db.cardinality/one (cons selected (disj options selected)))))]
