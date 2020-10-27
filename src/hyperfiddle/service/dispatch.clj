@@ -132,13 +132,13 @@
   (do-async-as-chan
     (hf-http/response context
       (try
-        (let [{:keys [domain route-params body-params user-id]} (:request context)
+        (let [{:keys [domain route-params body-params user-id user-email user-name]} (:request context)
               query-string (get-in context [:request :query-string])
               io (R/via context R/IO)
               route (hf/url-decode domain (cond-> (get-in context [:request :path-info])
                                             (seq query-string) (str "?" query-string)))
               {:keys [http-status-code component]}
-              (from-async (render/render (-> (R/from context) :config) domain io route user-id))]
+              (from-async (render/render (-> (R/from context) :config) domain io route user-id user-email user-name))]
           {:status  http-status-code
            :headers {"Content-Type" "text/html"}
            :body    (str "<!DOCTYPE html>\n" (hiccup/html (apply (first component) (rest component))))})

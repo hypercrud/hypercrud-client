@@ -162,9 +162,12 @@
                                (re-find #"^Bearer (.+)$")
                                (second))
                   with-jwt (fn [jwt]
-                             (-> context
-                                 (assoc-in [:request :user-id] (some-> jwt (verify) :user-id UUID/fromString))
-                                 (assoc-in [:request :jwt] jwt)))]
+                             (let [{:keys [:user-id :email :name]} (some-> jwt (verify))]
+                               (-> context
+                                   (update :request merge {:user-id    (some-> user-id (UUID/fromString))
+                                                           :user-email email
+                                                           :user-name  name
+                                                           :jwt        jwt}))))]
               (cond
                 (or (nil? jwt-header) (= jwt-cookie jwt-header))
                 (try (with-jwt jwt-cookie)

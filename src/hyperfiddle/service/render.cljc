@@ -16,6 +16,7 @@
     [hyperfiddle.ui.loading :as loading]
     [promesa.core :as p]
     #?(:cljs [reagent.dom.server :as reagent-server])
+    #?(:clj [clojure.java.io :as io])
     [taoensso.timbre :as timbre]))
 
 
@@ -32,7 +33,7 @@
 
 (declare main-html inner-html)
 
-(defn render [config domain io route user-id]
+(defn render [config domain io route user-id user-email user-name]
   (let [state {::runtime/auto-transact (data/map-values
                                          (fn [hf-db]
                                            (if-some [auto-tx (:database/auto-transact hf-db)]
@@ -41,7 +42,9 @@
                                          (hf/databases domain))
                ::runtime/partitions {hf/root-pid {:route route
                                                           :is-branched true}}
-               ::runtime/user-id user-id}
+               ::runtime/user-id    user-id
+               ::runtime/user-email user-email
+               ::runtime/user-name  user-name}
 
         _ (s/assert domain/spec-ednish-domain domain)
         rt (->RT domain io (r/atom (state/initialize state)))]
@@ -79,7 +82,8 @@
     [:link {:rel "stylesheet" :href (domain/api-path-for (hf/domain rt) :static-resource :build (:git/describe config) :resource-name "browser.css")}]
     [:meta {:name "viewport" :content "width=device-width, initial-scale=1"}]
     [:meta {:charset "UTF-8"}]
-    (inner-html :script {:id "build" :type "text/plain"} (:git/describe config))]
+    (inner-html :script {:id "build" :type "text/plain"} (:git/describe config))
+    #?(:clj (inner-html :script {:id "tracking-fullstory" :type "text/javascript"} (slurp (io/resource "templates/fullstory.js"))))]
 
    [:body
     (inner-html :div {:id (or (:html-root-id (hf/domain rt)) "root")}
