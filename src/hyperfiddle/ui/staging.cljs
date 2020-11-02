@@ -42,7 +42,7 @@
                                  :border-color color}
                           is-disabled (assoc :pointer-events "none"))
                  :on-click (fn [] (runtime/transact rt pid selected-dbname))}
-        (str label " transact!")])]))
+        (str #_label " Save changes!")])]))
 
 (defn auto-transact-control [rt pid selected-dbname-ref]
   (let [selected-dbname @selected-dbname-ref
