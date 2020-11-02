@@ -56,7 +56,6 @@
                    (update :basis #(or % (System/currentTimeMillis)))
                    (update :environment #(or % {}))
                    (update :home-route #(or % `(hyperfiddle.api/index)))
-                   (update :fiddle-dbname #(or % "$hyperfiddle")) ; but only if hyperfiddle is listed as a database, TODO
                    (cond-> client-config (assoc :?datomic-client (hyperfiddle.io.datomic.core/dyna-client client-config)))
                    (dissoc :client-config)
                    (assoc :memoize-cache (atom nil))

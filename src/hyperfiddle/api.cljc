@@ -140,7 +140,7 @@
 (defn get-db [dbname]
   (*get-db* dbname))
 (def ^:dynamic *domain* nil)
-(def ^:dynamic *subject*)                              ; FK into $hyperfiddle-users, e.g. #uuid "b7a4780c-8106-4219-ac63-8f8df5ea11e3"
+(def ^:dynamic *subject*)                              ; FK into $users, e.g. #uuid "b7a4780c-8106-4219-ac63-8f8df5ea11e3"
 (def ^:dynamic *route*)
 
 ; cljs!

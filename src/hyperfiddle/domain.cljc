@@ -33,7 +33,6 @@
 
 (s/def ::config map?)                                       ; can validate config too
 (s/def ::basis some?)
-(s/def ::fiddle-dbname dbname-spec)
 (s/def ::databases (s/map-of dbname-spec database-spec))
 (s/def ::environment map?)
 
@@ -64,12 +63,12 @@
                                       ::environment
                                       ::home-route]))
 
-(s/def ::domain-hyperfiddle (s/and (s/keys :req-un [::fiddle-dbname])
-                              (fn [domain]
-                                (if-let [{:keys [fiddle-dbname]} domain]
-                                  (contains? (:databases domain) fiddle-dbname)))))
+;; (s/def ::domain-hyperfiddle (s/and (s/keys :req-un [::fiddle-dbname])
+;;                               (fn [domain]
+;;                                 (if-let [{:keys [fiddle-dbname]} domain]
+;;                                   (contains? (:databases domain) fiddle-dbname)))))
 
-(def spec-ednish-domain (s/and ::domain-core ::domain-hyperfiddle))
+(def spec-ednish-domain (s/and ::domain-core))
 
 (defrecord EdnishDomain [config basis fiddle-dbname databases environment home-route ?datomic-client memoize-cache]
   hf/Domain

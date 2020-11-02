@@ -9,8 +9,7 @@
   {:hostname "localhost"                                    ; legacy key
    :domain
    {:databases
-    {"$" {:database/uri #uri "datomic:mem://localhost:4334/swing-subs"}
-     "$hyperfiddle" {:database/uri #uri "datomic:mem://localhost:4334/hyperfiddle"}}}})
+    {"$" {:database/uri #uri "datomic:mem://localhost:4334/swing-subs"}}}})
 
 (deftest config-backwards-compat
   (let [config (hyperfiddle.config/get-config
