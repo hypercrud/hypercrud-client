@@ -105,7 +105,7 @@
                                                     :hyperfiddle.spec/nilable) (:db/valueType (from-spec (first children)))
                                                    :hyperfiddle.spec/and       (type-of (most-meaningful children)))]
       (if-not valueType
-        (timbre/warn  "Unable to infer an attr valueType from " {:name name :predicate predicate})
+        (timbre/debug  "Unable to infer an attr valueType from " {:name name :predicate predicate})
         {:db/ident       name
          :db/valueType   valueType
          :db/cardinality (if (= :hyperfiddle.spec/coll type) :db.cardinality/many :db.cardinality/one)}))))
@@ -137,3 +137,8 @@
             (update-existing :db/cardinality smart-lookup-ref-no-tempids)
             (update-existing :db/isComponent smart-lookup-ref-no-tempids)
             (update-existing :db/unique smart-lookup-ref-no-tempids))))))
+
+(def hydrate (partial map-values (fn [x]
+                                   (if (keyword? x)
+                                     {:db/ident x}
+                                     x))))

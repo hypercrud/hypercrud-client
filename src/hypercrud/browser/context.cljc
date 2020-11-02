@@ -143,11 +143,13 @@
       nil))                                                   ; This is an entity but you didn't pull identity - error?
       ; Or it could be a relation. Why did this get called?
 
+(declare attr)
 
-(let [f (fn [?schema+ path] (some->> ?schema+ (cats/fmap #(get-in % path))))]
+(let [f (fn [?schema+ ctx path] (some->> ?schema+ (cats/fmap #(or (get-in % path)
+                                                                 (spec-datomic/hydrate (attr ctx (first path)))))))]
   (defn hydrate-attribute! [ctx ident & ?more-path]
     (some-> @(r/fmap-> (r/track runtime/get-schema+ (:runtime ctx) (:partition-id ctx) (dbname ctx))
-                       (f (cons ident ?more-path)))
+                       (f ctx (cons ident ?more-path)))
             deref)))
 
 (defn- set-parent [ctx]

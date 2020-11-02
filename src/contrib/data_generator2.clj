@@ -141,11 +141,14 @@
                  max (assoc :max max))))
 
 (defmethod generator :bigdec
-  [_]
-  (fapply #(java.math.BigDecimal. (/ %1 %2))
-          (generator :double)
-          (generator :double 1) ;; avoid divide by 0
-          ))
+  [_ & [min max]]
+  (if (or min max)
+    (gen/fmap #(java.math.BigDecimal. %)
+              (generator [:double min max]))
+    (fapply #(java.math.BigDecimal. (/ %1 %2))
+            (generator :double)
+            (generator :double 1) ;; avoid divide by 0
+            )))
 
 (defmethod generator :ident
   [_ class as type & args]
