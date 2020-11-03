@@ -1,4 +1,5 @@
 (ns hypercrud.transit
+  (:refer-clojure :exclude [bigdec])
   (:require
     [cats.core :as cats]
     [cats.monad.either :as either #?@(:cljs [:refer [Left Right]])]
@@ -7,6 +8,7 @@
     #?(:cljs [com.cognitect.transit.types])
     [contrib.datomic :refer [->Schema #?(:cljs Schema)]]
     [contrib.uri :refer [->URI #?(:cljs URI)]]
+    [contrib.big-decimal :refer [bigdec #?(:cljs BigDecimal)]]
     [contrib.orderedmap :refer [with-order]])
   #?(:clj
      (:import
@@ -14,7 +16,8 @@
        (cats.monad.exception Failure Success)
        (clojure.lang ExceptionInfo)
        (contrib.datomic Schema)
-       (java.io ByteArrayInputStream ByteArrayOutputStream))))
+       (java.io ByteArrayInputStream ByteArrayOutputStream)
+       (java.math BigDecimal))))
 
 
 (def read-handlers
@@ -32,6 +35,7 @@
      "ex-info" (t/read-handler #(apply ex-info %))
      "sorted-map" (t/read-handler #(into (sorted-map) %))
      "ordered-map" (t/read-handler #(apply with-order %))
+     "big-decimal" (t/read-handler #(apply bigdec %))
      }))
 
 (def write-handlers
@@ -48,6 +52,8 @@
                                               (constantly "ordered-map")
                                               (fn [^contrib.orderedmap.PersistentOrderedMap omap]
                                                 [(.-backing-map omap) (.-order omap)]))
+     BigDecimal (t/write-handler (constantly "big-decimal")
+                                 (fn [v] [(str v)]))
      }))
 
 (def ^:dynamic *string-encoding* "UTF-8")
@@ -78,7 +84,7 @@
                  rdr  (t/reader in type opts)]
              (t/read rdr))
      :cljs (let [rdr (if (or type opts)
-                       (t/reader type opts)
+                       (t/reader type (update opts :handlers merge @read-handlers))
                        (default-reader))]
              (t/read rdr s))))
 
@@ -92,8 +98,9 @@
              (t/write writer x)
              (.toString out))
      :cljs (let [wrtr (if (or type opts)
-                        (t/writer type opts)
+                        (t/writer type (update opts :handlers merge @write-handlers))
                         (default-writer))]
              (t/write wrtr x))))
 
 #?(:cljs (extend-type com.cognitect.transit.types/UUID IUUID)) ; https://github.com/hyperfiddle/hyperfiddle/issues/728
+

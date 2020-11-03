@@ -14,6 +14,7 @@
     [contrib.ui]
     [contrib.ui.safe-render :refer [user-portal]]
     [contrib.ui.tooltip :refer [tooltip tooltip-props]]
+    [contrib.big-decimal :as bigdec]
     [contrib.eval :as eval]
     [cuerdas.core :as str]
     [datascript.parser :refer [FindRel FindColl FindTuple FindScalar]]
@@ -117,6 +118,9 @@
 
 (defmethod hf/render #{:db.type/instant :db.cardinality/one} [ctx props]
   [controls/instant (context/data ctx) ctx props])
+
+(defmethod hf/render #{:db.type/bigdec :db.cardinality/one} [ctx props]
+  [controls/bigdec (context/data ctx) ctx props])
 
 (defmethod hf/render :default [ctx props]
   (cond

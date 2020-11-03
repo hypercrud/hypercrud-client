@@ -4,6 +4,7 @@
     [contrib.config]                                        ; load reader onto classpath
     [contrib.datomic]
     [contrib.uri]
+    [contrib.big-decimal]
     #?(:cljs [contrib.uuid])
     #?(:cljs [goog.math]))
   #?(:clj
@@ -41,4 +42,5 @@
    'uri contrib.uri/uri-edn-reader
    'env contrib.config/env-edn-reader
    'long hyperfiddle.readers/long-edn-reader
+   'bigdec contrib.big-decimal/bigdec
    })

@@ -350,6 +350,12 @@
      [debounced props contrib.ui/long])
    (render-related-links val ctx)])
 
+(defn bigdec [val ctx & [props]]
+  [input-group val ctx props
+   (let [props (assoc props :value val :on-change ((::hf/view-change! ctx) ctx))]
+     [debounced props contrib.ui/bigdec])
+   (render-related-links val ctx)])
+
 (defn ^:export slider [ctx & [props]]
   (let [[e a v] @(:hypercrud.browser/eav ctx)]
     [input-group val ctx props

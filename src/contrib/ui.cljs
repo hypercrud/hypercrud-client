@@ -2,6 +2,7 @@
   (:refer-clojure :exclude [keyword long])
   (:require
     [cats.core :as cats]
+    [contrib.big-decimal :as bigdec]
     [contrib.data :refer [update-existing for-kv unqualify]]
     [contrib.pprint :refer [pprint-str pprint-async]]
     [contrib.reactive :as r]
@@ -159,6 +160,14 @@
                          v)))]
   (defn long [props]
     [validated-cmp props parse-string str text]))
+
+(let [parse-string (fn [s]                                  ; letfn not working #470
+                     (when-let [s (blank->nil s)]
+                       (let [v (bigdec/bigdec s)]
+                         (assert (bigdec/bigdec? v))
+                         v)))]
+  (defn bigdec [props]
+    [validated-cmp props parse-string bigdec/editable-repr text]))
 
 (let [target-value (fn [e] (js/parseInt (.. e -target -value)))]          ; letfn not working #470
   (defn slider [props]
