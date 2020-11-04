@@ -378,3 +378,23 @@
 (defn ex-info? [o]
   #?(:clj (instance? clojure.lang.IExceptionInfo o)
      :cljs (instance? js/Error o)))
+
+(defn flip [f]
+  (fn [& args]
+    (apply f (reverse args))))
+
+(defmulti fmap* type)
+(defmethod fmap* #?(:clj clojure.lang.PersistentVector   :cljs PersistentVector)   [_] mapv)
+(defmethod fmap* #?(:clj clojure.lang.PersistentHashSet  :cljs PersistentHashSet)  [_] (comp #(into #{} %) map))
+(defmethod fmap* #?(:clj clojure.lang.PersistentTreeSet  :cljs PersistentTreeSet)  [_] (comp #(into #{} %) map))
+(defmethod fmap* #?(:clj clojure.lang.PersistentHashMap  :cljs PersistentHashMap)  [_] map-values)
+(defmethod fmap* #?(:clj clojure.lang.PersistentArrayMap :cljs PersistentArrayMap) [_] map-values)
+(defmethod fmap* #?(:clj clojure.lang.PersistentTreeMap  :cljs PersistentTreeMap)  [_] map-values)
+(defmethod fmap* :default                                                          [_] map)
+
+(defn fmap [f xs]
+  ((fmap* xs) f xs))
+
+(defn for-each [xs f & args]
+  (fmap #(apply f % args) xs))
+
