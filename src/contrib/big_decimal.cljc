@@ -30,9 +30,9 @@
 (defn bigdec? [x] (instance? BigDecimal x))
 
 (defn to-precision
-  "Return a *string* representation at precision `n`, truncating."
+  "Return a new BigDecimal at precision `n`, truncating."
   [n ^BigDecimal x]
-  #?(:clj (.setScale x n RoundingMode/DOWN)
+  #?(:clj (.setScale x n RoundingMode/DOWN) ; DOWN means truncate
      :cljs
      (let [[lhs rhs] (-> (.-value x) (str/split #"\."))]
        (bigdec (cond-> lhs
