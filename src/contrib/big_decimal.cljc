@@ -1,8 +1,8 @@
 (ns contrib.big-decimal
   "For JVM equivalent, see java.math.BigDecimal"
-  (:refer-clojure :exclude [bigdec])
+  (:refer-clojure :exclude [bigdec format])
   (:require [clojure.string :as str])
-  #?(:clj (:import (java.math BigDecimal))))
+  #?(:clj (:import (java.math BigDecimal RoundingMode))))
 
 #?(:cljs
    (deftype BigDecimal [value]
@@ -14,10 +14,11 @@
        (str value "M"))))
 
 (defn bigdec [^String x]
-   (let [x (-> (str x)
-               (str/replace #"M$" "")
-               (str/replace #"\.0+$" ""))]
-     (BigDecimal. x)))
+  (let [x (-> (str x)
+              (str/replace #"M$" ""))]
+    #?(:clj (-> (BigDecimal. x)
+                (.stripTrailingZeros))
+       :cljs (BigDecimal. x))))
 
 #?(:cljs
    (defn editable-repr
@@ -27,3 +28,12 @@
        (.-value x))))
 
 (defn bigdec? [x] (instance? BigDecimal x))
+
+(defn to-precision
+  "Return a *string* representation at precision `n`, truncating."
+  [n ^BigDecimal x]
+  #?(:clj (.setScale x n RoundingMode/DOWN)
+     :cljs
+     (let [[lhs rhs] (-> (.-value x) (str/split #"\."))]
+       (bigdec (cond-> lhs
+                 (pos? n) (str "." (apply str (take n (concat rhs (repeat "0"))))))))))
