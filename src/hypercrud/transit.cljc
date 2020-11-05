@@ -8,7 +8,7 @@
     #?(:cljs [com.cognitect.transit.types])
     [contrib.datomic :refer [->Schema #?(:cljs Schema)]]
     [contrib.uri :refer [->URI #?(:cljs URI)]]
-    [contrib.big-decimal :refer [bigdec #?(:cljs BigDecimal)]]
+    [contrib.big-decimal :as bigdec :refer [bigdec #?(:cljs BigDecimal)]]
     [contrib.orderedmap :refer [with-order]])
   #?(:clj
      (:import
@@ -53,7 +53,7 @@
                                               (fn [^contrib.orderedmap.PersistentOrderedMap omap]
                                                 [(.-backing-map omap) (.-order omap)]))
      BigDecimal (t/write-handler (constantly "big-decimal")
-                                 (fn [v] [(str v)]))
+                                 (fn [^BigDecimal v] [(bigdec/to-string v)]))
      }))
 
 (def ^:dynamic *string-encoding* "UTF-8")

@@ -37,3 +37,7 @@
      (let [[lhs rhs] (-> (.-value x) (str/split #"\."))]
        (bigdec (cond-> lhs
                  (pos? n) (str "." (apply str (take n (concat rhs (repeat "0"))))))))))
+
+(defn to-string [^BigDecimal x]
+  #?(:clj (.toPlainString x) ;; avoid scientific notation like 1E+2M
+     :cljs (.-value x)))
