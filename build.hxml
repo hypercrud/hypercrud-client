@@ -1,6 +1,6 @@
 -p ./src
   hyperfiddle.hx.Meta
-  hyperfiddle.hx.DF
+  hyperfiddle.hx.Dataflow
 
   --each
     --next
