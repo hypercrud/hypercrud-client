@@ -107,6 +107,10 @@
        tx]
     (get-in (databases domain) [dbname :database/write-security :db/ident] ::allow-anonymous-edits)))
 
+(def ^:dynamic *memo*
+  "When bound, processed txs will also get `{:event/memo *memo*}`. Useful to annotate txs."
+  nil)
+
 (defmulti bindings (fn [domain] (:db/ident domain)))
 (defmethod bindings :default [domain] {})
 
