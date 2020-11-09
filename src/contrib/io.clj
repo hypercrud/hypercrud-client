@@ -2,7 +2,7 @@
   (:require
     [contrib.reader]
     [contrib.data :refer [tap]]
-    [contrib.dataflow2 :as df]
+    [contrib.fabric :as df]
     [rksm.subprocess :as subprocess]
     [clojure.java.io :as io]
     [taoensso.timbre :refer [warn]])

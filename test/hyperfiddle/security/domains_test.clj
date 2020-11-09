@@ -4,7 +4,6 @@
 ;    [datomic.api :as d]
 ;    [hyperfiddle.directory.fixtures :as fixtures]           ; todo these tests can run without a directory service
 ;    [hyperfiddle.directory.provisioning :as dp]
-;    [hyperfiddle.domain :as domain]
 ;    [hyperfiddle.io.datomic.transact :as transact]
 ;    [hyperfiddle.security :as security]
 ;    [hyperfiddle.security.domains])

@@ -3,14 +3,13 @@
     [cats.core :refer [mlet]]
     [cats.labs.promise]
     [clojure.set :as set]
-    [contrib.data :as data :refer [seq->>] :refer-macros [seq->>]]
+    [contrib.data :as data]
     [contrib.datomic]
-    [hyperfiddle.transaction :as tx]
     [contrib.reactive :as r]
     [hyperfiddle.api :as hf]
-    [hyperfiddle.domain :as domain]
     [hyperfiddle.io.core :as io]
     [hyperfiddle.route :as route]
+    [hyperfiddle.service.db :as db]
     [hyperfiddle.state :as state]
     [promesa.core :as p]
     [taoensso.timbre :as timbre]))
@@ -33,7 +32,7 @@
 (defn get-auto-transact [rt dbname] @(state-ref rt [::auto-transact dbname]))
 
 (defn set-auto-transact [rt dbname auto-tx]
-  {:pre [(domain/valid-dbname? (hf/domain rt) dbname)]}
+  {:pre [(db/valid-name? (hf/config rt) dbname)]}
   (state/dispatch! rt [:update-auto-transact dbname auto-tx]))
 
 (defn get-partition [rt pid] @(state-ref rt [::partitions pid]))
@@ -125,7 +124,7 @@
   {:pre [pid]}
   (cond
     #_#_(not (branched? rt pid)) (db rt (parent-pid rt pid) dbname)
-    #_#_(domain/valid-dbname? (domain rt) dbname) (throw (ex-info "Invalid dbname" {:dbname dbname}))
+    #_#_(db/valid-name? (domain rt) dbname) (throw (ex-info "Invalid dbname" {:dbname dbname}))
     :else [dbname pid]))
 
 (defn get-schemas
@@ -228,19 +227,19 @@
 
 (defn- hydrate-partition [rt pid]
   (let [{:keys [hydrate-id] :as p} (get-partition rt pid)
-        route (or (:pending-route p) (:route p))
-        partitions (->> (or (->> (descendant-pids rt pid)
-                                 (filter #(branched? rt %))
-                                 seq)
-                            [pid])
-                        (map #(accumulate-parent-partitions rt %))
-                        (reduce (fn [as bs]
-                                  (reduce-kv (fn [acc pid p]
-                                               (if (contains? acc pid)
-                                                 (update-in acc [pid :partition-children] set/join (:partition-children p))
-                                                 (assoc acc pid p)))
-                                             as bs)))
-                        (data/map-values #(select-keys % [:is-branched :partition-children :parent-pid :stage])))]
+        route                      (or (:pending-route p) (:route p))
+        partitions                 (->> (or (->> (descendant-pids rt pid)
+                                                 (filter #(branched? rt %))
+                                                 seq)
+                                            [pid])
+                                        (map #(accumulate-parent-partitions rt %))
+                                        (reduce (fn [as bs]
+                                                  (reduce-kv (fn [acc pid p]
+                                                               (if (contains? acc pid)
+                                                                 (update-in acc [pid :partition-children] set/join (:partition-children p))
+                                                                 (assoc acc pid p)))
+                                                             as bs)))
+                                        (data/map-values #(select-keys % [:is-branched :partition-children :parent-pid :stage])))]
     (-> (io/hydrate-route (hf/io rt) (get-local-basis rt pid) route pid partitions)
         (p/catch (fn [e]
                    (timbre/info pid hydrate-id @(state-ref rt [::partitions pid :hydrate-id]))
@@ -252,13 +251,13 @@
         (p/then (fn [new-partitions]
                   (if (= hydrate-id @(state-ref rt [::partitions pid :hydrate-id]))
                     (let [{:keys [actions rehydrate-pids]} (process-children rt pid new-partitions)
-                          ; if rehydrated-pids is not already locally seen, then the state is already corrupted
-                          actions (into [:batch             ; Order does not matter; the final state change is atomic
-                                         [:hydrate!-route-success pid (get new-partitions pid)]]
-                                        (concat actions
-                                                (map (fn [pid] [:hydrate!-start pid]) rehydrate-pids)
-                                                (when-not (parent-pid rt pid)
-                                                  [[:set-global-user-basis (get-in new-partitions [pid :local-basis])]])))]
+                          ;; if rehydrated-pids is not already locally seen, then the state is already corrupted
+                          actions                          (into [:batch             ; Order does not matter; the final state change is atomic
+                                                                  [:hydrate!-route-success pid (get new-partitions pid)]]
+                                                                 (concat actions
+                                                                         (map (fn [pid] [:hydrate!-start pid]) rehydrate-pids)
+                                                                         (when-not (parent-pid rt pid)
+                                                                           [[:set-global-user-basis (get-in new-partitions [pid :local-basis])]])))]
                       #_(println "rehydrate-pids " rehydrate-pids)
                       (state/dispatch! rt actions)
                       (-> (map #(hydrate-partition rt %) rehydrate-pids) ; recursion
@@ -296,7 +295,7 @@
   [rt pid dbname tx]
   (cond
     (not (branched? rt pid)) (set-stage rt (get-branch-pid rt pid) dbname tx)
-    (not (domain/valid-dbname? (hf/domain rt) dbname)) (p/rejected (ex-info "Unable to stage to an invalid db" {:dbname dbname}))
+    (not (db/valid-name? (hf/config rt) dbname)) (p/rejected (ex-info "Unable to stage to an invalid db" {:dbname dbname}))
     (get-auto-transact rt dbname) (p/rejected (ex-info "Unable to stage to a db with auto-transact on." {:dbname dbname}))
     :else (when (not= tx (get-stage rt pid dbname))
             (state/dispatch! rt [:batch
@@ -347,7 +346,7 @@
    (let [pid (get-branch-pid rt pid)]
      (transact-impl rt pid (get-stage rt pid))))
   ([rt pid dbname]
-   (if (domain/valid-dbname? (hf/domain rt) dbname)
+   (if (db/valid-name? (hf/config rt) dbname)
      (let [pid (get-branch-pid rt pid)]
        (transact-impl rt pid {dbname (get-stage rt pid dbname)}))
      (p/rejected (ex-info "Unable to transact to an invalid db" {:dbname dbname})))))
@@ -375,7 +374,7 @@
   ([rt pid dbname tx]
    (cond
      (not (branched? rt pid)) (with-tx rt (get-branch-pid rt pid) dbname tx)
-     (not (domain/valid-dbname? (hf/domain rt) dbname)) (p/rejected (ex-info "Unable to stage to an invalid db" {:dbname dbname}))
+     (not (db/valid-name? (hf/config rt) dbname)) (p/rejected (ex-info "Unable to stage to an invalid db" {:dbname dbname}))
      (empty? tx) (do (timbre/warn "No tx provided")
                      (p/resolved nil))
      :else (do
@@ -393,7 +392,7 @@
   [rt pid tx-groups]                                        ; todo rewrite in terms of with-tx
   (cond
     (not (branched? rt pid)) (commit-branch rt (get-branch-pid rt pid) tx-groups)
-    (not (domain/valid-dbnames? (hf/domain rt) (keys tx-groups))) (p/rejected (ex-info "Unable to commit to an invalid db" {:invalid-dbnames (remove #(domain/valid-dbname? (hf/domain rt) %) (keys tx-groups))}))
+    (not (db/valid-names? (hf/config rt) (keys tx-groups))) (p/rejected (ex-info "Unable to commit to an invalid db" {:invalid-dbnames (remove #(db/valid-name? (hf/config rt) %) (keys tx-groups))}))
     :else (do
             (let [with-actions (->> tx-groups
                                     (remove (fn [[dbname tx]] (empty? tx)))

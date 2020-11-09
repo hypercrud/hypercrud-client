@@ -1,25 +1,25 @@
-[#:db{:ident :user/created-date
-      :valueType :db.type/instant
+[#:db{:ident       :user/created-date
+      :valueType   :db.type/instant
       :cardinality :db.cardinality/one}
- #:db{:ident :user/email
-      :valueType :db.type/string
+ #:db{:ident       :user/email
+      :valueType   :db.type/string
       :cardinality :db.cardinality/one
-      :unique :db.unique/identity
-      :index true}
- #:db{:ident :user/last-seen
-      :valueType :db.type/instant
+      :unique      :db.unique/identity
+      :index       true}
+ #:db{:ident       :user/last-seen
+      :valueType   :db.type/instant
       :cardinality :db.cardinality/one}
- #:db{:ident :user/name
-      :valueType :db.type/string
+ #:db{:ident       :user/name
+      :valueType   :db.type/string
       :cardinality :db.cardinality/one}
- #:db{:ident :user/picture
-      :valueType :db.type/string
+ #:db{:ident       :user/picture
+      :valueType   :db.type/string
       :cardinality :db.cardinality/one}
- #:db{:ident :user/sub
-      :valueType :db.type/string
+ #:db{:ident       :user/sub
+      :valueType   :db.type/string
       :cardinality :db.cardinality/one
-      :unique :db.unique/identity}
- #:db{:ident :user/user-id
-      :valueType :db.type/uuid
+      :unique      :db.unique/identity}
+ #:db{:ident       :user/user-id
+      :valueType   :db.type/uuid
       :cardinality :db.cardinality/one
-      :unique :db.unique/identity}]
+      :unique      :db.unique/identity}]

@@ -1,4 +1,4 @@
-(ns hyperfiddle.io.http-client.impl
+(ns hyperfiddle.io.client.http
   (:require
    [cljs-http.client :as http]
    [cljs.core.async :refer [<!]]

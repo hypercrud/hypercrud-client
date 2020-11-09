@@ -3,7 +3,6 @@
     [datomic.api :as d]
     [backtick :refer [template]]
     [hyperfiddle.config]
-    [hyperfiddle.domain]
     [clojure.spec.alpha :as s]))
 
 (s/def :hyperfiddle/root

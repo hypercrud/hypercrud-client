@@ -1,28 +1,24 @@
 (ns hyperfiddle.io.datomic.hydrate-requests
-  (:require
-   [cats.core :as cats :refer [mlet]]
-   [cats.monad.either :as either]
-   [cats.monad.exception :as exception :refer [try-on]]
-   [contrib.do :refer [from-result do-result]]
-   [contrib.ct :refer [silence!]]
-   [clojure.set :as set]
-   [clojure.string :as string]
-   [contrib.data :as data :refer [cond-let map-values parse-query-element]]
-   [contrib.datomic]
-   [contrib.do :as do]
-   [contrib.pprint :refer [pprint-str]]
-   [contrib.try$ :refer [try-either]]
-   [hyperfiddle.api :as hf]
-   [hyperfiddle.security]
-   [hyperfiddle.transaction :refer [expand-hf-tx]]
-   [taoensso.timbre :as timbre]))
+  (:require [cats.core :as cats :refer [mlet]]
+            [cats.monad.either :as either]
+            [cats.monad.exception :as exception :refer [try-on]]
+            [clojure.set :as set]
+            [clojure.string :as string]
+            [contrib.data :as data :refer [cond-let map-values parse-query-element]]
+            [contrib.do :as do]
+            [contrib.pprint :refer [pprint-str]]
+            [contrib.try$ :refer [try-either]]
+            [hyperfiddle.api :as hf]
+            [hyperfiddle.service.db :as db]
+            [hyperfiddle.transaction :refer [expand-hf-tx]]
+            [taoensso.timbre :as log]))
 
 (defrecord SecureDbWith [db id->tempid])
 
 ; todo i18n
 (def ERROR-BRANCH-PAST ":hyperfiddle.error/basis-stale Branching the past is currently unsupported, please refresh your basis by refreshing the page")
 
-(defn build-get-secure-db-with+ [domain partitions-f db-with-lookup local-basis ?subject]
+(defn build-get-secure-db-with+ [config partitions-f db-with-lookup local-basis ?subject]
   {:pre [(map? local-basis)
          (not-any? nil? (vals local-basis))]}
   (letfn [(get-secure-db-from-branch+ [partitions pid dbname]
@@ -30,52 +26,51 @@
             (if-not (get-in partitions [pid :is-branched])
               (get-secure-db-from-branch+ partitions (get-in partitions [pid :parent-pid]) dbname)
               (or (get-in @db-with-lookup [pid dbname])
-                  (let [tx (get-in partitions [pid :stage dbname])
-                        ;_ (timbre/debug "tx:" #_domain dbname (pr-str tx))
+                  (let [tx       (get-in partitions [pid :stage dbname])
+                        ;;_ (timbre/debug "tx:" #_domain dbname (pr-str tx))
                         db-with+ (mlet [t (or (some-> (get local-basis dbname) exception/success)
                                               (exception/failure (ex-info (str "Basis not found") {:dbname dbname :local-basis local-basis})))
                                         init-db-with (if-let [parent-pid (get-in partitions [pid :parent-pid])]
                                                        (get-secure-db-from-branch+ partitions parent-pid dbname)
                                                        (exception/try-on
-                                                         (let [$ (->> (hf/connect domain dbname)
-                                                                      (hf/with-db))]
-                                                           {:db-with $
-                                                            :secure-db (hf/as-of $ t)})))]
-                                   ; is it a history query? (let [db (if (:history? dbval) (d/history db) db)])
-                                   (if (empty? tx)
-                                     (cats/return init-db-with)
-                                     (mlet [:let [{:keys [db-with id->tempid with?]} init-db-with]
-                                            _ (if (and (not with?) (not= t (hf/basis-t db-with)))
-                                                ; can only run this assert once, on the first time a user d/with's
-                                                ; every subsequent d/with, the new db's basis will never again match the user submitted basis
-                                                ; however this is fine, since the original t is already known good
-                                                (exception/failure (RuntimeException. ERROR-BRANCH-PAST))
-                                                (exception/success nil))
+                                                        (let [$ (->> (db/connect config dbname)
+                                                                     (hf/with-db))]
+                                                          {:db-with   $
+                                                           :secure-db (hf/as-of $ t)})))]
+                                       ;; is it a history query? (let [db (if (:history? dbval) (d/history db) db)])
+                                       (if (empty? tx)
+                                         (cats/return init-db-with)
+                                         (mlet [:let [{:keys [db-with id->tempid with?]} init-db-with]
+                                                _ (if (and (not with?) (not= t (hf/basis-t db-with)))
+                                                    ;; can only run this assert once, on the first time a user d/with's
+                                                    ;; every subsequent d/with, the new db's basis will never again match the user submitted basis
+                                                    ;; however this is fine, since the original t is already known good
+                                                    (exception/failure (RuntimeException. ERROR-BRANCH-PAST))
+                                                    (exception/success nil))
 
-                                            ; Must Hydrate schemas to validate the stage
-                                            ; Validator needs:
-                                            ; - schema, in non-local datomic configurations we should reuse the schema we have
-                                            ; - the domain's relevant hf-db with security metadata e.g. database owners
-                                            ; - maybe: the dbval with basis right before this tx, to allow for additional queries (slow in non-local datomic config)
-                                            tx (binding [hf/*subject* ?subject
-                                                         hf/*$* db-with
-                                                         hf/*domain* domain]
-                                                 (with-bindings (hf/bindings domain)
-                                                   (try-on (expand-hf-tx (hf/process-tx db-with domain dbname ?subject tx)))))
-                                            ;_ (assert schema "needed for d/with") ; not available for hydrate-schemas in request bootstrapping
-                                            {:keys [db-after tempids]} (exception/try-on (hf/with db-with {:tx-data tx
-                                                                                                          #_(if-not schema
-                                                                                                            tx ; bootstrapping
-                                                                                                            (coerce-tx schema tx))}))]
-                                       ; as-of/basis-t gymnastics:
-                                       ; https://gist.github.com/dustingetz/39f28f148942728c13edef1c7d8baebf/ee35a6af327feba443339176d371d9c7eaff4e51#file-datomic-d-with-interactions-with-d-as-of-clj-L35
-                                       ; https://forum.datomic.com/t/interactions-of-d-basis-t-d-as-of-d-with/219
-                                       (exception/try-on
-                                         {:db-with db-after
-                                          :secure-db (hf/as-of db-after (hf/basis-t db-after))
-                                          :with? true
-                                          ; todo this merge is excessively duplicating data to send to the client
-                                          :id->tempid (merge id->tempid (set/map-invert tempids))}))))]
+                                                ;; Must Hydrate schemas to validate the stage
+                                                ;; Validator needs:
+                                                ;; - schema, in non-local datomic configurations we should reuse the schema we have
+                                                ;; - the domain's relevant hf-db with security metadata e.g. database owners
+                                                ;; - maybe: the dbval with basis right before this tx, to allow for additional queries (slow in non-local datomic config)
+                                                tx (binding [hf/*subject* ?subject
+                                                             hf/*$*       db-with]
+                                                     (with-bindings (hf/bindings config)
+                                                       (try-on (expand-hf-tx (hf/process-tx db-with config dbname ?subject tx)))))
+                                                ;;_ (assert schema "needed for d/with") ; not available for hydrate-schemas in request bootstrapping
+                                                {:keys [db-after tempids]} (exception/try-on (hf/with db-with {:tx-data tx
+                                                                                                               #_       (if-not schema
+                                                                                                                          tx ; bootstrapping
+                                                                                                                          (coerce-tx schema tx))}))]
+                                               ;; as-of/basis-t gymnastics:
+                                               ;; https://gist.github.com/dustingetz/39f28f148942728c13edef1c7d8baebf/ee35a6af327feba443339176d371d9c7eaff4e51#file-datomic-d-with-interactions-with-d-as-of-clj-L35
+                                               ;; https://forum.datomic.com/t/interactions-of-d-basis-t-d-as-of-d-with/219
+                                               (exception/try-on
+                                                {:db-with    db-after
+                                                 :secure-db  (hf/as-of db-after (hf/basis-t db-after))
+                                                 :with?      true
+                                                 ;; todo this merge is excessively duplicating data to send to the client
+                                                 :id->tempid (merge id->tempid (set/map-invert tempids))}))))]
                     (swap! db-with-lookup assoc-in [pid dbname] db-with+)
                     db-with+))))]
     (fn [dbname pid]
@@ -87,7 +82,7 @@
 ; this is legacy garbage
 ; todo just catch and generate exceptions inside get-secure-db-with and hydrate-request*
 (defn- error-cleaner [e req]
-  (timbre/error e)                                          ; log it before this "cleaner" destroys all useful information, shouldn't be necessary
+  (log/error e)                                          ; log it before this "cleaner" destroys all useful information, shouldn't be necessary
   (let [error-str (str e)
         parsed-soup (cond-let
                       [msg #_(re-find #"(?s)^.+ :db.error/datoms-conflict (.+)$" error-str)
@@ -157,20 +152,19 @@
 (defn- get-db [getterf pid dbname]
   (:db (getterf dbname pid)))
 
-(defn hydrate-request [domain get-secure-db-with+ [route pid :as F] ?subject]
+(defn hydrate-request [config get-secure-db-with+ [route pid :as F] ?subject]
   (either/branch-left
     ; Force exceptions here. How?
-    (try-either
-      (let [get-db' (partial get-db (comp exception/extract get-secure-db-with+) pid)]
+   (try-either
+      (let [get-db' (partial #'get-db (comp exception/extract get-secure-db-with+) pid)]
         (binding [hf/*get-db* get-db'
                   hf/*subject* ?subject
                   ; get-db will realize the database, possibly throwing on a bad stage
                   ; which should not break the page here. See test
                   #_#_hf/*$* (silence! (do-result (get-db' "$")))
                   hf/*$*     (get-db' "$")
-                  hf/*route* route
-                  hf/*domain* domain]
-          (with-bindings (hf/bindings domain)
+                  hf/*route* route]
+          (with-bindings (hf/bindings config)
             (let [[f & args]     route
                   defaults (apply hf/defaults (data/zipseq args (repeat (max-arity (find-var f)) nil)))]
               [(cons f defaults)
@@ -180,15 +174,15 @@
 
 ;; F is [ƒ, pid].
 ;; F is a fiddle function evaluation in the context of a given branch.
-(defn hydrate-requests [domain local-basis Fs partitions ?subject]
+(defn hydrate-requests [config local-basis Fs partitions ?subject]
   {:pre [Fs (not-any? nil? Fs)]}
   (do/scope [`hydrate-requests Fs]
-    (let [db-with-lookup (atom {})
-          local-basis (into {} local-basis)                 ; :: ([dbname 1234]), but there are some duck type shenanigans happening
-          get-secure-db-with+ (build-get-secure-db-with+ domain (constantly partitions) db-with-lookup local-basis ?subject)
-          pulled-trees (->> Fs
-                            (map #(hydrate-request domain get-secure-db-with+ % ?subject))
-                            (doall))
-          tempid-lookups (map-values #(map-values extract-tempid-lookup+ %) @db-with-lookup)]
-      {:pulled-trees   pulled-trees
-       :tempid-lookups tempid-lookups})))
+            (let [db-with-lookup      (atom {})
+                  local-basis         (into {} local-basis) ; :: ([dbname 1234]), but there are some duck type shenanigans happening
+                  get-secure-db-with+ (build-get-secure-db-with+ config (constantly partitions) db-with-lookup local-basis ?subject)
+                  pulled-trees        (->> Fs
+                                           (map #(hydrate-request config get-secure-db-with+ % ?subject))
+                                           (doall))
+                  tempid-lookups      (map-values #(map-values extract-tempid-lookup+ %) @db-with-lookup)]
+              {:pulled-trees   pulled-trees
+               :tempid-lookups tempid-lookups})))

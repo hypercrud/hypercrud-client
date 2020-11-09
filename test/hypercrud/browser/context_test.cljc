@@ -3,16 +3,15 @@
     [cats.core :refer [mlet return extract]]
     [cats.monad.either :as either :refer [left right]]
     [clojure.spec.alpha :as s]
+    [clojure.test :refer [deftest is testing]]
     [contrib.ct :refer [unwrap]]
     [contrib.reactive :as r]
-    [clojure.test :refer [deftest is testing]]
     [fixtures.domains]
     [fixtures.tank]
     [hypercrud.browser.context :as context]
     [hyperfiddle.api :as hf]
     [hyperfiddle.data]
     [hyperfiddle.fiddle :as fiddle]
-    [hyperfiddle.route :as route]
     [hyperfiddle.runtime]
     [hyperfiddle.state :as state]
     [hyperfiddle.ui.sort :as sort]))
@@ -21,15 +20,14 @@
 (defn mock-peer [pid schemas]
   ; Stop NPEs in tempid that inspect the stage.
   (let [state-atom (-> {:hyperfiddle.runtime/partitions {pid {:is-branched true
-                                                              :schemas schemas}}}
+                                                              :schemas     schemas}}}
                        state/initialize
                        (r/atom))
-        databases (zipmap (keys schemas) (repeatedly (constantly {})))
-        domain (reify hf/Domain
-                 (databases [domain] databases))]
+        databases  (zipmap (keys schemas) (repeatedly (constantly {})))
+        config     {:databases databases}]
     (reify
       hf/HF-Runtime
-      (domain [rt] domain)
+      (config [rt] config)
       hf/State
       (state [rt] state-atom))))
 

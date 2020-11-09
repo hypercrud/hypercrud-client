@@ -1,7 +1,7 @@
 (ns hyperfiddle.io.datomic.core
-  (:import (java.io FileNotFoundException))
-  (:require [clojure.spec.alpha :as s]))
-
+  (:require [clojure.spec.alpha :as s]
+            [lazy-require.core :refer [with-lazy-require]])
+  (:import java.io.FileNotFoundException))
 
 ; TODO Migrate these fns to hyperfiddle.api multimethods
 
@@ -12,16 +12,16 @@
                                 (catch FileNotFoundException e false))))
 
 (defn dyna-client [arg-map]
-  (require 'datomic.client.api)
-  ((resolve 'datomic.client.api/client) arg-map))
+  (with-lazy-require [datomic.client.api]
+    (datomic.client.api/client arg-map)))
 
 (defn dyna-connect [{:keys [database/uri database/db-name] :as hf-db} ?client & [on-created!]]
   (cond
-    (and uri @peer-supported) (do (require 'hyperfiddle.io.datomic.peer)
-                                  ((resolve 'hyperfiddle.io.datomic.peer/connect) uri on-created!))
-    (and db-name @client-supported ?client) (do (require 'hyperfiddle.io.datomic.client)
-                                                ; Clients don't need to auto-provision memory dbs so ignore on-created!
-                                                ((resolve 'hyperfiddle.io.datomic.client/connect) ?client db-name))
+    (and uri @peer-supported) (with-lazy-require [hyperfiddle.io.datomic.peer]
+                                (hyperfiddle.io.datomic.peer/connect uri on-created!))
+    (and db-name @client-supported ?client) (with-lazy-require [hyperfiddle.io.datomic.client]
+                                              ;; Clients don't need to auto-provision memory dbs so ignore on-created!
+                                              (hyperfiddle.io.datomic.client/connect ?client db-name))
     (and (nil? uri) (nil? db-name)) (throw (ex-info "Database not well formed, must specify a db-name or uri to connect to" {}))
     (and uri (not @peer-supported)) (throw (ex-info "Unable to resolve datomic peer library on classpath" {:database/uri uri}))
     (and db-name (nil? ?client)) (throw (ex-info "No datomic client provided, cannot connect" {:database/db-name db-name}))

@@ -12,19 +12,14 @@
     [contrib.reactive :as r]
     [contrib.string :refer [blank->nil]]
     [contrib.ui]
-    [contrib.ui.safe-render :refer [user-portal]]
     [contrib.ui.tooltip :refer [tooltip tooltip-props]]
-    [contrib.big-decimal :as bigdec]
-    [contrib.eval :as eval]
-    [cuerdas.core :as str]
     [datascript.parser :refer [FindRel FindColl FindTuple FindScalar]]
-    [hypercrud.browser.base :as base]
     [hypercrud.browser.context :as context]
     [hyperfiddle.api :as hf]
     [hyperfiddle.data :as data]
-    [hyperfiddle.domain :as domain]
     [hyperfiddle.route :as route]
     [hyperfiddle.runtime :as runtime]
+    [hyperfiddle.service.db :as db]
     [hyperfiddle.spec :as spec]
     [hyperfiddle.ui.controls :as controls :refer [identity-label ref-label element-label]]
     [hyperfiddle.ui.error :as ui-error]
@@ -232,7 +227,7 @@ User renderers should not be exposed to the reaction."
         props (-> props
                   (update :class css "hyperfiddle")
                   (dissoc :route)
-                  (assoc :href (some->> route (hf/url-encode (hf/domain (:runtime ctx)))))
+                  (assoc :href (some-> route (route/url-encode (:home-route (hf/config (:runtime ctx))))))
                   (select-keys [:class :href :style]))]
     (into [:a props] children)))
 
@@ -338,7 +333,7 @@ User renderers should not be exposed to the reaction."
     [:div {:class (css "field" (:class props))
            :style {:border-color (if (redirect-to-route? ctx)
                                    "lightgrey" ; fields writting to the route are grey
-                                   (domain/database-color (hf/domain (:runtime ctx)) (context/dbname ctx)))}}
+                                   (db/color (hf/config (:runtime ctx)) (context/dbname ctx)))}}
      [Head ctx props]                                   ; suppress ?v in head even if defined
      [Body ctx (value-props props ctx)]]))
 
@@ -346,7 +341,7 @@ User renderers should not be exposed to the reaction."
   [ctx Body Head props]                                     ; Body :: (val props ctx) => DOM, invoked as component
   (case (if (:hypercrud.browser/head-sentinel ctx) :head :body) ; broken
     :head [:th {:class (css "field" (:class props))         ; hoist
-                :style {:background-color (domain/database-color (hf/domain (:runtime ctx)) (context/dbname ctx))}}
+                :style {:background-color (db/color (hf/config (:runtime ctx)) (context/dbname ctx))}}
            [Head ctx (-> props
                          (update :class css (when (sort/sortable? ctx) "sortable")
                                  (if-let [[p ?d] (sort/sort-directive ctx)]
@@ -355,7 +350,7 @@ User renderers should not be exposed to the reaction."
                          (assoc :on-click (r/partial sort/toggle-sort! ctx)))]]
     ; Field omits [] but table does not, because we use it to specifically draw repeating anchors with a field renderer.
     :body [:td {:class (css "field" (:class props))
-                :style {:border-color (domain/database-color (hf/domain (:runtime ctx)) (context/dbname ctx))}}
+                :style {:border-color (db/color (hf/config (:runtime ctx)) (context/dbname ctx))}}
            [Body ctx (value-props props ctx)]]))
 
 (defn ^:export field "Works in a form or table context. Draws label and/or value."

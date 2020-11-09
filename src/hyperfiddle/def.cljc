@@ -1,6 +1,5 @@
 (ns hyperfiddle.def
   (:require
-   #?(:clj [clojure.tools.reader :as reader])
    [clojure.spec.alpha :as s]
    [contrib.data :as data]
    [contrib.expr :refer [read-alt]]

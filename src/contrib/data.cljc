@@ -392,9 +392,34 @@
 (defmethod fmap* #?(:clj clojure.lang.PersistentTreeMap  :cljs PersistentTreeMap)  [_] map-values)
 (defmethod fmap* :default                                                          [_] map)
 
-(defn fmap [f xs]
+(defn fmap "Generic mapping over collections. See `fmap*` multimethod."
+  [f xs]
   ((fmap* xs) f xs))
 
-(defn for-each [xs f & args]
+(defn for-each
+  "Equivalent to (flip `fmap`), with `clojure.core/update` like syntax.
+  ```
+  (for-each {:a {:b 1, :c 2}} select-keys [:b]) => {:a {:b 1}}
+  (for-each {:b 1, :c 2} inc) => {:b 2, :c 3}
+  (for-each [1 2 3] inc) => [2 3 4]
+  ```"
+  [xs f & args]
   (fmap #(apply f % args) xs))
+
+(defn- indices [xs] (into {} (map-indexed (fn [i x] [x i])) xs))
+
+(defn sort-by-position
+  "(sort-by-position identity [:a :b :c] [:c :b :a}]) => (:a :b :c)"
+  ([positions xs]
+   (sort-by-position identity positions xs))
+  ([getter positions xs]
+   (let [index-of (indices positions)]
+     (sort (comparator (fn [x y]
+                         (let [xi (index-of (getter x))
+                               yi (index-of (getter y))]
+                           (cond
+                             (and xi yi) (< xi yi)
+                             xi          true
+                             yi          false))))
+           xs))))
 

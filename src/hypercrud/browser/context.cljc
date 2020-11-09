@@ -5,21 +5,17 @@
     [clojure.core.match :refer [match #?(:cljs match*)]]
     [clojure.spec.alpha :as s]
     [contrib.do :refer [do-result from-result]]
-    [contrib.ct :refer [unwrap]]
-    [contrib.data :refer [ancestry-common ancestry-divergence unqualify keywordize map-values]]
+    [contrib.data :refer [ancestry-common ancestry-divergence unqualify keywordize]]
     [contrib.datomic :as d]
-    [contrib.eval :as eval]
     [contrib.reactive :as r]
     [contrib.string :refer [blank->nil]]
-    [contrib.try$ :refer [try-either]]
     [datascript.parser #?@(:cljs [:refer [FindRel FindColl FindTuple FindScalar Variable Aggregate Pull]])]
     [hyperfiddle.api :as hf]
+    [hyperfiddle.config :as config]
     [hyperfiddle.fiddle :as fiddle]
-    [hyperfiddle.route :as route]
     [hyperfiddle.runtime :as runtime]
     [hyperfiddle.spec :as spec]
-    [hyperfiddle.spec.datomic :as spec-datomic]
-    [taoensso.timbre :as timbre])
+    [hyperfiddle.spec.datomic :as spec-datomic])
   #?(:clj
      (:import
        (datascript.parser FindRel FindColl FindTuple FindScalar Variable Aggregate Pull))))
@@ -1262,7 +1258,7 @@ a speculative db/id."
     (= k (unqualify (hf/display-mode ctx)))))
 
 (defmethod hf/subject Context [ctx] (hyperfiddle.runtime/get-user-id (:runtime ctx)))
-(defmethod hf/db-record Context [ctx] (hf/database (hf/domain (:runtime ctx)) (hf/dbname ctx)))
+(defmethod hf/db-record Context [ctx] (config/db (hf/config (:runtime ctx)) (hf/dbname ctx)))
 
 (defn- update-v [id->tempid schema a v]
   (if (contrib.datomic/ref? schema a)

@@ -1,20 +1,18 @@
 (ns hyperfiddle.ui.staging
   (:require
     [cats.monad.either :as either]
-    [clojure.string :as string]
     [contrib.css :refer [css]]
-    [contrib.pprint :refer [pprint-str pprint-datoms-str]]
+    [contrib.hfrecom :refer [anchor-tabs]]
+    [contrib.pprint :refer [pprint-str]]
     [contrib.reactive :as r]
     [contrib.reader :refer [read-edn-string!]]
-    [contrib.hfrecom :refer [anchor-tabs]]
     [contrib.ui :refer [code debounced easy-checkbox validated-cmp]]
     [contrib.ui.tooltip :refer [tooltip]]
-    [hyperfiddle.domain :as domain]
+    [hyperfiddle.api :as hf]
+    [hyperfiddle.config :as config]
+    [hyperfiddle.service.db :as db]
     [hyperfiddle.runtime :as runtime]
-    [hyperfiddle.state :as state]
-    [re-com.core :as re-com]
-    [re-com.tabs]
-    [hyperfiddle.api :as hf]))
+    [re-com.tabs :as tabs]))
 
 
 (defn- default-tab-model [selected-dbname tab-ids]
@@ -23,7 +21,7 @@
     (first tab-ids)))
 
 (defn- writes-allowed?+ [rt selected-dbname]
-  (let [hf-db (hf/database (hf/domain rt) selected-dbname)
+  (let [hf-db   (config/db (hf/config rt) selected-dbname)
         subject (runtime/get-user-id rt)]
     (hf/subject-may-transact+ hf-db subject)))
 
@@ -34,7 +32,7 @@
     [tooltip (cond
                (either/left? writes-allowed?+) {:status :warning :label @writes-allowed?+}
                (empty? stage) {:status :warning :label "all changes saved"})
-     (let [color (domain/database-color (hf/domain rt) selected-dbname)
+     (let [color (db/color (hf/config rt) selected-dbname)
            is-disabled (or (either/left? writes-allowed?+) (empty? stage))]
        [:button {:disabled is-disabled
                  :class (css "btn btn-sm hf-btn-xs" (if is-disabled "btn-outline-secondary" "btn-secondary"))
@@ -83,7 +81,7 @@
       on-change (fn [rt pid dbname-ref o n] (runtime/set-stage rt pid @dbname-ref n))]
   (defn- tab-content [rt pid dbname-ref & [child]]
     [:div.hyperfiddle-stage-content
-     {:style {:border-color (domain/database-color (hf/domain rt) @dbname-ref)}}
+     {:style {:border-color (db/color (hf/config rt) @dbname-ref)}}
      child
      (let [props {:value (runtime/get-stage rt pid @dbname-ref)
                   :readOnly (runtime/get-auto-transact rt @dbname-ref)
@@ -93,8 +91,8 @@
        [debounced props validated-cmp parse-string to-string code])]))
 
 (defn default-dbname-labels [rt]
-  (->> (hf/domain rt) hf/databases keys sort
-       (map (fn [%] {:id % :label (domain/dbname-label %)}))))
+  (->> (hf/config rt) :databases keys sort
+       (map (fn [%] {:id % :label (db/dbname-label %)}))))
 
 (defn dirty-dbs [rt pid]
   (->> (runtime/get-stage rt pid)
@@ -109,13 +107,13 @@
    (let [tabs-definition (mapv (fn [{:keys [id] s-label :label}]
                                  {:id id
                                   :label [:span
-                                          {:style {:border-color (domain/database-color (hf/domain rt) id)}
+                                          {:style {:border-color (db/color (hf/config rt) id)}
                                            :class (when (contains? (dirty-dbs rt pid) id) "stage-dirty")}
                                           s-label]})
                                dbname-labels)
          selected-dbname' (r/fmap-> selected-dbname (default-tab-model (mapv :id dbname-labels)))]
      [:div.hyperfiddle-staging-editor-cmp
-      [re-com.tabs/horizontal-tabs
+      [tabs/horizontal-tabs
        :model selected-dbname'
        :tabs tabs-definition
        :on-change (r/partial reset! selected-dbname)]
@@ -129,7 +127,7 @@
                                  {:id id
                                   :href "#"
                                   :label [:span
-                                          {:style {:border-color (domain/database-color (hf/domain rt) id)}
+                                          {:style {:border-color (db/color (hf/config rt) id)}
                                            :class (when (contains? (dirty-dbs rt pid) id) "stage-dirty")}
                                           s-label]})
                                dbname-labels)

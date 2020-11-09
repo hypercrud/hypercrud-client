@@ -2,19 +2,17 @@
   (:require
     [clojure.spec.alpha :as s]
     [contrib.css :refer [css css-slugify]]
-    [contrib.pprint :refer [pprint-str pprint-async]]
     [contrib.reactive :as r]
     [contrib.reader :as reader]
     [contrib.ui]
     [contrib.ui.safe-render :refer [user-portal]]
     [hypercrud.browser.base :as base]
+    [hyperfiddle.api :as hf]
+    [hyperfiddle.route :as route]
     [hyperfiddle.runtime :as runtime]
     [hyperfiddle.ui.error :as ui-error]
     [hyperfiddle.ui.stale :as stale]
-    [hyperfiddle.api :as hf]
-    [hyperfiddle.spec :as spec]
-    [taoensso.timbre :as timbre]
-    [clojure.string :as str]))
+    [taoensso.timbre :as timbre]))
 
 
 (defn auto-ui-css-class [?ctx]                              ; semantic css
@@ -75,7 +73,7 @@
   (let [route (if default?
                 (runtime/get-route-defaults rt pid)
                 (runtime/get-route rt pid))]
-    (when-let [error (s/explain-data :hyperfiddle/route route)]
+    (when-let [error (s/explain-data ::route/route route)]
       (js/console.error "Invalid route" (::s/problems error)))
     (seq route)))
 
@@ -88,7 +86,7 @@
   (let [route (seq (reader/read-edn-string! s))
         cat (some-> route first s/get-spec :args)]
     (try
-      (s/assert :hyperfiddle/route route)
+      (s/assert ::route/route route)
       (when (some? cat) (s/assert cat (rest route)))
       route
       (catch :default err

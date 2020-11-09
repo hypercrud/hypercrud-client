@@ -61,20 +61,24 @@
 (defn watch-key [branch-id] (keyword (str (hash branch-id)) "local-storage"))
 
 (defn- update-state [rt pid ls-key new-value different-basis]
-  (let [{:keys [::runtime/auto-transact ::runtime/global-basis ::runtime/user-id :stage :version]} new-value
-        different-user (not= user-id (runtime/get-user-id rt))
-        different-stage (not= stage (runtime/get-stage rt pid))
-        different-autotx (some (fn [[dbname auto-tx]] (not= auto-tx (runtime/get-auto-transact rt dbname))) auto-transact)
-        init-level (cond
-                     different-user runtime/LEVEL-NONE
-                     different-basis runtime/LEVEL-GLOBAL-BASIS
-                     different-stage runtime/LEVEL-LOCAL-BASIS
-                     :else runtime/LEVEL-HYDRATE-PAGE)
-        action (cond-> [:batch]
-                 different-user (conj [:set-user-id user-id])
-                 different-basis (conj [:set-global-basis global-basis])
-                 different-stage (conj [:reset-stage-branch pid stage])
-                 different-autotx (conj [:set-auto-transact auto-transact]))]
+  (let [{:keys [::runtime/auto-transact
+                ::runtime/global-basis
+                ::runtime/user-id
+                :stage
+                :version]} new-value
+        different-user     (not= user-id (runtime/get-user-id rt))
+        different-stage    (not= stage (runtime/get-stage rt pid))
+        different-autotx   (some (fn [[dbname auto-tx]] (not= auto-tx (runtime/get-auto-transact rt dbname))) auto-transact)
+        init-level         (cond
+                             different-user  runtime/LEVEL-NONE
+                             different-basis runtime/LEVEL-GLOBAL-BASIS
+                             different-stage runtime/LEVEL-LOCAL-BASIS
+                             :else           runtime/LEVEL-HYDRATE-PAGE)
+        action             (cond-> [:batch]
+                             different-user   (conj [:set-user-id user-id])
+                             different-basis  (conj [:set-global-basis global-basis])
+                             different-stage  (conj [:reset-stage-branch pid stage])
+                             different-autotx (conj [:set-auto-transact auto-transact]))]
     (remove-watch (hf/state rt) (watch-key pid))
     ; this dispatch! is syncronous, so we can safely, temporarily stop the localstorage sync
     ; this is desired so an inactive tab does NOT
@@ -83,7 +87,7 @@
     (try
       (let [changing-route (when-not (runtime/parent-pid rt pid)
                              (let [existing-route (runtime/get-route rt pid)
-                                   route (hf/url-decode (hf/domain rt) (document-location!))]
+                                   route          (route/url-decode (document-location!) (:home-route (hf/config rt)))]
                                (when-not (= existing-route route)
                                  (state/dispatch! rt [:stage-route pid route])
                                  true)))]
@@ -141,13 +145,13 @@
              {}
              ssr))
 
-(defn- init-state [domain initial-state ls-state & [global-basis]]
+(defn- init-state [config initial-state ls-state & [global-basis]]
   (-> (select-keys ls-state [::runtime/auto-transact
                              ::runtime/user-id
                              :last-modified
                              :stage
                              :version])
-      (update :stage select-keys (keys (hf/databases domain))) ; drop any stage no longer applicable to domain ; todo show an error page when dropping tx? user might lose work
+      (update :stage select-keys (keys (:databases config))) ; drop any stage no longer applicable to domain ; todo show an error page when dropping tx? user might lose work
       (update ::runtime/auto-transact init-auto-tx (::runtime/auto-transact initial-state))
       (assoc ::runtime/user-id (::runtime/user-id initial-state)) ; ssr always win (it has access to cookies)
       (cond->
@@ -161,7 +165,7 @@
           new-ls-state (loop [ls-state ls-state]
                          (if (= running-ls-schema-version (:version ls-state))
                            (if-not (runtime/parent-pid rt pid)
-                             (init-state (hf/domain rt) initial-state ls-state)
+                             (init-state (hf/config rt) initial-state ls-state)
                              (let [global-basis (let [init-gb (::runtime/global-basis initial-state)
                                                       ls-gb (get ls-state [::runtime/global-basis])]
                                                   (cond
@@ -179,7 +183,7 @@
                                                                   -1 ls-gb
                                                                   0 init-gb
                                                                   1 init-gb)))))]
-                               (init-state (hf/domain rt) initial-state ls-state global-basis)))
+                               (init-state (hf/config rt) initial-state ls-state global-basis)))
                            (if-let [migrate (get ls-migrations (:version ls-state))]
                              (recur (migrate ls-state))
                              (do

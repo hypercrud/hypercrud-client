@@ -5,13 +5,12 @@
     [clojure.string :as string]
     [clojure.walk :as walk]
     [contrib.base-64-url-safe :as base-64-url-safe]
-    [contrib.data]
+    [contrib.data :as data]
     [contrib.ednish :as ednish]
     [contrib.pprint :refer [pprint-str]]
     [contrib.reader :as reader]
     [contrib.try$ :refer [try-either]]
     [hyperfiddle.api :as hf]
-    [hyperfiddle.fiddle]                                    ; for ::fiddle spec
     [taoensso.timbre :as timbre]))
 
 (s/def ::fiddle (s/or
@@ -22,14 +21,14 @@
 (s/def ::where vector?)                                     ; todo (s/+ :contrib.datomic.client.query/clause)
 (s/def ::fragment string?)
 
-(s/def :hyperfiddle/route (s/cat :f qualified-symbol?, :args (s/* any?)))
+(s/def ::route (s/cat :f qualified-symbol?, :args (s/* any?)))
 
 (defn validate-route+ [route]
   (either/right
-   (if (s/valid? :hyperfiddle/route route)
+   (if (s/valid? ::route route)
      [route nil]
-     [route (ex-info (str "Invalid route\n" (s/explain-str :hyperfiddle/route route))
-                     (s/explain-data :hyperfiddle/route route))])))
+     [route (ex-info (str "Invalid route\n" (s/explain-str ::route route))
+                     (s/explain-data ::route route))])))
 
 (defn decoding-error [e s]
   {::fiddle :hyperfiddle.system/decoding-error
@@ -58,7 +57,7 @@
    ednish/decode-uri])
 
 (defn url-encode [route home-route]
-  {:pre [(s/valid? :hyperfiddle/route route) (s/valid? :hyperfiddle/route home-route)]}
+  ;; {:pre [(s/valid? ::route route) (s/valid? ::route home-route)]}
   (let [[f & args] route]
     (if (= route home-route)
       "/"
@@ -86,8 +85,8 @@
        (seq)))
 
 (defn url-decode [s home-route]
-  {:pre  [(string? s) #_(s/valid? :hyperfiddle/route home-route)]
-   :post [#_(s/valid? :hyperfiddle/route %)]}
+  {:pre  [(string? s) #_(s/valid? ::route home-route)]
+   :post [#_(s/valid? ::route %)]}
   (-> (try-either
        (if-let [[match _ query hash] (re-find url-regex s)]
           ; is-home "/" true
@@ -131,10 +130,10 @@
     (map? route)    route
     (list? route)   route
     (vector? route) (let [[fiddle datomic-args _ fragment] route
-                          m-route (contrib.data/dissoc-nils
-                                    {::fiddle fiddle
-                                     ::datomic-args datomic-args
-                                     ::fragment fragment})]
+                          m-route                          (data/dissoc-nils
+                                                            {::fiddle       fiddle
+                                                             ::datomic-args datomic-args
+                                                             ::fragment     fragment})]
                       (timbre/warnf "Deprecated route format detected `%s` use a map instead: `%s`" (pr-str route) (pr-str m-route))
                       m-route)))
 

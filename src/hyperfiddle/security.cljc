@@ -1,13 +1,20 @@
 (ns hyperfiddle.security
-  (:require
-    [cats.monad.either :refer [right left]]
-    #?(:clj [hyperfiddle.io.datomic.core])
-    #?(:clj [hyperfiddle.schema])
-    [hyperfiddle.transaction :refer [remove-tx]]
-    #?(:clj [contrib.pprint :refer [pprint-str pprint-datoms-str]])
-    #?(:clj [taoensso.timbre :as timbre])
-    [hyperfiddle.api :as hf]))
-
+  #?@
+   (:clj
+    [(:require
+      [cats.monad.either :refer [left right]]
+      [contrib.pprint :refer [pprint-datoms-str pprint-str]]
+      [hyperfiddle.api :as hf]
+      [hyperfiddle.config :as config]
+      hyperfiddle.io.datomic.core
+      hyperfiddle.schema
+      [hyperfiddle.transaction :refer [remove-tx]]
+      [taoensso.timbre :as timbre])]
+    :cljs
+    [(:require
+      [cats.monad.either :refer [left right]]
+      [hyperfiddle.api :as hf]
+      [hyperfiddle.transaction :refer [remove-tx]])]))
 
 (def root "hyperfiddle.security/root")                      ; todo uuid/real account
 
@@ -21,8 +28,8 @@
        tx)))
 
 #?(:clj
-   (defmethod hf/process-tx :hyperfiddle.security/owner-only [$ domain dbname subject tx]
-     (if (-> (into #{root} (:hyperfiddle/owners (hf/database domain dbname)))
+   (defmethod hf/process-tx :hyperfiddle.security/owner-only [$ config dbname subject tx]
+     (if (-> (into #{root} (:hyperfiddle/owners (config/db config dbname)))
            (contains? subject))
        tx
        (throw (tx-validation-failure)))))
@@ -47,11 +54,11 @@
 
 #?(:clj
    (defn whitelist [$                                       ; Already has the proper staging area applied (one prior to the tx currently being validated)
-                    domain db-name]                         ; spaghetti params used to decide which Datomic native q function to call
-     {:pre [$ domain db-name]}
+                    config db-name]                         ; spaghetti params used to decide which Datomic native q function to call
+     {:pre [$ config db-name]}
      ; TODO this is IO for non-local datomic configurations
      (let [whitelist (try
-                       ((hyperfiddle.io.datomic.core/qf (hf/databases domain)
+                       ((hyperfiddle.io.datomic.core/qf (:databases config)
                                                         [[db-name nil]])
                         (attr-whitelist-query $))
                        (catch Exception e
@@ -59,7 +66,7 @@
                          ; :db.error/not-an-entity Unable to resolve entity: :hyperfiddle/whitelist-attribute
                          nil))]
        (into (set whitelist)
-             (:hf/transaction-operation-whitelist (hf/database domain db-name))))))
+             (:hf/transaction-operation-whitelist (config/db config db-name))))))
 
 #?(:clj
    (defmethod hf/process-tx :hyperfiddle.security/tx-operation-whitelist [$ domain dbname subject tx]

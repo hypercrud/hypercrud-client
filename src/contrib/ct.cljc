@@ -1,9 +1,6 @@
 (ns contrib.ct
-  (:require
-    [cats.core :refer [extract]]
-    [cats.monad.either :as either :refer [left right]]
-    [cats.monad.maybe :as maybe :refer [maybe? just nothing nothing?]]))
-
+  (:require [cats.monad.either :as either]
+            [cats.monad.maybe :as maybe :refer [just nothing]]))
 
 (defn unwrap [lf v+]
   (either/branch v+ lf identity))

@@ -66,30 +66,30 @@
 ; Very easy to refocus to another slot to get that link
 
 (defn requests [ctx]
-  ; More efficient to drive from links. But to do this, we need to refocus
-  ; from the top, multiplying out for all possible dependencies.
+  ;; More efficient to drive from links. But to do this, we need to refocus
+  ;; from the top, multiplying out for all possible dependencies.
   (do/scope [`requests {:pid    (:partition-id ctx)
-                     :fiddle (:fiddle/ident @(:hypercrud.browser/fiddle ctx))
-                     :route  @(:hypercrud.browser/route ctx)}]
-    (do/scope 'requests-here
-      (requests-here ctx))
-    (do/scope 'spread
-      (doseq [[_ ctx] (context/spread-result ctx)]
-        (requests-here ctx)                                 ; depend on result? Not sure if right
-        (doseq [[_ ctx] (context/spread-rows ctx)]
-          #_(requests-here ctx)
-          (doseq [[_ {el :hypercrud.browser/element :as ctx}] (context/spread-elements ctx)]
-            (case (unqualify (contrib.datomic/parser-type @el))
-              :variable nil #_(requests-here ctx)
-              :aggregate nil #_(requests-here ctx)
-              :pull (do (requests-here ctx)
-                        ; Dependent attr links, slow af though, so disabled for now.
-                        (request-attr-level ctx)))))
+                        :fiddle (:fiddle/ident @(:hypercrud.browser/fiddle ctx))
+                        :route  @(:hypercrud.browser/route ctx)}]
+            (do/scope 'requests-here
+                      (requests-here ctx))
+            (do/scope 'spread
+                      (doseq [[_ ctx] (context/spread-result ctx)]
+                        (requests-here ctx)                                 ; depend on result? Not sure if right
+                        (doseq [[_ ctx] (context/spread-rows ctx)]
+                          #_(requests-here ctx)
+                          (doseq [[_ {el :hypercrud.browser/element :as ctx}] (context/spread-elements ctx)]
+                            (case (unqualify (contrib.datomic/parser-type @el))
+                              :variable  nil #_ (requests-here ctx)
+                              :aggregate nil #_ (requests-here ctx)
+                              :pull      (do (requests-here ctx)
+                                        ;; Dependent attr links, slow af though, so disabled for now.
+                                        (request-attr-level ctx)))))
 
-        ; no rows - independent
-        (doseq [[_ {el :hypercrud.browser/element :as ctx}] (context/spread-elements ctx)]
-          (case (unqualify (contrib.datomic/parser-type @el))
-            :variable nil #_(requests-here ctx)
-            :aggregate nil #_(requests-here ctx)
-            :pull (do (requests-here ctx)
-                      (request-attr-level ctx))))))))
+                        ;; no rows - independent
+                        (doseq [[_ {el :hypercrud.browser/element :as ctx}] (context/spread-elements ctx)]
+                          (case (unqualify (contrib.datomic/parser-type @el))
+                            :variable  nil #_ (requests-here ctx)
+                            :aggregate nil #_ (requests-here ctx)
+                            :pull      (do (requests-here ctx)
+                                      (request-attr-level ctx))))))))

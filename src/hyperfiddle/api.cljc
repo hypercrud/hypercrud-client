@@ -57,23 +57,11 @@
   (display-mode [ctx])
   (display-mode? [ctx k]))
 
-(defprotocol Domain
-  (basis [domain])
-  (type-name [domain])
-  (fiddle-dbname [domain])
-  (database [domain dbname])                                ; database-record
-  (databases [domain])
-  (environment [domain])
-  (url-decode [domain s])
-  (url-encode [domain route])
-  (api-routes [domain])
-  #?(:clj (connect [domain dbname] [domain dbname on-created!])))
-
 (defprotocol State
   (state [rt]))
 
 (defprotocol HF-Runtime
-  (domain [rt])
+  (config [rt])
   (io [rt])
   (request [rt pid request])
   (set-route [rt pid route] [rt pid route force-hydrate] "Set the route of the given branch. This may or may not trigger IO. Returns a promise"))
@@ -99,21 +87,18 @@
 (defmulti process-tx                                   ; todo tighten params
   "clj only"
   (fn [$                                               ; security can query the database e.g. for attribute whitelist
-       domain                                          ; spaghetti dependency, todo fix
+       config                                          ; spaghetti dependency, todo fix
        dbname
        #_hf-db                                         ; security can inspect domain/database configuration, e.g. for database-level user whitelist
        ; Removed to reduce parameter noise downstack - the one use case is able to reconstruct hf-db from [domain, dbname]
        subject                                         ; security can know the user submitting this tx
        tx]
-    (get-in (databases domain) [dbname :database/write-security :db/ident] ::allow-anonymous-edits)))
+    (get-in (:databases config) [dbname :database/write-security :db/ident] ::allow-anonymous-edits)))
 
-(defmulti bindings (fn [domain] (:db/ident domain)))
-(defmethod bindings :default [domain] {})
+(defmulti bindings (fn [config] (:db/ident config)))
+(defmethod bindings :default [config] {})
 
-(defmulti config (fn [domain] (:db/ident domain)))
-(defmethod config :default [domain] {})
-
-(defmethod process-tx ::allow-anonymous-edits [$ domain dbname subject tx] tx)
+(defmethod process-tx ::allow-anonymous-edits [$ config dbname subject tx] tx)
 
 (defmulti tx-meta
   (fn [schema tx]
@@ -139,7 +124,7 @@
 (def ^:dynamic *get-db* nil)
 (defn get-db [dbname]
   (*get-db* dbname))
-(def ^:dynamic *domain* nil)
+;; (def ^:dynamic *domain* nil)
 (def ^:dynamic *subject*)                              ; FK into $users, e.g. #uuid "b7a4780c-8106-4219-ac63-8f8df5ea11e3"
 (def ^:dynamic *route*)
 
@@ -254,19 +239,6 @@
 
 (s/def :hf/where any?)
 (s/def :hf/where-spec any?)
-
-(defn ^:temporary ->either-domain                           ; todo remove
-  "Wrap a domain `x` as `Right x`. Useful to make existing (either-branched) code
-  compatible with unested, reshaped domain values."
-  [x]
-  (cond
-    ;; identity
-    (either/either? x)    x
-    ;; pure
-    (satisfies? Domain x) (either/right x)
-    :else                 (either/left (ex-info "Not a domain"
-                                                {:value x
-                                                 :type  (type x)}))))
 
 (def root-pid "root")
 (def browser-query-limit 20)

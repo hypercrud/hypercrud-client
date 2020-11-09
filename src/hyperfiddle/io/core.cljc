@@ -1,13 +1,8 @@
 (ns hyperfiddle.io.core
-  #?(:clj (:refer-clojure :exclude [sync]))
-  (:require
-    [cats.core :as cats]
-    [cats.monad.either :as either]
-    [promesa.core :as p]
-    [contrib.performance :as perf]
-    [hyperfiddle.api :as hf]
-    [taoensso.timbre :as timbre]))
-
+  (:refer-clojure :exclude [sync])
+  (:require [cats.core :as cats]
+            [cats.monad.either :as either]
+            [promesa.core :as p]))
 
 (defprotocol IO
   (global-basis [io] "Datomic time basis for a domain (N databases combined).
@@ -46,24 +41,19 @@
     (-> (hydrate-requests io local-basis partitions requests)
         (p/then (fn [{:keys [pulled-trees]}] (either/branch (cats/sequence pulled-trees) p/rejected p/resolved))))))
 
-(defn global-basis-for [io domain]
-  (perf/time-promise
-    (->> (hf/databases domain) keys set
-      (sync io)
-      (cats/fmap (fn [user-basis] {:domain {:t (hf/basis domain)
-                                            :hash (hash {:fiddle-dbname (hf/fiddle-dbname domain)
-                                                         :databases (->> (hf/databases domain)
-                                                                      (map (fn [[dbname database]]
-                                                                             ; todo switching between peer/client will break this hash
-                                                                             [dbname (select-keys database [:database/uri :database/db-name])]))
-                                                                      (into {}))
-                                                         :environment (hf/environment domain)
-                                                         :type-name (str (type domain))})}
-                                   :user user-basis})))
-    (fn [err total-time]
-      (timbre/debugf "global-basis failure; total time: %sms" total-time))
-    (fn [success total-time]
-      (timbre/debugf "global-basis; total time: %sms" total-time))))
+(defn global-basis-for [{:keys [io config environement] :as _context}]
+  (->> (:databases config) keys set
+       (sync io)
+       (cats/fmap (fn [user-basis] {:domain {:t (:basis config)
+                                            :hash (hash {:fiddle-dbname (:fiddle-dbname config)
+                                                         :databases (->> (:databases config)
+                                                                         (map (fn [[dbname database]]
+                                                                                ;; todo switching between peer/client will break this hash
+                                                                                [dbname (select-keys database [:database/uri :database/db-name])]))
+                                                                         (into {}))
+                                                         :environment environement
+                                                         :type-name (str (type config))})}
+                                   :user user-basis}))))
 
 (defn local-basis-for [io global-basis route]
   (:user global-basis))

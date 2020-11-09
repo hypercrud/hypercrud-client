@@ -1,19 +1,14 @@
 (ns hyperfiddle.io.datomic.peer-test
-  (:require
-    [clojure.test :refer [deftest is]]
-    [hyperfiddle.config]
-    [hyperfiddle.domain]
-    [hyperfiddle.io.datomic.core :as d]
-    [hyperfiddle.io.datomic.peer]                           ; ?
-    [hyperfiddle.api :as hf]))
+  (:require [clojure.test :refer [deftest is]]
+            [hyperfiddle.api :as hf]
+            [hyperfiddle.config :as config]
+            [hyperfiddle.io.datomic.core :as dclient]))
 
+(def config {:ident :test
+             :databases {"$"  {:database/uri #uri "datomic:mem://app-db"}
+              #_#_ "$users" {:database/uri #uri "datomic:mem://hyperfiddle-users"}}})
 
-(def config {:domain {:databases
-                      {"$" {:database/uri #uri "datomic:mem://app-db"}
-                       #_#_"$users" {:database/uri #uri "datomic:mem://hyperfiddle-users"}}}})
-
-(def config (hyperfiddle.config/get-config config))
-(def domain (hyperfiddle.config/get-domain config))
+(def config (hyperfiddle.config/build config))
 
 (defn with [$ tx]
   (:db-after (hf/with $ {:tx-data tx})))
@@ -21,7 +16,7 @@
 (declare $ q)
 
 (deftest limit-1
-  (def conn (hf/connect domain "$"))
+  (def conn (dclient/dyna-connect (config/db config "$") nil))
   (def $ (-> (hf/db conn)
            (with [{:db/ident :dustingetz/email :db/valueType :db.type/string :db/cardinality :db.cardinality/one}
                   {:db/ident :dustingetz/gender :db/valueType :db.type/ref :db/cardinality :db.cardinality/one}
@@ -38,7 +33,7 @@
            (with [{:dustingetz/email "alice@example.com" :dustingetz/gender :dustingetz/female :dustingetz/shirt-size :dustingetz/womens-large}
                   {:dustingetz/email "bob@example.com" :dustingetz/gender :dustingetz/male :dustingetz/shirt-size :dustingetz/mens-large}
                   {:dustingetz/email "charlie@example.com" :dustingetz/gender :dustingetz/male :dustingetz/shirt-size :dustingetz/mens-medium}])))
-  (def q (hyperfiddle.io.datomic.core/qf2 (hf/database domain "$")))
+  (def q (hyperfiddle.io.datomic.core/qf2 (config/db config "$")))
 
   (is (= [17592186045428 17592186045429 17592186045430]
         (q {:query '[:find [?e ...] :where [?e :dustingetz/email]] :args [$] :limit 50})

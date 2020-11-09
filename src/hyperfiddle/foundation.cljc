@@ -1,22 +1,28 @@
 (ns hyperfiddle.foundation
-  (:require
-    #?(:cljs [cats.monad.either :as either])
-    [contrib.base-64-url-safe :as base64-url-safe]
-    [contrib.reactive :as r]
-    [clojure.spec.alpha :as s]
-    ;#?(:clj [datomic.api :as d]) ; illegal
-    [hyperfiddle.api :as hf]
-    [hyperfiddle.domain :as domain]
-    [hyperfiddle.runtime :as runtime]
-    #?(:cljs [hyperfiddle.ui :as ui])
-    #?(:cljs [hyperfiddle.spec.ui])
-    #?(:cljs [hyperfiddle.ui.checkbox :refer [Checkbox Radio RadioGroup]])
-    #?(:cljs [hyperfiddle.ui.iframe :as iframe])
-    #?(:cljs [hyperfiddle.ui.staging :as staging])
-    #?(:cljs [hyperfiddle.ui.util :refer [with-entity-change!]])
-    #?(:cljs [hyperfiddle.view.keyboard :as k])
-    #?(:cljs [hyperfiddle.view.keyboard.combos :as combos])
-    [hyperfiddle.view.controller :as view]))
+  #?@
+   (:clj
+    [(:require
+      [clojure.spec.alpha :as s]
+      [hyperfiddle.api :as hf]
+      [hyperfiddle.view.controller :as view])]
+    :cljs
+    [(:require
+      [bidi.bidi :as bidi]
+      [clojure.spec.alpha :as s]
+      [contrib.base-64-url-safe :as base64-url-safe]
+      [contrib.reactive :as r]
+      [hyperfiddle.api :as hf]
+      [hyperfiddle.route :as route]
+      [hyperfiddle.service.routes :as routes]
+      [hyperfiddle.runtime :as runtime]
+      [hyperfiddle.ui :as ui]
+      [hyperfiddle.ui.checkbox :refer [RadioGroup]]
+      [hyperfiddle.ui.iframe :as iframe]
+      [hyperfiddle.ui.staging :as staging]
+      [hyperfiddle.ui.util :refer [with-entity-change!]]
+      [hyperfiddle.view.controller :as view]
+      [hyperfiddle.view.keyboard :as k]
+      [hyperfiddle.view.keyboard.combos :as combos])]))
 
 ; Old source tree, before removal of IDE:
 ; https://github.com/hyperfiddle/hyperfiddle/tree/aa11ec7ce636cf5554334974a575821710947cb2
@@ -34,28 +40,25 @@
                   :on-change (r/partial set-view-mode!)
                   :props     {:class "hyperfiddle-view-mode-selector"}}]))
 
-(defn auth-configured? [ctx]
-  ; todo duplicated logic
-  (let [{:keys [hyperfiddle.ide.directory/ide-domain] :as domain} (hf/domain (:runtime ctx))
-        {:keys [domain]} (get-in (hf/environment domain) [:auth0 ide-domain])]
-    (some? domain)))
+(defn auth-configured? [{:keys [runtime]}]
+  ;; todo duplicated logic
+  (some? (get-in (hf/config runtime) [:auth0 :domain])))
 
 #?(:cljs
    (defn stateless-login-url
      ([ctx]
-      (stateless-login-url ctx (hf/url-encode (hf/domain (:runtime ctx)) (runtime/get-route (:runtime ctx) hf/root-pid))))
+      (stateless-login-url ctx (route/url-encode (runtime/get-route (:runtime ctx) hf/root-pid) (:home-route (hf/config (:runtime ctx))))))
      ([ctx state]
-      (let [{:keys [hyperfiddle.ide.directory/service-uri hyperfiddle.ide.directory/ide-domain] :as domain} (hf/domain (:runtime ctx))
-            {:keys [domain client-id]} (get-in (hf/environment domain) [:auth0 ide-domain])
-            redirect-uri (str service-uri (domain/api-path-for (hf/domain (:runtime ctx))
-                                            :hyperfiddle.ide/auth0-redirect))]
+      (let [{:keys [:auth0/domain :auth0/client-id]} (:auth0 (hf/config (:runtime ctx)))
+            redirect-uri                             (str (.. js/document -location -origin)
+                                                          (bidi/path-for routes/routes :hyperfiddle.api/auth0-redirect))]
         (assert domain "auth not configured, see `auth-configured?")
         (str "https://" domain "/"
-          "login?"
-          "client=" client-id
-          "&scope=" "openid email profile"
-          "&state=" (base64-url-safe/encode state)
-          "&redirect_uri=" redirect-uri)))))
+             "login?"
+             "client=" client-id
+             "&scope=" "openid email profile"
+             "&state=" (base64-url-safe/encode state)
+             "&redirect_uri=" redirect-uri)))))
 
 #?(:cljs
    (defn TopNav [{:keys [ctx]}]
@@ -75,8 +78,9 @@
       [:div {:style {:display :flex
                      :align-items :center}}
        (if (hf/subject ctx)
-         [:a {:href  (hf/url-encode (hf/domain (:runtime ctx)) (:account-route (hf/domain (:runtime ctx))
-                                                                 `(hyperfiddle.foundation/account)))
+         [:a {:href  (route/url-encode (or (:account-route (hf/config (:runtime ctx)))
+                                           `(hyperfiddle.foundation/account))
+                                       (:home-route (hf/config (:runtime ctx))) )
               :style {:text-transform :capitalize}}
           (str "👤Account")]
          (if (auth-configured? ctx)
@@ -90,7 +94,7 @@
              anchor-descendant (-> (.composedPath native-event) (aget 0) (.matches "a *"))]
          (when-not (or anchor anchor-descendant)
            (.stopPropagation event)
-           (js/window.open (hf/url-encode (hf/domain rt) route) "_blank"))))))
+           (js/window.open (route/url-encode route nil) "_blank"))))))
 
 #?(:cljs
    (defn augment [ctx view-state]
@@ -143,17 +147,17 @@
   account []
   #?(:clj
      (datomic.api/q                                         ; Not required to avoid naming this in deps. Get lucky for now
-       '[:find (pull ?user [:db/id
-                            :user/name
-                            :user/email
-                            :user/last-seen
-                            :user/sub
-                            :user/picture
-                            :user/user-id])
-         .
-         :in $ ?subject
-         :where [?user :user/user-id ?subject]]
-       (hf/get-db "$users") hf/*subject*)))               ; non-$ schema is specified in :shape
+      '[:find (pull ?user [:db/id
+                           :user/name
+                           :user/email
+                           :user/last-seen
+                           :user/sub
+                           :user/picture
+                           :user/user-id])
+        .
+        :in $ ?subject
+        :where [?user :user/user-id ?subject]]
+      (hf/get-db "$users") hf/*subject*)))               ; non-$ schema is specified in :shape
 
 (s/fdef account :args (s/cat))
 
@@ -193,9 +197,9 @@
 (defmethod hf/render-fiddle `please-login [_ ctx props]
   #?(:cljs
      (let [[_ redirect] @(:hypercrud.browser/route ctx)
-           _ (println redirect)
-           state (hf/url-encode (hf/domain (:runtime ctx)) redirect)
-           href (stateless-login-url ctx state)]
+           _            (println redirect)
+           state        (route/url-encode redirect (:home-route (hf/config (:runtime ctx))))
+           href         (stateless-login-url ctx state)]
        [:div
         [:br]
         [:center [:h1 "Please " [:a {:href href} "login"]]]])))
