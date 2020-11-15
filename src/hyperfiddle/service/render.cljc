@@ -83,8 +83,8 @@
     [:meta {:name "viewport" :content "width=device-width, initial-scale=1"}]
     [:meta {:charset "UTF-8"}]
     (inner-html :script {:id "build" :type "text/plain"} (:git/describe config))
-    #?(:clj (inner-html :script {:id "tracking-fullstory" :type "text/javascript"} (slurp (io/resource "templates/fullstory.js"))))]
-
+    #?(:clj (if-let [r (io/resource "templates/fullstory.js")]
+              (inner-html :script {:id "tracking-fullstory" :type "text/javascript"} (slurp r))))]
    [:body
     (inner-html :div {:id (or (:html-root-id (hf/domain rt)) "root")}
       (loading/page (hf/domain rt)))
