@@ -297,7 +297,7 @@ a speculative db/id."
   ([ctx a]                                                  ; eav order of init issues, ::eav depends on this in :many
    {:pre [(> (pull-depth ctx) 0)]}
    (assert (not (:hypercrud.browser/head-sentinel ctx)) "this whole flag is trouble, not sure if this assert is strictly necessary")
-   (assert (boolean (hf/attr ctx a)) (str "attribute " a " not in :hypercrud.browser/schema, please list in fiddle :ret spec to infer schema for it. fixme"))
+   (assert (boolean (hf/attr ctx a)) (str "attribute " a " not in :hypercrud.browser/schema, please tag spec with `ref?` helper. fixme"))
    (let [{:keys [:hypercrud.browser/schema :hypercrud.browser/fiddle]} ctx]
      (case (contrib.datomic/cardinality @schema a)
 
