@@ -9,7 +9,7 @@ jobs:
       - persist_to_workspace:
           root: .
           paths:
-            - out
+            - target-hx
 
   test-clj:
     docker:
