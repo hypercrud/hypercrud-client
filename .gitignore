@@ -1,7 +1,7 @@
 /target
 /.nrepl-port
 /.nrepl-history
-/out
+/target-hx
 /project.clj
 /node_modules
 .cpcache

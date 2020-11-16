@@ -5,7 +5,7 @@
     [clojure.set :as set]
     [contrib.data :refer [contains-in?]]
     #?(:cljs
-        ["DF.js" :as df :refer [Origin View]]))
+        ["dataflow.js" :as df :refer [Origin View]]))
   #?(:clj
      (:import
       haxe.lang.VarArgsBase

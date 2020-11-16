@@ -4,9 +4,9 @@
 
   --each
     --next
-    --java out/DF
+    --java target-hx/dataflow
 
 
     --next
-    -js ../assets/DF.js
+    -js ../assets/dataflow.js
     -D nodejs
