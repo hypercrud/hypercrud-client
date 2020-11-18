@@ -1,13 +1,11 @@
 (ns hyperfiddle.api                                         ; cljs can always import this
   (:refer-clojure :exclude [memoize])
   (:require
-    [cats.monad.either :refer [left right]]
+    [cats.monad.either :refer [right]]
     ; No hyperfiddle requires allowed due to cycles; hyperfiddle internals require us
-    [cats.monad.either :as either :refer [right]]
 
     [clojure.spec.alpha :as s]
     [clojure.string :as str]
-    [clojure.edn :as edn]
     [taoensso.timbre :as timbre]))
 
 
