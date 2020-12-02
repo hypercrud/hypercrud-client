@@ -2,14 +2,13 @@
   (:require
     [contrib.reader]
     [contrib.data :refer [tap]]
-    [contrib.fabric :as df]
+    [hyperfiddle.fabric :as df]
     [rksm.subprocess :as subprocess]
     [clojure.java.io :as io]
     [taoensso.timbre :refer [warn]])
   (:import
     (java.nio.file Path FileSystems Paths WatchEvent$Modifier StandardWatchEventKinds StandardWatchEventKinds$StdWatchEventKind)
     (com.sun.nio.file SensitivityWatchEventModifier)))
-
 
 ; These are re-exported here to facilitate :refer :all
 (defn get-file [path] (slurp path))
