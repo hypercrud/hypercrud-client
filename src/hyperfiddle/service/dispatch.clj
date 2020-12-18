@@ -19,7 +19,8 @@
     [hyperfiddle.io.datomic.transact :refer [transact!]]
     [hyperfiddle.io.datomic.hydrate-requests :refer [hydrate-requests]]
     [hyperfiddle.io.datomic.hydrate-route :refer [hydrate-route]]
-    [hyperfiddle.api :as hf]))
+    [hyperfiddle.api :as hf])
+  (:import (java.io ByteArrayOutputStream PrintStream)))
 
 
 ; these are renamed from h.s.service-domain/route and h.s.http/handle-route
@@ -128,6 +129,12 @@
 (defmethod endpoint :ssr [context]
   (R/via context R/render))
 
+(defn- render-stack-trace [ex]
+  (let [s (new java.io.StringWriter)]
+    (binding [*err* s]
+      (.printStackTrace ex)
+      (str "<pre>" s "</pre>"))))
+
 (defn render [context]
   (do-async-as-chan
     (hf-http/response context
@@ -146,7 +153,7 @@
           (timbre/error e)                                  ; this can crash the pretty printer e.g. with eithers
           {:status  (or (:hyperfiddle.io/http-status-code (ex-data e)) 500)
            :headers {"Content-Type" "text/html"}
-           :body    (str "<h2>Fatal error:</h2><h4>" (ex-message e) "</h4>")}
+           :body    (str "<h2>Fatal error:</h2>" (render-stack-trace e))}
           )))))
 
 (defmethod endpoint :global-basis [context]
