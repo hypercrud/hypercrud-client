@@ -33,14 +33,16 @@
       (p/then (fn [tx]
                 (let [tx-groups {(or (hf/dbname ctx) "$") ; https://github.com/hyperfiddle/hyperfiddle/issues/816
                                  tx}
-                      popover-data @(:hypercrud.browser/result popover-ctx)] ; Can this be (hf/data ctx)?
+                      #_#_popover-data @(:hypercrud.browser/result popover-ctx)] ; Can this be (hf/data ctx)?
                   (runtime/close-popover (:runtime ctx) (:partition-id ctx) (:partition-id popover-ctx))
                   #_(runtime/delete-partition (:runtime ctx) (:partition-id popover-ctx)) ; don't kill partition before committed, constraint violation
                   (cond-> (runtime/commit-branch (:runtime ctx) (:partition-id popover-ctx) tx-groups) ; if branched
                     (::redirect props) (p/then (fn [_]
                                                  (hf/set-route rt
                                                    (runtime/get-branch-pid rt parent-pid)
-                                                   ((::redirect props) popover-data))))))))
+                                                   ((::redirect props)
+                                                    ; popover-ctx symbolic-route is still loading? thus redirects are broken
+                                                    popover-ctx))))))))
       (p/catch (fn [e]
                  ; todo something better with these exceptions (could be user error)
                  (timbre/error e)
