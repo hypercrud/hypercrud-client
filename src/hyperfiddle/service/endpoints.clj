@@ -1,10 +1,12 @@
 (ns hyperfiddle.service.endpoints
-  (:require [contrib.base-64-url-safe :as base-64-url-safe]
+  (:require [clojure.core.async :as a]
+            [contrib.base-64-url-safe :as base-64-url-safe]
             [contrib.ednish :as ednish]
             [contrib.reader :as reader]
             [hiccup.core :as hiccup]
             [hyperfiddle.api :as hf]
             [hyperfiddle.config :as config]
+            [hyperfiddle.fabric :as f :refer [defnode]]
             [hyperfiddle.io.core :as io]
             [hyperfiddle.io.datomic.hydrate-requests :refer [hydrate-requests]]
             [hyperfiddle.io.datomic.sync :as ds]
@@ -13,6 +15,7 @@
             [hyperfiddle.service.render :as render]
             [hyperfiddle.service.websockets.auth :as wauth]
             [promesa.core :as p]
+            [user.demo.graph :as graph-demo]
             [taoensso.timbre :as log]))
 
 (defmulti endpoint (fn [context] (get-in context [:request :handler])))
@@ -141,3 +144,24 @@
   (let [{:keys [user-id]} (auth/subject context)]
     (assoc context :response {:status  200
                               :body    (transact! config user-id (:body-params request))})))
+
+
+(defmethod endpoint ::hf/subscribe [context]
+  (let [in      (a/chan)
+        out     (a/chan)
+        >result (f/on graph-demo/>hello (fn [result]
+                                          #_(a/go
+                                              (a/>! out {:type :result
+                                                         :data result}))))]
+    (a/go-loop [data (a/<! in)]
+      (log/info "IN:" data)
+      (if (some? data)
+        (do
+          (f/with-executor (f/tracing-executor (fn [[id ma]]
+                                                 (a/go
+                                                   (a/>! out {:type :trace
+                                                              :data [id (f/unwrap ma)]}))))
+            (f/put graph-demo/>input data))
+          (recur (a/<! in)))
+        (f/off >result)))
+    (assoc context :response [in out])))

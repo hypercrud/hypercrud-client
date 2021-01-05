@@ -11,7 +11,8 @@
             [hyperfiddle.service.auth :as auth]
             [hyperfiddle.service.endpoints :as endpoints]
             [hyperfiddle.service.routes :as routes]
-            [promesa.core :as p]))
+            [promesa.core :as p])
+  (:import java.util.UUID))
 
 (deftype IOImpl [context]
   io/IO
@@ -69,7 +70,8 @@
 
 (defn build-ws-context [{:keys [config request]}]
   (let [request (bean request)
-        context {:config  config
+        context {:id      (UUID/randomUUID)
+                 :config  config
                  :request request
                  :auth    (auth/build-auth-context config request)
                  :ws      {:session nil

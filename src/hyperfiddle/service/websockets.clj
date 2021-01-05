@@ -10,7 +10,8 @@
             [io.pedestal.http.jetty.websockets :as ws]
             [promesa.core :as p]
             [taoensso.timbre :as log])
-  (:import javax.servlet.Servlet
+  (:import java.util.UUID
+           javax.servlet.Servlet
            [org.eclipse.jetty.servlet ServletContextHandler ServletHolder]
            [org.eclipse.jetty.websocket.api RemoteEndpoint Session WebSocketConnectionListener WebSocketListener]))
 
@@ -25,11 +26,30 @@
 (defn- build-context [context session chan]
   (update context :ws assoc :session session, :chan chan))
 
+(def channels (atom {}))
+
+(comment
+  (a/go (a/>! (-> @channels
+                  (first)
+                  (val)
+                  (first)
+                  (val))
+              "hello")))
+
+(defn- connect! [context id [in out]]
+  (swap! channels assoc-in [(:id context) id] in)
+  (a/go-loop [data (a/<! out)]
+    (if (nil? data)
+      (do (swap! channels update-in [(:id context)] dissoc id)
+          (a/close! in))
+      (do (send! context {:type :push, :id id, :data data})
+          (recur (a/<! out))))))
+
 (defn- handle! [context {:keys [id type data]}]
   (try
     (case type
-      :ping               (send! context {:id id, :type :pong})                    ; heartbeat
-      :goodbye            (send! context {:id id, :type :goodbye} true)            ; graceful shutdown
+      :ping               (send! context {:id id, :type :pong})         ; heartbeat
+      :goodbye            (send! context {:id id, :type :goodbye} true) ; graceful shutdown
       :hyperfiddle-action (-> (p/future (handlers/dispatch-ws context data))       ; main action
                               (p/then (fn [{:keys [response] :as context}]
                                         (send! context (assoc response :id id))))
@@ -38,7 +58,21 @@
                                          (send! context {:type   :error,
                                                          :status 500
                                                          :id     id,
-                                                         :body   err})))))
+                                                         :body   err}))))
+      :subscription       (-> (p/future (handlers/dispatch-ws context data))
+                              (p/then (fn [{:keys [response] :as context}]
+                                        (connect! context id response)))
+                              (p/catch (fn [err]
+                                         (log/error err)
+                                         (send! context {:type   :error,
+                                                         :status 500
+                                                         :id     id,
+                                                         :body   err}))))
+      :put!               (if-let [chan (get-in @channels [(:id context) id])]
+                            (a/go (a/>! chan data))
+                            (send! context {:type   :error
+                                            :status 404
+                                            :id     id})))
     (catch Throwable t
       (log/error t)
       (send! context {:id id, :type :error, :message (ex-message t)}))))
@@ -57,6 +91,7 @@
   (log/error :msg "WS Error happened" :exception t))
 
 (defn on-close [context num-code reason-text]
+  (swap! channels dissoc (:id context))
   (log/info :msg "WS Closed:" :reason reason-text))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

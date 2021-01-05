@@ -2,6 +2,7 @@
   (:require
    [bidi.bidi :as bidi]
    [clojure.set :as set]
+   [clojure.core.async :as a :include-macros true]
    [contrib.base-64-url-safe :as base-64-url-safe]
    [contrib.data :as data]
    [contrib.ednish :as ednish]
@@ -138,3 +139,22 @@
        :params   tx-groups
        :ws/route ::hf/transact}
       (request! jwt)))
+
+(defn subscribe!*
+  [config ?service-uri & [jwt]]
+  (-> {:type :subscription
+       :data {:route ::hf/subscribe}}
+      (ws/subscribe!)))
+
+(defn subscribe! [cont]
+  (let [[id chan] (subscribe!* nil nil)]
+    (a/go-loop [data (a/<! chan)]
+      (when (some? data)
+        (cont data)
+        (recur (a/<! chan))))
+    id))
+
+(defn put! [id data]
+  (ws/send! {:type :put!
+             :id   id
+             :data data}))

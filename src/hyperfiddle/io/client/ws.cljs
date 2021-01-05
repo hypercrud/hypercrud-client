@@ -4,6 +4,7 @@
             [hyperfiddle.api :as hf]
             [hyperfiddle.io.client.http :as http]
             [hyperfiddle.service.routes :as routes]
+            [clojure.core.async :as a :include-macros true]
             [promesa.core :as p]
             [taoensso.timbre :as log]))
 
@@ -65,28 +66,52 @@
     (when (opened? socket)
       (.close socket))))
 
-(defn send! [event]
-  (let [continuation (p/deferred)]
+(defn- send!* [event model]
+  (let [continuation (case model
+                       :request-response (p/deferred)
+                       :subscription     (a/chan))
+        id           (or (:id event) (random-uuid))]
     (-> (get-client!)
         (p/then (fn [^js socket]
-                  (let [id (random-uuid)]
-                    (swap! state assoc id continuation)
-                    (.send socket (hc-t/encode (assoc event :id id))))))
+                  (swap! state (fn [state]
+                                 (if-not (contains? state id)
+                                   (assoc state id {:model        model
+                                                    :continuation continuation})
+                                   state)))
+                  (.send socket (hc-t/encode (assoc event :id id)))))
         (p/catch (fn [err]
                    (log/error "Unable to get a socket" err)
-                   (p/resolve! continuation nil))))
+                   (case model
+                     :request-response (p/resolve! continuation nil)
+                     :subscription     (a/close! continuation)))))
+    [id continuation]))
+
+(defn send! [event]
+  (let [[_ continuation] (send!* event :request-response)]
     continuation))
+
+(defn subscribe! [event]
+  (send!* event :subscription))
 
 (defn- on-message [^js message]
   (let [{:keys [id type] :as data} (hc-t/decode (.-data message))]
-    (swap! state (fn [state]
-                   (if-let [continuation (get state id)]
-                     (do (case type
-                           :error (p/reject! continuation data)
-                           (p/resolve! continuation data))
-                         (dissoc state id))
+    (swap! state (fn [state-value]
+                   (if-let [continuation (get state-value id)]
+                     (let [{:keys [model continuation]} continuation]
+                       (case model
+                         :request-response (do (case type
+                                                 :error (p/reject! continuation data)
+                                                 (p/resolve! continuation data))
+                                               (dissoc state-value id))
+                         :subscription     (do (a/go
+                                                 (case type
+                                                   :error (do (a/>! continuation data)
+                                                              (a/close! continuation)
+                                                              (swap! state dissoc id))
+                                                   (a/>! continuation data)))
+                                               state-value)))
                      (do (log/info "No continuation for this answer" data)
-                         state))))))
+                         state-value))))))
 
 (defn read [s]
   (cljs.reader/read-string s))

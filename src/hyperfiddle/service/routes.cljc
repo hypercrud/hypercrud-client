@@ -23,6 +23,8 @@
                             "transact"                                    {:post ::hf/transact
                                                                            #".+" ::hf/not-found
                                                                            true  ::hf/not-allowed}
+                            "subscribe"                                   {:get ::hf/subscribe
+                                                                           true ::hf/not-allowed}
                             true                                          ::hf/not-found}
 
                        [[#"[^/]*" :version] "/"] {true ::hf/force-refresh}
