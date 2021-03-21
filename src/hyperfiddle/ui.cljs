@@ -399,8 +399,8 @@ User renderers should not be exposed to the reaction."
   {:pre [(s/assert :hypercrud/context ctx)]}
   ; Need backwards compat arity
   (let [sort-col (r/atom (::sort/initial-sort props))
-        page-size (if (> 0 hf/browser-query-limit) 20 hf/browser-query-limit)
-        page (r/atom 0)]
+        #_#_page-size (if (> 0 hf/browser-query-limit) 20 hf/browser-query-limit)
+        #_#_page (r/atom 0)]
     (fn [ctx & [props]]
       {:pre [(s/assert :hypercrud/context ctx)]}
       (let [props (update props :class (fnil css "hyperfiddle") "unp") ; fnil case is iframe root (not a field :many)
@@ -416,7 +416,7 @@ User renderers should not be exposed to the reaction."
                            (->> (hypercrud.browser.context/spread-rows
                                   ctx
                                   #(sort/sort-fn % sort-col)
-                                  #(->> % (drop (* @page page-size)) (take page-size)))
+                                  #_#(->> % (drop (* @page page-size)) (take page-size)))
                            ; Duplicate rows https://github.com/hyperfiddle/hyperfiddle/issues/298
                                 (map-indexed vector)))]
             (if (empty? rows)
@@ -428,14 +428,15 @@ User renderers should not be exposed to the reaction."
               (into [:tbody] rows)))]
          (let [n (count @(:hypercrud.browser/result ctx))]
            (cond
-             (> n page-size)
+             #_#_(> n page-size)
              [contrib.hfrecom/anchor-tabs
               :model page
               :tabs (for [i (range (/ n page-size))]
                       {:id i :href "#" :label (str (inc i))})
               :on-change (r/partial reset! page)]
-             (< n page-size) nil
-             (= n 0) [:div "no results"]))]))))
+             #_#_(< n page-size) nil
+             (= n 0) [:div "no results"]
+             () nil))]))))
 
 (defn- path-fn [v form]
   (cond
