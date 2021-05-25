@@ -289,7 +289,7 @@
         (let [this-value (condp some [(unqualify (contrib.datomic/parser-type (hf/qfind ctx)))]
                            #{:find-coll :find-scalar} (hf/data ctx)
                            #{:find-rel :find-tuple} (get (hf/data ctx) (::hf/option-element props 0)))
-              this-value (hf/id ctx this-value)
+              this-value (hf/id parent-ctx this-value)
               row [:td {:class "hyperfiddle-table-picker-control-cell"}
                    [:input {:checked (= v this-value)
                             :disabled (:disabled props)
@@ -303,7 +303,7 @@
               this-value (condp some [(unqualify (contrib.datomic/parser-type (hf/qfind ctx)))]
                                  #{:find-coll :find-scalar} (hf/data ctx)
                                  #{:find-rel :find-tuple} (get (hf/data ctx) (::hf/option-element props 0)))
-              this-value (if is-ref (hf/id ctx this-value) this-value)
+              this-value (if is-ref (hf/id parent-ctx this-value) this-value)
               checked (contains? v this-value)
               control [:td {:class "hyperfiddle-table-picker-control-cell"}
                         [:input {:checked checked
