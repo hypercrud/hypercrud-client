@@ -59,7 +59,7 @@
                          ; :db.error/not-an-entity Unable to resolve entity: :hyperfiddle/whitelist-attribute
                          nil))]
        (into (set whitelist)
-             (:hf/transaction-operation-whitelist (hf/database domain db-name))))))
+             (hf/transaction-operation-whitelist db-name)))))
 
 #?(:clj
    (defmethod hf/process-tx :hyperfiddle.security/tx-operation-whitelist [$ domain dbname subject tx]

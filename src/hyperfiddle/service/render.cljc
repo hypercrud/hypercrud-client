@@ -64,7 +64,7 @@
                (assoc acc k (select-keys v ks)))
     {} m))
 
-(def db-allowed-keys [:database/db-name :database/write-security :hf/transaction-operation-whitelist])
+(def db-allowed-keys [:database/db-name :database/write-security])
 
 (defn omit-secure-keys [domain]
   (-> domain
