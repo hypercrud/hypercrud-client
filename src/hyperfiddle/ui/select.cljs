@@ -146,14 +146,13 @@
   (condp = (:db/cardinality (context/attr ctx))
     :db.cardinality/many
     [select ctx
-      (assoc props
-        ::components
-        {:option (fn [_ {:keys [value] :as props'}]
-                   [:div [easy-checkbox
-                          (assoc props'
-                                 :checked (:selected props')
-                                 :disabled (:disabled props))
-                          value]])})]
+      (merge {::components {:option (fn [_ {:keys [value] :as props'}]
+                                      [:div [easy-checkbox
+                                             (assoc props'
+                                                    :checked (:selected props')
+                                                    :disabled (:disabled props))
+                                             value]])}}
+             props)]
 
     :db.cardinality/one
     [select ctx
