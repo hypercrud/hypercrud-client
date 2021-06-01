@@ -641,12 +641,27 @@ a speculative db/id."
                             (result-explained-for-view keyfn))]
       (form-validation-hints (::s/spec explain) (::s/problems explain)))))
 
+(defn validate-args [sym value keyfn]
+  {:pre [keyfn]}
+  (when-let [?spec (:args (s/get-spec sym))]
+    (when-let [explain (->> (s/explain-data ?spec value)
+                            (result-explained-for-view keyfn))]
+      (form-validation-hints (::s/spec explain) (::s/problems explain)))))
+
 (defn validation-hints-enclosure! [ctx]
-  (validate-result
-    (::spec ctx)
-    @(:hypercrud.browser/result ctx)
-    ;; i dont think fallback v
-    (partial row-key ctx)))
+  (let [defaults     (:hypercrud.browser/route-defaults-hydrated ctx)
+        [sym & args] (when defaults @defaults)]
+    (concat (when sym
+              (validate-args
+               sym
+               args
+               ;; i dont think fallback v
+               (partial row-key ctx)))
+            (validate-result
+             (::spec ctx)
+             @(:hypercrud.browser/result ctx)
+             ;; i dont think fallback v
+             (partial row-key ctx)))))
 
 (defn result [ctx r-result]                                 ; r-result must not be loading
   {:pre [r-result
