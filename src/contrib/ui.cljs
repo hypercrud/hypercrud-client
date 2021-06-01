@@ -85,11 +85,11 @@
 
 (let [on-change (fn [f state parse-string new-s-value]
                   (swap! state assoc :s-value new-s-value)
-                  (->> (try-either
-                         (let [new-value (parse-string new-s-value)] ; todo this should be atomic, but we still want to throw
-                           (swap! state assoc :last-valid-value new-value)
-                           new-value))
-                       (cats/fmap f))
+                  (some->> (try-either
+                            (when-let [new-value (parse-string new-s-value)] ; todo this should be atomic, but we still want to throw
+                              (swap! state assoc :last-valid-value new-value)
+                              new-value))
+                           (cats/fmap f))
                   nil)
       on-blur (fn [state f e]
                 (f (:last-valid-value @state)))]
@@ -163,7 +163,8 @@
     [validated-cmp props parse-string str text]))
 
 (let [parse-string (fn [s]                                  ; letfn not working #470
-                     (when-let [s (blank->nil s)]
+                     (let [s (blank->nil s)]
+                       (assert (some? s))
                        (let [v (bigdec/bigdec s)]
                          (assert (bigdec/bigdec? v))
                          v)))]
