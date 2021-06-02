@@ -552,12 +552,13 @@ User renderers should not be exposed to the reaction."
           (hint val ctx props)
           (when-let [unfilled-where (:hf/where props)]
             [needle-input2 ctx props])
-          (let [qtype (type @(:hypercrud.browser/qfind ctx))] ; i think we need to make up a qfind for this case
+          (let [props (update props :columns (orf table-column-product))
+                qtype (type @(:hypercrud.browser/qfind ctx))] ; i think we need to make up a qfind for this case
             (if-not qtype
-              [table ctx (update props :columns (orf table-column-product))]
+              [table ctx props]
               (condp some [qtype]                           ; spread-rows
-                #{FindRel FindColl} [table ctx (update props :columns (orf table-column-product))] ; identical result?
-                #{FindTuple FindScalar} [form table-column-product val ctx props])))]))]))
+                #{FindRel FindColl} [table ctx props] ; identical result?
+                #{FindTuple FindScalar} [form (:columns props) val ctx props])))]))]))
 
 (defn ^:export sexpr "Default result renderer. Invoked as fn, returns seq-hiccup, hiccup or
 nil. call site must wrap with a Reagent component"          ; is this just hyper-control ?
