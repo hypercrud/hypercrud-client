@@ -2,16 +2,16 @@ Project status, 2021 May: closed beta, repo not available, public release eta 20
 
 # Hyperfiddle: CRUD apps as a function
 
-Hyperfiddle is a Clojure/Script library for building rich CRUD apps out of nothing but functions. Hyperfiddle expresses sophisticated CRUD systems as **simply functions that compose, produce values, and run at the REPL**. This is made possible by our network-aware Clojure dialect that fully abstracts I/O effects at the programming language layer, uniting frontend and backend into one hollistic asynchronous program. There is no divide between queries and views, query and view compose directly. The hyperfiddle macro will partition your AST across the client/server distributed system. There is no client/server dichotemy from the programmer's perspective. All IO and effects are managed.
+Hyperfiddle is a Clojure/Script library for building rich CRUD apps out of nothing but functions. Hyperfiddle expresses sophisticated CRUD systems as **simple functions that compose, produce values, and run at the REPL**. This is made possible by our network-aware Clojure dialect that fully abstracts I/O effects at the programming language layer, uniting frontend and backend into one holistic asynchronous program. There is no divide between queries and views, query and view compose directly. The hyperfiddle macro will partition your AST across the client/server distributed system. There is no client/server dichotomy from the programmer's perspective. All IO and effects are managed.
 
 ![](https://pbs.twimg.com/media/EqarQ0xXIAMWj7R?format=jpg&name=medium) 
 *Figure: Today, Hyperfiddle is about transactional CRUD apps like this*
 
 * **High level**: Hyperfiddle makes it painless and easy to create sophisticated CRUD UIs with deep and dynamic data dependencies, without needing to think about data loading.
 * **Managed I/O**: Hyperfiddle leverages a functional effect system to efficiently supervise queries, network, rendering, dom, and any other physical effects. 
-* **Wicked fast**: We believe it to be possible to achieve IO that is perfect and physically ideal. Real-time, streaming, incremental, differental, no over-rendering. #functionalprogramming
+* **Wicked fast**: We believe it to be possible to achieve IO that is perfect and physically ideal. Real-time, streaming, incremental, differential, no over-rendering. #functionalprogramming
 * **Spec-driven UI**: We interpret clojure.spec annotations on your functions to drive semantic user interface widgets, out of the box with zero coding or configuration.
-* **Robust abstraction**: Functional programming makes your code more predictable, simpler to understand, and easier to debug. Cleanly separated layers let a technical business user make high level changes, while a software engineer can implement physical effects as needed.
+* **Robust abstraction**: Functional programming makes your code more predictable, simpler to understand, and easier to debug. Cleanly separated layers let a technical business user make high-level changes, while a software engineer can implement physical effects as needed.
 * **5k LOC**: Tight enough that you can dig in, see how it works, and contribute.
 
 Our mission is to incubate our I/O technology and then abstract a layer further, into a future-of-coding programming experience that is ultimately accessible to regular people.
@@ -78,9 +78,9 @@ Here you can see Hyperfiddle's layers:
 
 1. `hf/q`, a declarative notation for CRUD app structure and effect orchestration, coded in `hf/dag`;
 2. `hf/dag`, a network-aware Clojure dialect* (embedded in host Clojure, like core.async) that compiles to differential dataflow netcode, uniting frontend and backend into one program/AST;
-3. [`missionary`](https://github.com/leonoel/missionary), a clojure/script functional effect system with primitives for referentially transparent IO actions, continuous signals and discrete streams, all with backpressure, cancellation, monadic structure and full dynamic control flow. Missionary also is a Clojure dialect and is inspired by core.async.
+3. [`missionary`](https://github.com/leonoel/missionary), a clojure/script functional effect system with primitives for referentially transparent IO actions, continuous signals and discrete streams, all with backpressure, cancellation, monadic structure, and full dynamic control flow. Missionary also is a Clojure dialect and is inspired by core.async.
 
-*By "Clojure dialect" we mean like core.async go-blocks, which feel like Clojure but compile differently and have slightly different meaning.
+*By "Clojure dialect" we mean like core.async go-blocks, which feel like Clojure but compile differently and have a slightly different meaning.
 
 # UI drivers
 
@@ -107,7 +107,7 @@ Custom field renderer that arbitrarily queries the database from the view (!): (
 
 # How it works
 
-Our insight is that CRUD apps have enough structural similarity between client and server that we can trace IO on the server (dataflow effects), stream the trace over network and replay those same effects on the client, thereby synchronizing the internal process state of the client/server peers across network. The shared structure forms a plan that enables the peers to anticipate each others’ needs. The plan is encoded as an AST and coordinated in advance, thus enabling any amount of dynamic decision making to be replicated and maintained in parallel without any communication, beyond the stream of traced dataflow effects, which are broadcasted as their outcome becomes known. The end result is a composable end-user programming model that approximates that of a single-process system without network.
+Our insight is that CRUD apps have enough structural similarity between client and server that we can trace IO on the server (dataflow effects), stream the trace over network and replay those same effects on the client, thereby synchronizing the internal process state of the client/server peers across network. The shared structure forms a plan that enables the peers to anticipate each others’ needs. The plan is encoded as an AST and coordinated in advance, thus enabling any amount of dynamic decision-making to be replicated and maintained in parallel without any communication, beyond the stream of traced dataflow effects, which are broadcasted as their outcome becomes known. The end result is a composable end-user programming model that approximates that of a single-process system without network.
 
 Program ast:
 ```Clojure
