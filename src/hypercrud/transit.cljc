@@ -92,7 +92,9 @@
   "Transit encode `x` into a String."
   [x & {:keys [type opts]}]
   #?(:clj  (let [type   (or type :json)
-                 opts   (or opts {:handlers @write-handlers})
+                 opts   (merge {:handlers @write-handlers
+                                :transform t/write-meta}
+                               opts)
                  out    (ByteArrayOutputStream.)
                  writer (t/writer out type opts)]
              (t/write writer x)
