@@ -131,9 +131,9 @@
 
 (let [target-value (fn [e] (.. e -target -value))]          ; letfn not working #470
   (defn text [props]
-    (let [props (-> (assoc props :type "text")
+    (let [props (-> (update props :type #(or % "text"))
                     (update-existing :on-change r/comp target-value)
-                    (select-keys [:type :value :default-value :on-change :read-only :disabled :name
+                    (select-keys [:type :value :default-value :on-change :read-only :disabled :name :step
                                   :html/autoComplete :autoComplete
                                   :html/placeholder :placeholder
                                   :html/class :class

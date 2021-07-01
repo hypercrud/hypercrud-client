@@ -61,7 +61,8 @@
    `integer? :db.type/long
    `number?  :db.type/long
    `nat-int? :db.type/long
-   `int?     :db.type/long})
+   `int?     :db.type/long
+   `pos-int? :db.type/long})
 
 (def pred-of (set/map-invert type-of))
 
