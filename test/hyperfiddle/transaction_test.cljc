@@ -457,6 +457,21 @@
      {:db/ident :person/bestFriend, :db/valueType {:db/ident :db.type/ref}, :db/cardinality {:db/ident :db.cardinality/one}}
      {:db/ident :person/friends, :db/valueType {:db/ident :db.type/ref}, :db/cardinality {:db/ident :db.cardinality/many}}]))
 
+(deftest add-by-lookup-ref
+  (is (= [{:person/name "1" :person/liked-tags #{:foo}}]
+         (into-tx simple-schema []
+                  [[:db/add [:person/name "1"] :person/liked-tags :foo]]))))
+
+(deftest add-by-db-id
+  (is (= [{:db/id 17592224238619, :person/liked-tags #{:category/terminated-contract}}]
+         (into-tx simple-schema []
+                  [[:db/add 17592224238619 :person/liked-tags :category/terminated-contract]]))))
+
+(deftest cardinality-many-idempotency
+  (is (= [{:db/id 17592224238619, :person/liked-tags #{:category/terminated-contract}}]
+         (into-tx simple-schema []
+                  [[:db/add 17592224238619 :person/liked-tags #{:category/terminated-contract}]]))))
+
 (deftest flatten-tx|1
   (is (= (flatten-tx simple-schema [[:db/add "a" :person/name "Alice"]
                                     {:person/name "Bob"

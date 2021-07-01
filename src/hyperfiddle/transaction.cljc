@@ -179,7 +179,9 @@
 
 (defmethod hf/tx-meta :default
   [schema tx]
-  nil)
+  (if (and (map? tx) (:db/id tx))
+    {::hf/tx-identifier (:db/id tx)}
+    nil))
 
 (defn identifier->e
   [schema identifier]
@@ -305,7 +307,9 @@
         (reduce
           (fn [acc [_ _ a v]]
             (if (many? schema a)
-              (update acc a (fn [x] (conj (or x #{}) v)))
+              (update acc a (fn [x] (if (coll? v)
+                                     (into (or x #{}) v)
+                                     (conj (or x #{}) v))))
               (assoc acc a v)))
           (cond
             (or (string? id) (number? id)) {:db/id id}
@@ -313,7 +317,7 @@
             (vector? id) (let [[a v] id]
                            (if (= a :db/id)
                              {:db/id v}
-                             {:db/id [a v]})))
+                             {a v})))
           group))
       add-groups)))
 
