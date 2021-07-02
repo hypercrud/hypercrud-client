@@ -12,12 +12,11 @@
 (def ^:dynamic *force-refresh*)
 
 (defn- handle-error [err]
-  (let [{:keys [body status] :as data} (ex-data err)
-        response-body                  body]
+  (let [{:keys [body status] :as response} err]
     (cond
-      (data/ex-info? response-body) (throw (ex-info (:msg response-body)
-                                                    (assoc data :hyperfiddle.io/http-status-code status)
-                                                    (ex-cause err)))
+      (data/ex-info? body)         (throw (ex-info (:msg body)
+                                           (assoc data :hyperfiddle.io/http-status-code status)
+                                           (ex-cause err)))
       (and (= 502 status)
            (not (ex-message err))) (throw (ex-info "Service Unavailable"
                                                    (assoc data :hyperfiddle.io/http-status-code 502)
@@ -26,13 +25,14 @@
            (not (ex-message err))) (throw (ex-info "Service timed out"
                                                    (assoc data :hyperfiddle.io/http-status-code 504)
                                                    (ex-cause err)))
+      (= 401 status)               (js/document.location.reload) ;; cookie expired, trigger re-auth
       (= status 0)                 (throw (ex-info (ex-message err) data (ex-cause err)))
       (and (= status 404)
            (some? *force-refresh*)
            (= "Please refresh your browser"
-              response-body))      (*force-refresh* (ex-info response-body
-                                                             (assoc data :hyperfiddle.io/http-status-code status)
-                                                             (ex-cause err)))
+              body))               (*force-refresh* (ex-info body
+                                                    (assoc data :hyperfiddle.io/http-status-code status)
+                                                    (ex-cause err)))
       status                       (throw (ex-info (ex-message err)
                                                    (assoc data :hyperfiddle.io/http-status-code status)
                                                    (ex-cause err)))

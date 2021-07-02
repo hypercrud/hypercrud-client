@@ -21,6 +21,10 @@
   (:import
     [hyperfiddle.domain EdnishDomain]))
 
+(defn public? [handler]
+  (or (= "public" (namespace handler))
+      (#{:hyperfiddle.ide/auth0-redirect :hyperfiddle.ide/logout} handler)))
+
 
 (defmethod dispatch/via-domain EdnishDomain [context]
   (let [domain (:domain (R/from context))
@@ -39,44 +43,37 @@
 
       true
       (hf-http/via
-        (fn [context]
-          (let [domain (get-in context [:request :domain])
-                [method path query-string] (-> context :request (select-keys [:request-method :path-info :query-string]) vals)
-                route (domain/api-match-path domain path :request-method method)]
+       (fn [context]
+         (let [domain                     (get-in context [:request :domain])
+               [method path query-string] (-> context :request (select-keys [:request-method :path-info :query-string]) vals)
+               route                      (domain/api-match-path domain path :request-method method)
+               is-auth-configured         (-> (R/from context) :config :auth0 :domain nil? not)
+               is-private                 (not (public? (:handler route)))
+               is-ssr                     (= :ssr (unqualify (:handler route)))
+               is-no-subject              (nil? (get-in context [:request :user-id]))
+               is-unauthenticated         (and is-auth-configured is-no-subject)
+               prevent-infinite-redirect  (not (clojure.string/starts-with? path "/hyperfiddle.foundation!please-login"))
+               redirect                   (hf/url-decode domain (cond-> path
+                                                                  (seq query-string) (str "?" query-string)))
+               url                        (hf/url-encode domain `(hyperfiddle.foundation/please-login ~redirect))]
 
-            (when-not (= (:handler route) :static-resource)
-              (timbre/info "ide-router:" (pr-str (:handler route)) (pr-str method) (pr-str path)))
+           (when-not (= (:handler route) :public/static-resource)
+             (timbre/info "ide-router:" (pr-str (:handler route)) (pr-str method) (pr-str path)))
 
-            (cond
-
-              (let [is-auth-configured (-> (R/from context) :config :auth0 :domain nil? not)
-                    is-ssr (= :ssr (unqualify (:handler route)))
-                    is-no-subject (nil? (get-in context [:request :user-id]))
-                    prevent-infinite-redirect (not (clojure.string/starts-with? path "/hyperfiddle.foundation!please-login"))]
-                (and is-ssr
-                     is-auth-configured                        ; if there is an auth0 config, require logins
-                     is-no-subject
-                     prevent-infinite-redirect))
-              (let [redirect (hf/url-decode domain (cond-> path
-                                                     (seq query-string) (str "?" query-string)))
-                    url (hf/url-encode domain `(hyperfiddle.foundation/please-login ~redirect))]
-                (-> context
-                    (assoc-in [:response :status] 302)
-                    (assoc-in [:response :headers "Location"] url)))
-
-              (= "user" (namespace (:handler route)))
-              (dispatch/endpoint
-                (update context :request #(-> (dissoc % :jwt) ; this is brittle
-                                              (assoc :domain (from-result domain)
-                                                     :handler (keyword (name (:handler route)))
-                                                     :route-params (:route-params route)))))
-
-              :else #_(nil? (namespace (:handler route)))
-              (-> context
-                  (assoc-in [:request :handler] (:handler route))
-                  (assoc-in [:request :route-params] (:route-params route))
-                  dispatch/endpoint))))
-        ))))
+           (if (and is-private
+                    is-unauthenticated
+                    prevent-infinite-redirect)
+             (-> context
+                 ;; If ssr, we want to browser to redirect to the login page ->
+                 ;; 302 If ajax, we don't want the browser to follow the
+                 ;; redirect, we want to fail with a meaningful code for the
+                 ;; http client to act on it (trigger a refresh)
+                 (assoc-in [:response :status] (if is-ssr 302 401))
+                 (assoc-in [:response :headers "Location"] url))
+             (-> context
+                 (assoc-in [:request :handler] (:handler route))
+                 (assoc-in [:request :route-params] (:route-params route))
+                 dispatch/endpoint))))))))
 
 (defmethod dispatch/endpoint :hyperfiddle.ide/auth0-redirect [context]
   (R/via context R/run-IO

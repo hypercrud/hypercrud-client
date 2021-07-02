@@ -48,7 +48,7 @@
         [method path] (-> context :request (select-keys [:request-method :path-info]) vals)
         route (domain/api-match-path domain path :request-method method)]
 
-    (when-not (= (:handler route) :static-resource)
+    (when-not (= (:handler route) :public/static-resource)
       (timbre/info "router:" (pr-str (:handler route)) (pr-str method) (pr-str path)))
 
     (-> context
@@ -69,10 +69,10 @@
 (defmethod endpoint :force-refresh [context]
   (hf-http/response context {:status 404 #_410 :body "Please refresh your browser"}))
 
-(defmethod endpoint :favicon [context]
+(defmethod endpoint :public/favicon [context]
   (hf-http/response context {:status 204}))
 
-(defmethod endpoint :static-resource [context]
+(defmethod endpoint :public/static-resource [context]
   (R/via context R/serve))
 
 (defmethod endpoint :hydrate-requests [context]

@@ -38,10 +38,10 @@
   ["/" {"api/"        {"/"                       (api-routes nil)
                        [[#"[^/]*" :version] "/"] {true :force-refresh}
                        true                      :404}
-        "static/"     {[:build "/" [#".+" :resource-name]] {:get :static-resource
+        "static/"     {[:build "/" [#".+" :resource-name]] {:get :public/static-resource
                                                             true :405}
                        true                                :404}
-        "favicon.ico" :favicon
+        "favicon.ico" :public/favicon
         "auth0"       {:get  :hyperfiddle.ide/auth0-redirect
                        #".+" :404
                        true  :405}
@@ -58,7 +58,7 @@
 ;        "api-user/"   {"/"                       (api-routes "user")
 ;                       [[#"[^/]*" :version] "/"] {true :force-refresh}
 ;                       true                      :404}
-;        "static/"     {[:build "/" [#".+" :resource-name]] {:get :static-resource
+;        "static/"     {[:build "/" [#".+" :resource-name]] {:get :public/static-resource
 ;                                                            true :405}
 ;                       true                                :404}
 ;        "favicon.ico" :favicon
@@ -70,7 +70,7 @@
 ;                     [[#"[^/]*" :version] "/"] {true :force-refresh}
 ;                     true                      :404}
 ;        ; todo this static path conflicts with the ide
-;        "static/"   {[:build "/" [#".+" :resource-name]] {:get :static-resource
+;        "static/"   {[:build "/" [#".+" :resource-name]] {:get :public/static-resource
 ;                                                          true :405}
 ;                     true                                :404}
 ;        true        {:get :ssr
