@@ -119,15 +119,23 @@
     (fn [props parse-string to-string cmp & args]
       (into [validated-cmp-impl state props parse-string to-string cmp] args))))
 
-(let [target-value (fn [e] (.. e -target -value))]          ; letfn not working #470
+(let [target-value (fn [e] (.preventDefault e) (.. e -target -value))]          ; letfn not working #470
   (defn textarea [props]
     [:textarea (update-existing props :on-change r/comp target-value)]))
 
-(let [checked (fn [e] (.. e -target -checked))]             ; letfn not working #470
-  (defn checkbox [props]
-    [:input (-> (assoc props :type "checkbox")
-                (update-existing :on-change r/comp checked)
-                (select-keys [:type :checked :on-change :disabled :read-only :class :style #_::hf/is-invalid]))]))
+(let [is-checked (fn [e] (.. e -target -checked))]             ; letfn not working #470
+  (defn checkbox [{:keys [checked] :as _props}]
+    (let [id                   (str (gensym "checkbox"))
+          optimistic-on-change (fn [checked?]
+                                 (js/setTimeout #(do (set! (.-checked (.getElementById js/document id)) checked?)
+                                                     (set! (.-disabled (.getElementById js/document id)) true)) 200)
+                                 checked?)]
+      (fn [{:keys [disabled] :as props, :or {disabled false}}]
+        (when-let [el (.getElementById js/document id)]
+          (set! (.-disabled el) disabled))
+        [:input (-> (assoc props :id id, :type "checkbox", :disabled disabled)
+                    (update-existing :on-change r/comp optimistic-on-change is-checked)
+                    (select-keys [:id :type :checked :on-change :disabled :read-only :class :style #_::hf/is-invalid]))]))))
 
 (let [target-value (fn [e] (.. e -target -value))]          ; letfn not working #470
   (defn text [props]

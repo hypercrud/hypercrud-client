@@ -305,12 +305,12 @@
               this-value (if is-ref (hf/id parent-ctx this-value) this-value)
               checked (contains? v this-value)
               control [:td {:class "hyperfiddle-table-picker-control-cell"}
-                        [:input {:checked checked
-                                 :disabled (:disabled props)
-                                 :type "checkbox"
-                                 :on-change #(((::hf/view-change! parent-ctx) parent-ctx) v (if checked
-                                                                                              (disj v this-value)
-                                                                                              (conj v this-value)))}]]]
+                       [easy-checkbox {:checked checked
+                                       :disabled (:disabled props)
+                                       :type "checkbox"
+                                       :on-change #(((::hf/view-change! parent-ctx) parent-ctx) v (if checked
+                                                                                                    (disj v this-value)
+                                                                                                    (conj v this-value)))}]]]
           (into [ui/row ctx props] (cons control args)))))))
 
 (defn add-selected
