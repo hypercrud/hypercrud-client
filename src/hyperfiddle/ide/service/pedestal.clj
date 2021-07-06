@@ -1,6 +1,7 @@
 (ns hyperfiddle.ide.service.pedestal
   (:refer-clojure :exclude [sync])
   (:require
+    [clojure.string :as str]
     [contrib.base-64-url-safe :as base64-url-safe]
     [contrib.data :refer [unqualify]]
     [contrib.do :refer :all]
@@ -45,14 +46,15 @@
       (hf-http/via
        (fn [context]
          (let [domain                     (get-in context [:request :domain])
-               [method path query-string] (-> context :request (select-keys [:request-method :path-info :query-string]) vals)
+               [method path query-string headers] (-> context :request (select-keys [:request-method :path-info :query-string :headers]) vals)
                route                      (domain/api-match-path domain path :request-method method)
                is-auth-configured         (-> (R/from context) :config :auth0 :domain nil? not)
                is-private                 (not (public? (:handler route)))
                is-ssr                     (= :ssr (unqualify (:handler route)))
                is-no-subject              (nil? (get-in context [:request :user-id]))
                is-unauthenticated         (and is-auth-configured is-no-subject)
-               prevent-infinite-redirect  (not (clojure.string/starts-with? path "/hyperfiddle.foundation!please-login"))
+               prevent-infinite-redirect  (and (not (str/starts-with? path "/hyperfiddle.foundation!please-login"))
+                                                       (not (str/includes? (get headers "referer" "") "/hyperfiddle.foundation!please-login")))
                redirect                   (hf/url-decode domain (cond-> path
                                                                   (seq query-string) (str "?" query-string)))
                url                        (hf/url-encode domain `(hyperfiddle.foundation/please-login ~redirect))]
