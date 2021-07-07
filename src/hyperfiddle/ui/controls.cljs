@@ -341,7 +341,7 @@
                              :on-change #_(r/partial on-change ctx) ((::hf/view-change! ctx) ctx))
                       (dissoc ::hf/invalid-messages ::hf/is-invalid)
                       (cond-> (::hf/is-invalid props) (update :class contrib.css/css "invalid")))]
-       [debounced props' contrib.ui/text #_contrib.ui/textarea])
+       [debounced props' (if (::hf/multiline? props) contrib.ui/textarea contrib.ui/text)])
      (render-related-links val ctx)]))
 
 (defn ^:export long [val ctx & [props]]
